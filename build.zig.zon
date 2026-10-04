@@ -1,0 +1,14 @@
+.{
+    .name = .ghostpantry,
+    .version = "0.1.0",
+    // Derived from the package name; changing it has security and trust implications.
+    .fingerprint = 0x7adb9b818f83570d,
+    .minimum_zig_version = "0.16.0",
+    .dependencies = .{
+        .oriel = .{
+            .url = "git+https://github.com/highercomve/Oriel#70ac1aceabf3149ec7c88ca7b22c4f9ad3546b7e",
+            .hash = "oriel-0.6.22-K1NO5aMyLQBKJzwXb1l-C_3cnPnn-4J04igj2fhenjGl",
+        },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "src", "frontend", "README.md" },
+}
