@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from "react";
+import { Icon } from "./Icon";
+import { captureVideo, preparePhoto } from "../lib/photos";
 
 interface CameraCaptureProps {
-  onImageSelected: (base64Image: string) => void;
+  onImageSelected: (image: string) => void;
   selectedImage: string | null;
   onClear: () => void;
   disabled?: boolean;
@@ -13,228 +15,229 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   onClear,
   disabled = false,
 }) => {
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
+  const video = useRef<HTMLVideoElement>(null);
+  const stream = useRef<MediaStream | null>(null);
+  const busy = useRef(false);
+  const mounted = useRef(true);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  // Stop camera stream on unmount
   useEffect(() => {
+    mounted.current = true;
     return () => {
-      stopCamera();
+      mounted.current = false;
+      stream.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
+  useEffect(() => {
+    if (cameraOpen && video.current && stream.current)
+      video.current.srcObject = stream.current;
+  }, [cameraOpen]);
 
-  const startCamera = async (mode: 'environment' | 'user' = facingMode) => {
+  const closeCamera = () => {
+    stream.current?.getTracks().forEach((track) => track.stop());
+    stream.current = null;
+    setCameraOpen(false);
+  };
+  const selectFile = async (file?: File) => {
+    if (!file || disabled || busy.current) return;
+    busy.current = true;
+    setProcessing(true);
+    setError(null);
     try {
-      setCameraError(null);
-      stopCamera();
-
-      // Check if mediaDevices supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraError('Camera API is not supported in this environment. Please use file upload.');
-        return;
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: mode,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      });
-
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-      setIsCameraActive(true);
-    } catch (err: any) {
-      console.warn('Could not start camera:', err);
-      // Fallback: try without facingMode constraints
-      try {
-        const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        streamRef.current = fallbackStream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = fallbackStream;
-          videoRef.current.play();
-        }
-        setIsCameraActive(true);
-      } catch (fallbackErr: any) {
-        setCameraError('Camera access denied or unavailable. Please upload a photo instead.');
-      }
+      const image = await preparePhoto(file);
+      if (mounted.current) onImageSelected(image);
+    } catch (err) {
+      if (mounted.current)
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not open this photo. Please try another.",
+        );
+    } finally {
+      busy.current = false;
+      if (mounted.current) setProcessing(false);
     }
   };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setIsCameraActive(false);
+  const handleInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    void selectFile(file);
   };
-
-  const toggleCameraFacing = () => {
-    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
-    setFacingMode(nextMode);
-    startCamera(nextMode);
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-    stopCamera();
-    onImageSelected(dataUrl);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    processFile(file);
-  };
-
-  const processFile = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file (JPEG, PNG, WebP).');
+  const openCamera = async () => {
+    setError(null);
+    if (
+      /Android|iPhone|iPad/i.test(navigator.userAgent) ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      cameraInput.current?.click();
       return;
     }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        stopCamera();
-        onImageSelected(result);
+    busy.current = true;
+    setProcessing(true);
+    try {
+      const media = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      if (!mounted.current) {
+        media.getTracks().forEach((track) => track.stop());
+        return;
       }
-    };
-    reader.readAsDataURL(file);
+      stream.current = media;
+      setCameraOpen(true);
+    } catch {
+      setError(
+        "Camera unavailable or permission denied. You can still choose a photo below.",
+      );
+    } finally {
+      busy.current = false;
+      if (mounted.current) setProcessing(false);
+    }
   };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (disabled) return;
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      processFile(file);
+  const takePhoto = () => {
+    try {
+      if (!video.current) return;
+      onImageSelected(captureVideo(video.current));
+      closeCamera();
+    } catch {
+      setError("The camera is still starting. Wait a moment and try again.");
     }
   };
 
   return (
-    <div className="camera-capture-container">
-      {/* Hidden file input for native camera / file picker */}
+    <div className="camera-capture-box">
       <input
+        aria-label="Take a photo"
         type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
+        ref={cameraInput}
+        onChange={handleInput}
         accept="image/*"
         capture="environment"
-        style={{ display: 'none' }}
-        disabled={disabled}
+        hidden
+        disabled={disabled || processing}
       />
-
-      {selectedImage ? (
-        <div className="preview-card">
-          <img src={selectedImage} alt="Captured food inventory" className="captured-preview-img" />
-          <div className="preview-overlay-actions">
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={onClear}
-              disabled={disabled}
-            >
-              🔄 Retake / Change Photo
+      <input
+        aria-label="Choose a photo"
+        type="file"
+        ref={galleryInput}
+        onChange={handleInput}
+        accept="image/*"
+        hidden
+        disabled={disabled || processing}
+      />
+      {error && (
+        <div className="alert alert-error" role="alert">
+          {error}
+        </div>
+      )}
+      {processing ? (
+        <div className="processing-photo-card" role="status">
+          <span className="spinner" />
+          <h3>Preparing your photo…</h3>
+          <p className="text-muted">Making it ready for a closer look.</p>
+        </div>
+      ) : cameraOpen ? (
+        <div className="preview-container">
+          <video
+            ref={video}
+            autoPlay
+            playsInline
+            muted
+            className="preview-image"
+          />
+          <div className="preview-retake-bar">
+            <button className="btn" onClick={closeCamera}>
+              Cancel
+            </button>
+            <button className="btn primary" onClick={takePhoto}>
+              <Icon name="camera" /> Take photo
             </button>
           </div>
         </div>
-      ) : isCameraActive ? (
-        <div className="video-live-card">
-          <video ref={videoRef} autoPlay playsInline muted className="live-video-element" />
-          <div className="camera-controls-bar">
+      ) : selectedImage ? (
+        <div className="preview-container">
+          <div className="preview-frame">
+            <img
+              src={selectedImage}
+              alt="Your selected shelf photo"
+              className="preview-image"
+              onError={() => {
+                setError(
+                  "The photo preview could not load. Choose another photo.",
+                );
+                onClear();
+              }}
+            />
+          </div>
+          <div className="preview-retake-bar">
+            <span className="photo-ready">
+              <Icon name="check" size={16} /> Photo ready
+            </span>
             <button
-              type="button"
-              className="btn btn-icon"
-              onClick={toggleCameraFacing}
-              title="Switch camera"
+              className="btn btn-sm"
+              onClick={onClear}
               disabled={disabled}
             >
-              🔄 Flip
-            </button>
-            <button
-              type="button"
-              className="btn btn-capture"
-              onClick={capturePhoto}
-              disabled={disabled}
-            >
-              📸 Take Picture
-            </button>
-            <button
-              type="button"
-              className="btn btn-icon"
-              onClick={stopCamera}
-              title="Close camera"
-              disabled={disabled}
-            >
-              ✖ Close
+              Change photo
             </button>
           </div>
         </div>
       ) : (
         <div
-          className={`dropzone-card ${isDragOver ? 'drag-over' : ''}`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragOver(true);
+          className={`capture-action-card ${dragging ? "dragging" : ""}`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            if (!disabled) setDragging(true);
           }}
-          onDragLeave={() => setIsDragOver(false)}
-          onDrop={handleDrop}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            void selectFile(event.dataTransfer.files[0]);
+          }}
         >
-          <div className="dropzone-icon">📷</div>
-          <h3>Take or Upload a Photo</h3>
+          <div className="capture-illustration" aria-hidden="true">
+            <div className="shelf-line">
+              <span className="jar tall" />
+              <span className="jar" />
+              <span className="bottle" />
+            </div>
+            <div className="frame-corner tl" />
+            <div className="frame-corner tr" />
+            <div className="frame-corner bl" />
+            <div className="frame-corner br" />
+          </div>
+          <span className="eyebrow">A LITTLE SNAP. A CLEARER PANTRY.</span>
+          <h3>What’s on your shelf?</h3>
           <p className="text-muted">
-            Snap a picture of your fridge, pantry shelf, or food cabinets to recognize items and levels.
+            Take a photo or bring one from your gallery.
+            <br />
+            We’ll help you see what you have.
           </p>
-
-          {cameraError && <div className="error-badge">{cameraError}</div>}
-
-          <div className="dropzone-buttons">
+          <div className="capture-cta-buttons">
             <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => startCamera()}
+              className="btn primary btn-lg"
+              onClick={openCamera}
               disabled={disabled}
             >
-              📸 Open Camera
+              <Icon name="camera" /> Take a photo
             </button>
-
             <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => fileInputRef.current?.click()}
+              className="btn btn-lg"
+              onClick={() => galleryInput.current?.click()}
               disabled={disabled}
             >
-              📁 Choose Photo / File
+              <Icon name="upload" /> Choose a photo
             </button>
           </div>
-          <small className="drag-hint">or drag and drop a picture here</small>
+          <span className="capture-hint">
+            Or drop a photo here · JPEG, PNG, WebP · up to 40 MB
+          </span>
         </div>
       )}
     </div>

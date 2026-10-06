@@ -1,4 +1,8 @@
-# 👻🥫 GhostPantry
+<p align="center">
+  <img src="frontend/public/brand/ghostpantry-logo.svg" alt="GhostPantry — A little less waste" width="420">
+</p>
+
+# GhostPantry
 
 AI-powered home food inventory manager built with **[Oriel](https://github.com/highercomve/Oriel)** (Zig + SQLite + Webview) and **React + TypeScript**.
 
@@ -43,8 +47,8 @@ GhostPantry lets you snap pictures of your refrigerator and food pantry to autom
 ### 1. Requirements
 
 - **Zig 0.16.0**
-- **Node.js 18+** & **npm**
-- **Oriel CLI**: `oriel` (at `~/.local/bin/oriel`)
+- **Node.js 24** & **npm**
+- **Oriel CLI**: `oriel` (optional for the convenience commands below; CI uses `zig build` directly)
 - *(Optional for local vision)*: [Ollama](https://ollama.ai) with `llama3.2-vision` or `qwen2.5-vl`
 
 ### 2. Development Mode
@@ -52,7 +56,7 @@ GhostPantry lets you snap pictures of your refrigerator and food pantry to autom
 Start the Vite development server with hot-reloading:
 
 ```bash
-cd /home/projects/ghostpantry
+cd ghostpantry
 oriel dev
 ```
 
@@ -86,19 +90,33 @@ oriel android build --apk
 
 Open the **Settings** tab in GhostPantry to select your AI Vision provider:
 
-### Option A: OpenAI (Pay-per-token API)
+### Option A: Android system AI (Gemini Nano)
+Select **System AI** in Settings. GhostPantry asks Android’s ML Kit Prompt API whether the shared system model is **ready**, **downloadable**, **downloading**, or **unavailable**. The result comes from the phone, without a hardcoded device list. Use **Download system model** when offered, or **Choose a local model** if unavailable. Scans use image and text input, run on-device, and still require reviewing the detected items before saving. This integration uses Google’s beta API and needs validation on a supported physical phone.
+
+A failed support check is shown separately from an unavailable model and can be retried. The app never silently sends a system-AI photo to a cloud provider. See [Google’s setup and capability API](https://developers.google.com/ml-kit/genai/prompt/android/get-started).
+
+### Option B: On this device (downloaded models, offline)
+Download a vision model once from the model catalog (Qwen3.5 0.8B/2B, Qwen2.5-VL 3B, Gemma 3/4 — smallest first; phones are offered the small ones), and scans then run entirely on the device with llama.cpp: no server, no API key, works offline. The model stays loaded between scans and is freed again when Android reports memory pressure.
+
+The smallest fallback, **Qwen3.5 0.8B Q4_K_M**, uses about **703 MiB** of downloads including its vision projector; runtime memory is higher. Its source revision and SHA-256 hashes are pinned. Treat it as a candidate for simple shelves; phone speed and pantry accuracy have not yet been measured.
+
+**Fast** scan detail limits dynamic-resolution image processing to 512 tokens where the model supports it and limits output to 1024 tokens. **Detailed** keeps the model’s default image detail and a 2048-token output budget. Fast can miss small labels or crowded items. Scan review shows total, model load, photo processing, and answer generation times; compare both modes on the same shelf photo after the model is warm. CPU and vision encoding use up to four threads on phones. Switching processor or scan detail rebuilds the loaded model context so the setting takes effect.
+
+Projectors have unique local filenames per model. Existing models that shared `mmproj-F16.gguf` may need their vision component downloaded again; the language-model weights are retained.
+
+### Option C: OpenAI (Pay-per-token API)
 - **Base URL**: `https://api.openai.com/v1`
 - **Model**: `gpt-4o-mini` or `gpt-4o`
 - **API Key**: `sk-...`
 
-### Option B: ChatGPT Plan Token Allowance (New OpenAI Feature)
+### Option D: ChatGPT Plan Token Allowance (New OpenAI Feature)
 If you subscribe to ChatGPT Plus or Pro, you can use your plan's token allowance in third-party apps:
 - See OpenAI's guide: [Using your ChatGPT plan in other apps and sites](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)
 - **Base URL**: `https://api.openai.com/v1`
 - **Model**: `gpt-4o-mini`
 - **API Key / Personal Token**: Paste your generated ChatGPT app token.
 
-### Option C: Small Local Vision Model (Free & Offline)
+### Option E: Local server vision Model (Free & Offline)
 Run an open multimodal vision model locally via Ollama:
 ```bash
 ollama run llama3.2-vision
@@ -142,6 +160,51 @@ ghostpantry/
 
 ---
 
+## Brand assets
+
+The logo is used in the app header, browser favicon, home-screen icon, and native app icons. Editable vector sources live in [`frontend/public/brand/`](frontend/public/brand/):
+
+- [Horizontal logo](frontend/public/brand/ghostpantry-logo.svg)
+- [Transparent mark](frontend/public/brand/ghostpantry-mark.svg)
+- [App icon](frontend/public/brand/ghostpantry-app-icon.svg)
+
+`icon.png` supplies the native app icon through Oriel’s build configuration. Android launcher assets are also included in `android/app/src/main/res/`.
+
+## CI and releases
+
+[Build and release](https://github.com/highercomve/ghostpantry/actions/workflows/release.yml) follows HollerShare’s platform layout: frontend and framework regression checks, then Linux x86_64, macOS arm64, Windows x86_64, and Android arm64/x86_64 builds. Pushes to `main` and pull requests upload packages and SHA-256 checksums as workflow artifacts. A `v*` tag builds all platforms and creates a draft GitHub release. Manual runs can select one platform.
+
+A fresh clone includes the Oriel snapshot and generated TypeScript bindings; no sibling repository or private dependency is required. Regenerate bindings with `zig build types` when changing command signatures. Build locally without the Oriel CLI:
+
+```bash
+npm ci --prefix frontend
+zig build -Doptimize=ReleaseSafe
+# Linux packages need nfpm, squashfs-tools and the desktop development libraries:
+zig build package -Doptimize=ReleaseSafe
+# Android needs JDK 21 and the Android SDK:
+zig build -Dtarget=aarch64-linux-android -Doptimize=ReleaseSafe
+cd android
+./gradlew :app:assembleDebug
+```
+
+Android artifacts include an installable debug APK, release APK, and AAB. Release packages are unsigned unless a manual run enables `sign_android` and this repository has `ORIEL_ANDROID_KEYSTORE_BASE64`, `ORIEL_ANDROID_KEYSTORE_PASSWORD`, `ORIEL_ANDROID_KEY_ALIAS`, and `ORIEL_ANDROID_KEY_PASSWORD` secrets. Secrets in HollerShare do not transfer to a new repository. macOS builds use ad-hoc signing; Windows packages are unsigned. Production desktop signing and Android upload credentials must be configured before distributing a production release. GhostPantry currently has no automatic updater.
+
 ## 📄 License
 
 MIT
+
+## Android photo extension development
+
+This checkout includes a reproducible Oriel source snapshot in `vendor/oriel`
+while the generic Android extension API is being developed. GhostPantry registers
+`dev.ghostpantry.PantryAndroidExtension` through `.android.extensions` in
+`build.zig`; its sources live in `android/native/`. Oriel copies those sources
+and regenerates the registration on each Android build. Photo capture and
+content-URI access are app behavior, with no edits or patches to Oriel's
+generated runtime. The app's private photo provider is declared outside the
+manifest's generated regions.
+
+See [the framework extension contract](vendor/oriel/docs/android-extensions.md)
+and [snapshot notes](vendor/README.md).
+After that framework change is published, replace the local dependency path
+with the released Oriel URL and hash using `zig fetch --save=oriel`.

@@ -1,0 +1,2 @@
+# Preserve upstream source formatting in the temporary framework snapshot.
+vendor/** -whitespace

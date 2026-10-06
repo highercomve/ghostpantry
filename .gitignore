@@ -7,3 +7,14 @@ frontend/dist/
 android/.gradle/
 android/build/
 android/app/build/
+
+dist/
+.oriel-cli/
+*.apk
+*.aab
+*.keystore
+*.jks
+.env
+.env.*
+
+__pycache__/

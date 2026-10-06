@@ -265,6 +265,10 @@ pub const Db = struct {
     }
 
     /// Seed sample data if database is empty so the user can immediately see how it works!
+    pub fn clearAllItems(self: Db) !void {
+        _ = try self.db.exec("DELETE FROM inventory_items; DELETE FROM scan_logs;");
+    }
+
     pub fn seedSampleDataIfEmpty(self: Db) !void {
         const count = try self.db.scalarInt("SELECT count(*) FROM inventory_items");
         if (count == 0) {

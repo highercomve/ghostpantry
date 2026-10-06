@@ -1,0 +1,224 @@
+name: Build and release
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Build one platform or all
+        type: choice
+        options: [all, linux, macos, windows, android]
+        default: all
+      sign_android:
+        description: Sign Android release packages using this repository's keystore secrets
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.ref }}-${{ inputs.platform || 'all' }}
+  cancel-in-progress: true
+env:
+  ZIG_VERSION: '0.16.0'
+  NODE_VERSION: '24'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - run: npm run build --prefix frontend
+      - name: Framework regeneration regression tests
+        working-directory: vendor/oriel
+        run: |
+          zig test build/android_manifest.zig
+          zig test --dep android_manifest -Mroot=tools/package/android.zig -Mandroid_manifest=build/android_manifest.zig
+      - name: Release helper tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+  linux:
+    needs: validate
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux'
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    timeout-minutes: 60
+    steps:
+      - name: System dependencies
+        run: pacman -Syu --noconfirm --needed git openssh ca-certificates curl pkgconf gtk4 webkitgtk-6.0 wayland wayland-protocols libxkbcommon libxtst libx11 dbus ttf-dejavu python nodejs npm base-devel go squashfs-tools imagemagick
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - run: npm ci --prefix frontend
+      - name: Package tools
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.43.0
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+      - name: Desktop packages
+        run: |
+          VERSION=0.1.0
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          zig build package -Doptimize=ReleaseSafe -Dcpu=baseline -Dapp_version="$VERSION" -j2
+      - run: python scripts/collect-release.py linux-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: dist/
+          if-no-files-found: error
+  macos:
+    needs: validate
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - name: Desktop packages
+        run: |
+          VERSION=0.1.0
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          zig build package -Doptimize=ReleaseSafe -Dapp_version="$VERSION" -j3
+      - run: python3 scripts/collect-release.py macos-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: dist/
+          if-no-files-found: error
+  windows:
+    needs: validate
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Package tools
+        run: |
+          choco install nsis --no-progress -y
+          Add-Content $env:GITHUB_PATH 'C:\Program Files (x86)\NSIS'
+          python scripts/download-webview2.py
+      - run: npm ci --prefix frontend
+      - name: Desktop packages
+        run: |
+          $version = '0.1.0'
+          if ($env:GITHUB_REF.StartsWith('refs/tags/v')) { $version = $env:GITHUB_REF_NAME.Substring(1) }
+          $loader = (Resolve-Path .zig-cache/webview2/WebView2Loader.dll).Path
+          zig build package -Doptimize=ReleaseSafe -Dtarget=x86_64-windows-gnu "-Dwebview2-loader=$loader" "-Dapp_version=$version" -j2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: python scripts/collect-release.py windows-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: dist/
+          if-no-files-found: error
+  android:
+    needs: validate
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'android'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libwayland-dev wayland-protocols
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - run: npm ci --prefix frontend
+      - name: Native libraries and regenerated Android extensions
+        run: |
+          VERSION=0.1.0
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          for TARGET in aarch64-linux-android x86_64-linux-android; do
+            zig build -Dtarget="$TARGET" -Doptimize=ReleaseSafe -Dapp_version="$VERSION" -j2
+          done
+      - name: APK and AAB
+        env:
+          KEYSTORE: ${{ secrets.ORIEL_ANDROID_KEYSTORE_BASE64 }}
+          ORIEL_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ORIEL_ANDROID_KEYSTORE_PASSWORD }}
+          ORIEL_ANDROID_KEY_ALIAS: ${{ secrets.ORIEL_ANDROID_KEY_ALIAS }}
+          ORIEL_ANDROID_KEY_PASSWORD: ${{ secrets.ORIEL_ANDROID_KEY_PASSWORD }}
+          SIGN_ANDROID: ${{ inputs.sign_android || false }}
+        run: |
+          if [ "$SIGN_ANDROID" = true ]; then
+            test -n "$KEYSTORE" && test -n "$ORIEL_ANDROID_KEYSTORE_PASSWORD" && test -n "$ORIEL_ANDROID_KEY_ALIAS" && test -n "$ORIEL_ANDROID_KEY_PASSWORD"
+            umask 077
+            export ORIEL_ANDROID_KEYSTORE="$RUNNER_TEMP/ghostpantry.keystore"
+            trap 'rm -f "$ORIEL_ANDROID_KEYSTORE"' EXIT
+            printf '%s' "$KEYSTORE" | base64 --decode > "$ORIEL_ANDROID_KEYSTORE"
+          fi
+          cd android
+          ./gradlew --no-daemon :app:assembleDebug :app:assembleRelease :app:bundleRelease
+          if [ "$SIGN_ANDROID" = true ]; then
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify app/build/outputs/apk/release/app-release.apk
+          fi
+      - run: python3 scripts/collect-release.py android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/
+          if-no-files-found: error
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, macos, windows, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create draft release with packages and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/* --verify-tag --draft --generate-notes --title "GhostPantry ${RELEASE_TAG#v}"
+          fi

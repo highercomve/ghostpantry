@@ -3,8 +3,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- oriel:permissions begin -->
     <uses-permission android:name="android.permission.CAMERA" />
-
+    <!-- oriel:permissions end -->
+    <!-- oriel:features begin -->
+    <!-- oriel:features end -->
+    <!-- oriel:queries begin -->
     <!-- oriel.dictation's system engine: Android 11+ only lets apps see the
          speech recognition services they declare. -->
     <queries>
@@ -12,6 +16,7 @@
             <action android:name="android.speech.RecognitionService" />
         </intent>
     </queries>
+    <!-- oriel:queries end -->
 
     <application
         android:label="@string/app_name"
@@ -43,6 +48,8 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- oriel:main-activity begin -->
+            <!-- oriel:main-activity end -->
         </activity>
 
         <activity
@@ -62,5 +69,12 @@
             android:authorities="${applicationId}.oriel.files"
             android:exported="false"
             android:grantUriPermissions="true" />
+        <provider
+            android:name="dev.ghostpantry.PantryCameraProvider"
+            android:authorities="${applicationId}.pantry.camera"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+        <!-- oriel:components begin -->
+        <!-- oriel:components end -->
     </application>
 </manifest>

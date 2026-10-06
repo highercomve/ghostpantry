@@ -1,49 +1,78 @@
-import React, { useState } from 'react';
-import { CameraCapture } from './CameraCapture';
-import { invoke } from '../oriel';
-import { InventoryItem, VisionDetectedItem } from '../types';
+import React, { useState } from "react";
+import { CameraCapture } from "./CameraCapture";
+import { invoke } from "../oriel";
+import { InventoryItem, VisionDetectedItem, VisionResult } from "../types";
 
 interface ScanViewProps {
   onScanSuccess: () => void;
   defaultLocation?: string;
 }
 
-export const ScanView: React.FC<ScanViewProps> = ({ onScanSuccess, defaultLocation = 'fridge' }) => {
+export const ScanView: React.FC<ScanViewProps> = ({
+  onScanSuccess,
+  defaultLocation = "fridge",
+}) => {
   const [location, setLocation] = useState<string>(defaultLocation);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   // Results to review before persisting to SQLite
-  const [detectedItems, setDetectedItems] = useState<(VisionDetectedItem & { selected: boolean; desired: number })[]>([]);
-  const [scanSummary, setScanSummary] = useState<string>('');
+  const [detectedItems, setDetectedItems] = useState<
+    (VisionDetectedItem & { selected: boolean; desired: number })[]
+  >([]);
+  const [scanSummary, setScanSummary] = useState<string>("");
+  const [scanTiming, setScanTiming] = useState<VisionResult["timing"]>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
   const handleStartAnalysis = async () => {
     if (!selectedImage) return;
 
+    setScanTiming(null);
     setIsAnalyzing(true);
     setAnalysisError(null);
     setSaveSuccessMsg(null);
 
     try {
-      const res = await invoke('analyze_image', {
-        location: location === 'fridge' ? 'Refrigerator' : 'Food Pantry',
+      const res = await invoke("analyze_image", {
+        location:
+          location === "fridge"
+            ? "Refrigerator"
+            : location === "freezer"
+              ? "Freezer"
+              : "Food Pantry",
         image: selectedImage,
       });
 
+      setScanTiming(
+        res.timing
+          ? {
+              total_ms: res.timing.total_ms,
+              load_ms: res.timing.load_ms ?? 0,
+              vision_ms: res.timing.vision_ms ?? 0,
+              generation_ms: res.timing.generation_ms ?? 0,
+              input_tokens: res.timing.input_tokens ?? 0,
+              output_tokens: res.timing.output_tokens ?? 0,
+            }
+          : null,
+      );
+      setHasAnalyzed(true);
       setScanSummary(res.summary || `Found ${res.items.length} items`);
       setDetectedItems(
         res.items.map((it) => ({
           ...it,
           selected: true,
           desired: it.quantity && it.quantity > 1 ? it.quantity : 1,
-        }))
+        })),
       );
     } catch (err: any) {
-      console.error('Vision analysis error:', err);
-      const msg = typeof err === 'string' ? err : err?.message || 'Failed to analyze image with AI.';
+      console.error("Vision analysis error:", err);
+      const msg =
+        typeof err === "string"
+          ? err
+          : err?.message || "Failed to analyze image with AI.";
       setAnalysisError(msg);
     } finally {
       setIsAnalyzing(false);
@@ -53,7 +82,7 @@ export const ScanView: React.FC<ScanViewProps> = ({ onScanSuccess, defaultLocati
   const handleApplyResults = async () => {
     const selected = detectedItems.filter((it) => it.selected);
     if (selected.length === 0) {
-      alert('Please select at least one item to save.');
+      alert("Please select at least one item to save.");
       return;
     }
 
@@ -61,29 +90,38 @@ export const ScanView: React.FC<ScanViewProps> = ({ onScanSuccess, defaultLocati
     try {
       const itemsToSave: InventoryItem[] = selected.map((it) => ({
         name: it.name,
-        category: it.category || location,
-        location: location === 'fridge' ? 'Fridge' : 'Pantry',
-        quantity: it.quantity || 1.0,
+        category: location,
+        location:
+          location === "fridge"
+            ? "Fridge"
+            : location === "freezer"
+              ? "Freezer"
+              : "Pantry",
+        quantity: it.quantity ?? 1.0,
         fill_percentage: it.fill_percentage ?? 100.0,
-        unit: it.unit || 'unit',
+        unit: it.unit || "unit",
         desired_quantity: it.desired || 1.0,
-        notes: it.notes || (it.fill_percentage && it.fill_percentage <= 50 ? 'Usage recognized from photo' : ''),
+        notes:
+          it.notes ||
+          (it.fill_percentage && it.fill_percentage <= 50
+            ? "Usage recognized from photo"
+            : ""),
       }));
 
-      await invoke('apply_scan_results', {
+      await invoke("apply_scan_results", {
         location,
         summary: scanSummary || `Added ${itemsToSave.length} items from photo`,
         items: itemsToSave as any,
       });
 
-      setSaveSuccessMsg(`Successfully saved ${itemsToSave.length} items into SQLite inventory!`);
+      setSaveSuccessMsg(`Added ${itemsToSave.length} items to your pantry.`);
       // Reset scan view
       setDetectedItems([]);
       setSelectedImage(null);
       onScanSuccess();
     } catch (err: any) {
-      console.error('Failed to save scan results:', err);
-      alert('Error saving items: ' + (err?.message || err));
+      console.error("Failed to save scan results:", err);
+      alert("Error saving items: " + (err?.message || err));
     } finally {
       setIsSaving(false);
     }
@@ -97,245 +135,270 @@ export const ScanView: React.FC<ScanViewProps> = ({ onScanSuccess, defaultLocati
     });
   };
 
+  const removeItem = (index: number) => {
+    setDetectedItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
   return (
-    <div className="scan-view-page">
+    <div className="view-container">
+      {/* Header & Target Area Segmented Control */}
       <div className="view-header">
         <div>
-          <h2>AI Inventory Scanner</h2>
+          <span className="eyebrow">FROM A PHOTO TO YOUR PANTRY</span>
+          <h2>
+            Meet your shelf<span>.</span>
+          </h2>
           <p className="text-muted">
-            Snap photos of your fridge shelves or food pantry to automatically detect items and remaining usage levels.
+            A clear photo is all it takes. Review what we find before adding it.
           </p>
         </div>
+      </div>
 
-        <div className="location-selector">
-          <label>Target Area:</label>
-          <div className="segmented-control">
-            <button
-              type="button"
-              className={location === 'fridge' ? 'active' : ''}
-              onClick={() => setLocation('fridge')}
-              disabled={isAnalyzing}
-            >
-              ❄️ Fridge
-            </button>
-            <button
-              type="button"
-              className={location === 'pantry' ? 'active' : ''}
-              onClick={() => setLocation('pantry')}
-              disabled={isAnalyzing}
-            >
-              🥫 Pantry
-            </button>
-            <button
-              type="button"
-              className={location === 'freezer' ? 'active' : ''}
-              onClick={() => setLocation('freezer')}
-              disabled={isAnalyzing}
-            >
-              🧊 Freezer
-            </button>
-          </div>
+      <ol className="scan-steps" aria-label="Scan progress">
+        <li className={!selectedImage ? "current" : "complete"}>
+          <span>01</span> Add a photo
+        </li>
+        <li
+          className={
+            selectedImage && !hasAnalyzed
+              ? "current"
+              : hasAnalyzed
+                ? "complete"
+                : ""
+          }
+        >
+          <span>02</span> Discover & review
+        </li>
+        <li>
+          <span>03</span> Save to pantry
+        </li>
+      </ol>
+      <div className="target-area-card">
+        <span className="target-label">Where are we looking?</span>
+        <div className="seg">
+          <button
+            type="button"
+            className={`seg-btn ${location === "fridge" ? "active" : ""}`}
+            onClick={() => setLocation("fridge")}
+            disabled={isAnalyzing || isSaving}
+          >
+            Fridge
+          </button>
+          <button
+            type="button"
+            className={`seg-btn ${location === "pantry" ? "active" : ""}`}
+            onClick={() => setLocation("pantry")}
+            disabled={isAnalyzing || isSaving}
+          >
+            Pantry
+          </button>
+          <button
+            type="button"
+            className={`seg-btn ${location === "freezer" ? "active" : ""}`}
+            onClick={() => setLocation("freezer")}
+            disabled={isAnalyzing || isSaving}
+          >
+            Freezer
+          </button>
         </div>
       </div>
 
       {saveSuccessMsg && (
-        <div className="alert alert-success">
-          <span>✓ {saveSuccessMsg}</span>
-          <button className="btn-close" onClick={() => setSaveSuccessMsg(null)}>✕</button>
-        </div>
+        <div className="alert alert-success">✓ {saveSuccessMsg}</div>
       )}
 
       {analysisError && (
-        <div className="alert alert-error">
+        <div className="alert alert-danger">
           <div className="alert-content">
-            <strong>AI Vision Failed</strong>
+            <strong>⚠️ Vision Analysis Failed</strong>
             <p>{analysisError}</p>
-            <small>Tip: Verify your API key or model in the <strong>Settings</strong> tab.</small>
           </div>
-          <button className="btn-close" onClick={() => setAnalysisError(null)}>✕</button>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => setAnalysisError(null)}
+          >
+            ✕
+          </button>
         </div>
       )}
 
-      {detectedItems.length === 0 ? (
-        <div className="scan-card">
-          <CameraCapture
-            onImageSelected={(img) => setSelectedImage(img)}
-            selectedImage={selectedImage}
-            onClear={() => {
-              setSelectedImage(null);
-              setAnalysisError(null);
-            }}
-            disabled={isAnalyzing}
-          />
+      {/* Camera Capture Card */}
+      <div className="scan-card">
+        <CameraCapture
+          selectedImage={selectedImage}
+          onImageSelected={(img) => {
+            setHasAnalyzed(false);
+            setSelectedImage(img);
+            setDetectedItems([]);
+            setAnalysisError(null);
+          }}
+          onClear={() => {
+            setHasAnalyzed(false);
+            setSelectedImage(null);
+            setDetectedItems([]);
+            setAnalysisError(null);
+          }}
+          disabled={isAnalyzing || isSaving}
+        />
 
-          {selectedImage && (
-            <div className="scan-actions-bar">
-              <button
-                type="button"
-                className="btn btn-primary btn-lg"
-                onClick={handleStartAnalysis}
-                disabled={isAnalyzing}
-              >
-                {isAnalyzing ? (
-                  <>
-                    <span className="spinner"></span>
-                    Analyzing with AI Vision...
-                  </>
-                ) : (
-                  <>✨ Detect Items & Usage in {location === 'fridge' ? 'Fridge' : 'Pantry'}</>
-                )}
-              </button>
-            </div>
-          )}
+        {/* Immediate CTA directly below image preview */}
+        {selectedImage && detectedItems.length === 0 && (
+          <div className="scan-cta-block">
+            <button
+              type="button"
+              className="btn primary btn-lg w-full"
+              onClick={handleStartAnalysis}
+              disabled={isAnalyzing || isSaving}
+            >
+              {isAnalyzing ? (
+                <>
+                  <span className="spinner-sm"></span>
+                  Analyzing shelf with AI...
+                </>
+              ) : (
+                "Find items in this photo"
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {hasAnalyzed && detectedItems.length === 0 && (
+        <div className="alert alert-info" role="status">
+          {scanSummary ||
+            "No food items found. Try a closer, well-lit photo of your shelf."}
         </div>
-      ) : (
-        <div className="review-results-card">
-          <div className="review-header">
+      )}
+      <div className="scan-tip">
+        <span className="eyebrow">A GOOD PHOTO MAKES A DIFFERENCE</span>
+        <p>
+          Keep labels facing forward, use natural light, and capture one shelf
+          at a time.
+        </p>
+      </div>
+      {/* Review Results */}
+      {detectedItems.length > 0 && (
+        <div className="review-card">
+          <div className="review-card-head">
             <div>
-              <h3>AI Detection Results</h3>
-              <p className="text-muted">{scanSummary} — Review and confirm items before saving to SQLite:</p>
+              <h3>Detected Items ({detectedItems.length})</h3>
+              <p className="text-muted small">{scanSummary}</p>
+              {scanTiming && (
+                <p className="text-muted small">
+                  Scan: {(scanTiming.total_ms / 1000).toFixed(1)} s
+                  {scanTiming.input_tokens > 0 && (
+                    <>
+                      {" "}
+                      · load {(scanTiming.load_ms / 1000).toFixed(1)} s · photo{" "}
+                      {(scanTiming.vision_ms / 1000).toFixed(1)} s · answer{" "}
+                      {(scanTiming.generation_ms / 1000).toFixed(1)} s ·{" "}
+                      {scanTiming.output_tokens} tokens
+                    </>
+                  )}
+                </p>
+              )}
             </div>
-            <div className="review-actions">
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setDetectedItems([])}
-                disabled={isSaving}
-              >
-                Cancel / New Scan
-              </button>
-              <button
-                type="button"
-                className="btn btn-success"
-                onClick={handleApplyResults}
-                disabled={isSaving || detectedItems.filter((i) => i.selected).length === 0}
-              >
-                {isSaving ? 'Saving...' : `💾 Save ${detectedItems.filter((i) => i.selected).length} Items to Inventory`}
-              </button>
-            </div>
+            <span className="badge badge-primary">Review & Save</span>
           </div>
 
-          <div className="detected-items-table-wrapper">
-            <table className="detected-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '40px' }}>
+          <div className="detected-items-list">
+            {detectedItems.map((item, index) => {
+              const fill = item.fill_percentage ?? 100;
+
+              return (
+                <div key={index} className="detected-item-row">
+                  <div className="item-row-main">
                     <input
                       type="checkbox"
-                      checked={detectedItems.every((i) => i.selected)}
+                      checked={item.selected}
                       onChange={(e) =>
-                        setDetectedItems((prev) =>
-                          prev.map((i) => ({ ...i, selected: e.target.checked }))
-                        )
+                        updateItemField(index, "selected", e.target.checked)
                       }
+                      className="item-check"
                     />
-                  </th>
-                  <th>Item Name</th>
-                  <th>Category</th>
-                  <th>Quantity & Unit</th>
-                  <th>Remaining Fill / Usage</th>
-                  <th>Target Desired</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detectedItems.map((item, idx) => (
-                  <tr key={idx} className={item.selected ? '' : 'row-deselected'}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={item.selected}
-                        onChange={(e) => updateItemField(idx, 'selected', e.target.checked)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        className="input-inline"
-                        value={item.name}
-                        onChange={(e) => updateItemField(idx, 'name', e.target.value)}
-                        placeholder="Item name"
-                      />
-                    </td>
-                    <td>
-                      <select
-                        className="select-inline"
-                        value={item.category || location}
-                        onChange={(e) => updateItemField(idx, 'category', e.target.value)}
-                      >
-                        <option value="pantry">🥫 Pantry</option>
-                        <option value="fridge">❄️ Fridge</option>
-                        <option value="freezer">🧊 Freezer</option>
-                      </select>
-                    </td>
-                    <td>
-                      <div className="qty-unit-cell">
-                        <input
-                          type="number"
-                          className="input-inline input-number"
-                          step="0.5"
-                          min="0.5"
-                          value={item.quantity ?? 1}
-                          onChange={(e) => updateItemField(idx, 'quantity', parseFloat(e.target.value) || 1)}
-                        />
+
+                    <div className="item-inputs-grid">
+                      <div className="field-group">
+                        <label>Item Name</label>
                         <input
                           type="text"
-                          className="input-inline input-unit"
-                          value={item.unit || 'unit'}
-                          onChange={(e) => updateItemField(idx, 'unit', e.target.value)}
-                          placeholder="unit"
+                          value={item.name}
+                          onChange={(e) =>
+                            updateItemField(index, "name", e.target.value)
+                          }
+                          placeholder="e.g. Milk, Pasta"
                         />
                       </div>
-                    </td>
-                    <td>
-                      <div className="fill-slider-cell">
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          value={item.fill_percentage ?? 100}
-                          onChange={(e) => updateItemField(idx, 'fill_percentage', parseInt(e.target.value, 10))}
-                        />
-                        <span className={`fill-badge ${getFillColorClass(item.fill_percentage ?? 100)}`}>
-                          {item.fill_percentage ?? 100}%
-                          {(item.fill_percentage ?? 100) === 50 ? ' (Half)' : (item.fill_percentage ?? 100) <= 25 ? ' (Low)' : ''}
-                        </span>
+
+                      <div className="field-row">
+                        <div className="field-group flex-1">
+                          <label>Quantity</label>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={item.quantity ?? 1}
+                            onChange={(e) =>
+                              updateItemField(
+                                index,
+                                "quantity",
+                                Math.max(0, parseFloat(e.target.value) || 0),
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="field-group flex-1">
+                          <label>Fill Level: {fill}%</label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={fill}
+                            onChange={(e) =>
+                              updateItemField(
+                                index,
+                                "fill_percentage",
+                                parseInt(e.target.value),
+                              )
+                            }
+                          />
+                        </div>
                       </div>
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        className="input-inline input-number"
-                        step="1"
-                        min="1"
-                        value={item.desired}
-                        onChange={(e) => updateItemField(idx, 'desired', parseFloat(e.target.value) || 1)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        className="input-inline input-notes"
-                        value={item.notes || ''}
-                        onChange={(e) => updateItemField(idx, 'notes', e.target.value)}
-                        placeholder="e.g. half usage, opened"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn-remove-item"
+                      onClick={() => removeItem(index)}
+                      title="Remove item"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="review-card-footer">
+            <button
+              type="button"
+              className="btn primary btn-lg w-full"
+              onClick={handleApplyResults}
+              disabled={
+                isSaving || detectedItems.filter((i) => i.selected).length === 0
+              }
+            >
+              {isSaving
+                ? "Saving..."
+                : `Add ${detectedItems.filter((i) => i.selected).length} items to pantry`}
+            </button>
           </div>
         </div>
       )}
     </div>
   );
 };
-
-function getFillColorClass(pct: number): string {
-  if (pct <= 25) return 'fill-red';
-  if (pct <= 55) return 'fill-amber';
-  if (pct <= 80) return 'fill-blue';
-  return 'fill-green';
-}

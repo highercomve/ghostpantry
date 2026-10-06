@@ -27,9 +27,19 @@ export interface VisionDetectedItem {
   notes?: string;
 }
 
+export interface ScanTiming {
+  total_ms: number;
+  load_ms: number;
+  vision_ms: number;
+  generation_ms: number;
+  input_tokens: number;
+  output_tokens: number;
+}
+
 export interface VisionResult {
   items: VisionDetectedItem[];
   summary: string;
+  timing?: ScanTiming | null;
 }
 
 export interface AppSettings {
@@ -38,6 +48,8 @@ export interface AppSettings {
   apiKey?: string;
   model?: string;
   defaultLocation?: string;
+  localBackend?: string;
+  localScanMode?: string;
 }
 
 export interface ScanLog {

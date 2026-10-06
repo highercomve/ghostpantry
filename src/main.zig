@@ -6,6 +6,8 @@ const oriel = @import("oriel");
 const app = @import("oriel_app");
 const db_mod = @import("db.zig");
 const ai_mod = @import("ai.zig");
+const local_mod = @import("local.zig");
+const system_ai = @import("system_ai.zig");
 
 pub const std_options: std.Options = .{ .logFn = oriel.log.logFn };
 
@@ -19,6 +21,7 @@ var db_mutex: std.Io.Mutex = .init;
 pub const Events = struct {
     inventory_updated: struct { timestamp: i64 },
     scan_completed: struct { count: usize, summary: []const u8 },
+    local_model_download: local_mod.DownloadEvent,
 };
 const events = oriel.App.events(Events);
 
@@ -27,30 +30,44 @@ fn notifyUpdated() void {
     events.emit(.inventory_updated, .{ .timestamp = now_ms });
 }
 
-fn getDb(arena: std.mem.Allocator) !db_mod.Db {
+fn getDbPath(alloc: std.mem.Allocator) ![:0]const u8 {
+    if (builtin.target.os.tag == .linux and builtin.target.abi.isAndroid()) {
+        if (@hasDecl(oriel, "android") and @hasDecl(oriel.android, "paths")) {
+            if (oriel.android.paths.filesDir()) |fdir| {
+                const p = try std.fs.path.join(alloc, &.{ fdir, "pantry.db" });
+                return try alloc.dupeZ(u8, p);
+            }
+        }
+    }
+    const base_dir = oriel.store.dataDir(alloc, "GhostPantry") catch ".";
+    std.Io.Dir.cwd().createDirPath(io, base_dir) catch {};
+    const db_path = try std.fs.path.join(alloc, &.{ base_dir, "pantry.db" });
+    return try alloc.dupeZ(u8, db_path);
+}
+
+fn getDb(_: std.mem.Allocator) !db_mod.Db {
     db_mutex.lockUncancelable(io);
     defer db_mutex.unlock(io);
 
     if (database) |d| return d;
 
-    const base_dir = oriel.store.dataDir(arena, "GhostPantry") catch ".";
-    std.Io.Dir.cwd().createDirPath(io, base_dir) catch {};
-    const db_path = try std.fs.path.join(arena, &.{ base_dir, "pantry.db" });
-    const zpath = try arena.dupeZ(u8, db_path);
+    const zpath = try getDbPath(gpa);
+    defer gpa.free(zpath);
 
     log.info("Opening database at {s}", .{zpath});
-    var d = try db_mod.Db.init(zpath);
-    try d.seedSampleDataIfEmpty();
+    const d = try db_mod.Db.init(zpath);
     database = d;
     return d;
 }
 
 pub const AppSettings = struct {
-    provider: []const u8 = "openai",
+    provider: []const u8 = "local",
     baseUrl: []const u8 = "https://api.openai.com/v1",
     apiKey: []const u8 = "",
-    model: []const u8 = "gpt-4o-mini",
+    model: []const u8 = "qwen2.5-vl-3b",
     defaultLocation: []const u8 = "fridge",
+    localBackend: []const u8 = "auto",
+    localScanMode: []const u8 = "balanced",
 };
 
 fn readSettings(arena: std.mem.Allocator, d: db_mod.Db) AppSettings {
@@ -60,12 +77,21 @@ fn readSettings(arena: std.mem.Allocator, d: db_mod.Db) AppSettings {
     if (d.getSetting(arena, "apiKey") catch null) |v| s.apiKey = v;
     if (d.getSetting(arena, "model") catch null) |v| s.model = v;
     if (d.getSetting(arena, "defaultLocation") catch null) |v| s.defaultLocation = v;
+    if (d.getSetting(arena, "localBackend") catch null) |v| s.localBackend = v;
+    if (d.getSetting(arena, "localScanMode") catch null) |v| s.localScanMode = v;
     return s;
 }
 
 pub const Commands = struct {
     pub const async_commands = .{
         "analyze_image",
+        "get_available_models",
+        "system_ai_status",
+        "system_ai_download",
+        "local_status",
+        "local_download",
+        "local_test",
+        "local_delete",
     };
 
     pub fn get_items(arena: std.mem.Allocator, args: struct { category: ?[]const u8 = null }) ![]db_mod.Item {
@@ -115,6 +141,20 @@ pub const Commands = struct {
         try d.setSetting("apiKey", args.settings.apiKey);
         try d.setSetting("model", args.settings.model);
         try d.setSetting("defaultLocation", args.settings.defaultLocation);
+        try d.setSetting("localBackend", args.settings.localBackend);
+        try d.setSetting("localScanMode", args.settings.localScanMode);
+    }
+
+    pub fn get_available_models(
+        arena: std.mem.Allocator,
+        args: struct { baseUrl: []const u8, apiKey: ?[]const u8 = null },
+    ) ![]const ai_mod.ModelItem {
+        log.info("Fetching available models from {s}", .{args.baseUrl});
+        const models = ai_mod.fetchAvailableModels(io, gpa, arena, args.baseUrl, args.apiKey) catch |err| {
+            log.err("Failed to fetch models: {s}", .{@errorName(err)});
+            return oriel.ipc.fail("Failed to fetch models ({s}) from {s}. Verify server address.", .{ @errorName(err), args.baseUrl });
+        };
+        return models;
     }
 
     pub fn analyze_image(
@@ -123,6 +163,23 @@ pub const Commands = struct {
     ) !ai_mod.VisionResult {
         const d = try getDb(arena);
         const s = readSettings(arena, d);
+
+        if (std.mem.eql(u8, s.provider, "system")) {
+            local_mod.unload();
+            return system_ai.analyze(arena, args.location, args.image) catch |err| {
+                if (err == error.CommandFailed) return err;
+                return oriel.ipc.fail("System AI scan failed ({s}). Check system AI in Settings or choose a downloaded local model.", .{@errorName(err)});
+            };
+        }
+
+        if (std.mem.eql(u8, s.provider, "local")) {
+            log.info("Analyzing image for {s} with the local model {s}", .{ args.location, s.model });
+            const res = local_mod.analyze(arena, s.model, s.localBackend, std.mem.eql(u8, s.localScanMode, "fast"), args.location, args.image) catch |err| {
+                log.err("Local vision failed: {s}", .{@errorName(err)});
+                return oriel.ipc.fail("Local model analysis failed ({s}). Check that the model is downloaded in Settings, then try again.", .{@errorName(err)});
+            };
+            return res;
+        }
 
         const cfg = ai_mod.AiConfig{
             .baseUrl = s.baseUrl,
@@ -134,10 +191,63 @@ pub const Commands = struct {
         log.info("Analyzing image for {s} using model {s} at {s}", .{ args.location, cfg.model, cfg.baseUrl });
         const res = ai_mod.analyzePantryImage(io, gpa, arena, cfg, args.location, args.image) catch |err| {
             log.err("Image analysis failed: {s}", .{@errorName(err)});
+            if (ai_mod.last_api_error) |detail| {
+                return oriel.ipc.fail("{s}", .{detail});
+            }
             return oriel.ipc.fail("Vision analysis failed ({s}). Check your endpoint URL, model name, and API key in Settings.", .{@errorName(err)});
         };
 
         return res;
+    }
+
+    pub fn system_ai_status(arena: std.mem.Allocator) !system_ai.Status {
+        return system_ai.status(arena);
+    }
+
+    pub fn system_ai_download(arena: std.mem.Allocator) !system_ai.Status {
+        return system_ai.download(arena);
+    }
+
+    pub fn local_status(arena: std.mem.Allocator) !local_mod.Status {
+        return local_mod.status(arena) catch |err| {
+            return oriel.ipc.fail("The local model runner isn't available ({s}).", .{@errorName(err)});
+        };
+    }
+
+    pub fn local_download(arena: std.mem.Allocator, args: struct { id: []const u8 }) !void {
+        _ = arena;
+        local_mod.download(args.id) catch |err| switch (err) {
+            error.Cancelled => return,
+            else => {
+                log.err("Local model download failed: {s}", .{@errorName(err)});
+                return oriel.ipc.fail("The model download failed ({s}). Check the connection and try again — it resumes where it stopped.", .{@errorName(err)});
+            },
+        };
+    }
+
+    pub fn local_cancel_download(arena: std.mem.Allocator) void {
+        _ = arena;
+        local_mod.cancelDownload();
+    }
+
+    pub fn local_delete(arena: std.mem.Allocator, args: struct { id: []const u8 }) !void {
+        _ = arena;
+        local_mod.delete(args.id) catch |err| {
+            return oriel.ipc.fail("Could not delete the model ({s}).", .{@errorName(err)});
+        };
+    }
+
+    pub fn local_unload(arena: std.mem.Allocator) void {
+        _ = arena;
+        local_mod.unload();
+    }
+
+    pub fn local_test(arena: std.mem.Allocator, args: struct { id: []const u8, backend: ?[]const u8 = null, fast: bool = false }) !local_mod.LoadInfo {
+        _ = arena;
+        return local_mod.testLoad(args.id, args.backend orelse "auto", args.fast) catch |err| {
+            log.err("Local model load failed: {s}", .{@errorName(err)});
+            return oriel.ipc.fail("The model didn't load ({s}). Pick a smaller model or free some memory and try again.", .{@errorName(err)});
+        };
     }
 
     pub fn apply_scan_results(
@@ -158,6 +268,12 @@ pub const Commands = struct {
         return d.getScanLogs(arena, args.limit orelse 20);
     }
 
+    pub fn clear_all_items(arena: std.mem.Allocator) !void {
+        const d = try getDb(arena);
+        try d.clearAllItems();
+        notifyUpdated();
+    }
+
     pub fn reset_sample_data(arena: std.mem.Allocator) !void {
         const d = try getDb(arena);
         try d.db.exec("DELETE FROM inventory_items;");
@@ -176,6 +292,10 @@ pub const Commands = struct {
 
 pub fn main(init: std.process.Init) !u8 {
     io = init.io;
+    local_mod.init(init.io, gpa);
+    if (@hasDecl(oriel, "android") and @hasDecl(oriel.android, "onSystemEvent")) {
+        oriel.android.onSystemEvent(local_mod.handleSystemEvent);
+    }
     return oriel.main(init, .{ .commands = Commands, .events = Events }, .{
         .id = "dev.ghostpantry.app",
         .title = "GhostPantry - Food & Fridge Inventory AI",
