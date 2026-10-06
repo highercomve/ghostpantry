@@ -102,8 +102,8 @@ and save your settings. CPU is the starting backend; GPU is a separate device
 support test. The provider selector uses two columns on phones so all four scan
 options remain visible.
 
-**Food labels for fast scans** persists an editable vocabulary of 2–48 food
-names. The initial catalog contains 48 common foods; **Use pasta and rice
+**Food labels for fast scans** persists an editable vocabulary of 2–1,024 food
+names. The initial catalog contains 307 common food labels; **Use pasta and rice
 labels** replaces it with pasta, rice noodles (rice-based pasta), baby pasta, ramen noodles, and
 risotto rice. Save the labels before scanning. A scan ranks up to ten food
 labels against the selected photo and opens the usual pantry review screen.
@@ -142,7 +142,7 @@ Try the same experiment on **Pixel 8 and Pixel 10**:
 3. In **Scan a shelf**, select a clear photo of one item or package, then open **Try image matching**. Edit the candidate food labels and tap **Match photo on CPU** (or GPU).
 4. Repeat with the same photo and labels for a warm run. Compare total time, model loading, label embedding, photo embedding, and app PSS memory across both phones. **Release model memory** clears the engine and label cache for another cold run. PSS includes the app and does not capture all GPU allocations.
 
-The benchmark panel is a whole-photo similarity experiment. Its top labels and cosine scores are **not probabilities, quantities, object detections, or complete inventory scans**. It compares only the supplied 2–48 labels and does not save matches to the pantry. A crowded shelf needs a different detection/extraction step. Ordinary scans release this experiment's model memory before loading another provider.
+The benchmark panel is a whole-photo similarity experiment. Its top labels and cosine scores are **not probabilities, quantities, object detections, or complete inventory scans**. It compares only the supplied 2–1,024 labels and does not save matches to the pantry. A crowded shelf needs a different detection/extraction step. Ordinary scans release this experiment's model memory before loading another provider.
 
 Inference runs offline after the model download. This app-owned LiteRT model is independent of Android's shared AICore model, so it does not require System AI support. The app checks Android/ABI eligibility first and verifies backend execution when tested; Pixel models are not hardcoded. CPU and GPU are explicit choices, with no automatic cloud fallback or NPU acceleration claim. A Pixel 8 CPU result is reported above; Pixel 10 timings and broader accuracy evaluation remain pending. A desktop CPU smoke test with this exact model and 70-token/256-dimension configuration produced finite unit vectors for text and a photo, ranking pasta first for a pasta-heavy pantry image. This validates the basic matching path, not phone performance or shelf-detection accuracy.
 
@@ -261,3 +261,35 @@ See [the framework extension contract](vendor/oriel/docs/android-extensions.md)
 and [snapshot notes](vendor/README.md).
 After that framework change is published, replace the local dependency path
 with the released Oriel URL and hash using `zig fetch --save=oriel`.
+
+### Learning from corrections
+
+Fast local scan review offers **Remember this label** and **Wrong suggestion**.
+Rename a suggestion before remembering it, or add a missing food and remember that
+name. These explicit choices save the photo's embedding and label locally; the
+photo itself is not saved in correction memory. Pantry selection and quantity
+edits do not teach the matcher. An unchecked suggestion is not a rejection.
+
+For future photos with image-embedding cosine similarity above 0.94, the closest
+example for each label adds or subtracts up to 0.12 from its ranking. The displayed
+similarity remains the original image/text cosine, with an indication when your
+corrections adjusted the order. Up to 16 remembered positive labels outside your
+current vocabulary can be considered for a similar photo. This is conservative
+personalization of similar scenes, not retraining, reliable object detection, or
+a guarantee of accuracy; the threshold and adjustment still need field testing.
+For package-specific learning, use a close photo of one package.
+
+Correction memory holds the latest 128 examples per processor and survives app
+restarts. CPU and GPU memories are separate and tied to the model/runtime settings.
+**Clear learned corrections** resets both memories without deleting pantry items
+or the model. A newer correction replaces the same label for effectively the same
+photo. Damaged memory is reported and ignored during scans; clear it to recover.
+
+The full food preset contains 307 labels, including eggs, pasta variants, produce,
+dairy, meat, seafood, frozen foods, snacks, drinks, condiments, and baking supplies.
+Existing saved vocabularies are preserved: choose **Use full food list (307)** and
+save Settings to replace a narrow preset. Custom lists support up to 1,024 labels.
+Three background candidates (other food, non-food objects, empty shelf) can trigger
+a review hint when they outrank all food suggestions. This comparison is also
+heuristic; it does not guarantee rejection of a wrong category. Review displays
+how many labels were compared, and never selects suggestions automatically.

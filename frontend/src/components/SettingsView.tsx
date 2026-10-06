@@ -595,19 +595,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 kitchen. Each scan suggests the ten closest labels for you to
                 review.
               </p>
-              <button
-                type="button"
-                className="btn"
-                onClick={() =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    matchingLabels:
-                      "pasta\nrice noodles\nbaby pasta\nramen noodles\nrisotto rice",
-                  }))
-                }
-              >
-                Use pasta and rice labels
-              </button>
+              <div className="embedding-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      matchingLabels:
+                        "pasta\nrice noodles\nbaby pasta\nramen noodles\nrisotto rice",
+                    }))
+                  }
+                >
+                  Use pasta and rice labels
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={saving || embeddingBusy}
+                  onClick={() => {
+                    void invoke("embedding_default_labels")
+                      .then((labels) => {
+                        setSettings((previous) => ({
+                          ...previous,
+                          matchingLabels: labels.join("\n"),
+                        }));
+                        setSavedSuccess(false);
+                      })
+                      .catch((error) =>
+                        setTestResult({
+                          success: false,
+                          message: String(error),
+                        }),
+                      );
+                  }}
+                >
+                  Use full food list (307)
+                </button>
+              </div>
               <div className="form-group">
                 <label htmlFor="matching-food-labels">One food per line</label>
                 <textarea
@@ -622,9 +647,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   }
                 />
                 <small className="text-muted">
-                  2–48 unique labels, up to 120 characters each. Similarity
-                  suggests food types; it does not count packages or confirm
-                  presence.
+                  {
+                    (settings.matchingLabels || "")
+                      .split(/[\n,]/)
+                      .filter((label) => label.trim()).length
+                  }{" "}
+                  labels in this list. 2–1,024 unique labels, up to 120
+                  characters each. The first scan prepares the labels; later
+                  scans reuse the cache. Similarity suggests food types; it does
+                  not count packages or confirm presence.
                 </small>
               </div>
             </div>

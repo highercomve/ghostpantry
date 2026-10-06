@@ -47,7 +47,7 @@ export function EmbeddingGemmaPanel({
   ];
   const validLabels =
     candidates.length >= 2 &&
-    candidates.length <= 48 &&
+    candidates.length <= 1024 &&
     candidates.every((s) => s.length <= 120);
 
   const check = useCallback(async () => {
@@ -277,8 +277,8 @@ export function EmbeddingGemmaPanel({
                     }}
                   />
                   <small className="text-muted">
-                    2–48 labels, one per line or separated by commas. Up to 120
-                    characters each.
+                    2–1,024 labels, one per line or separated by commas. Up to
+                    120 characters each.
                   </small>
                 </div>
                 <button

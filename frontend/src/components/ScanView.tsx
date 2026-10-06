@@ -16,6 +16,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
   defaultLocation = "fridge",
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [embeddingBusy, setEmbeddingBusy] = useState(false);
   const [changingBackend, setChangingBackend] = useState(false);
   const [showEmbedding, setShowEmbedding] = useState(false);
@@ -52,6 +55,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
       selected: boolean;
       desired: number;
       similarity?: number;
+      adjustment?: number;
     })[]
   >([]);
   const [scanSummary, setScanSummary] = useState<string>("");
@@ -62,6 +66,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
   const handleStartAnalysis = async () => {
     if (!selectedImage) return;
 
+    setFeedbackMessage(null);
+    setFeedbackError(null);
     setScanTiming(null);
     setFastResult(null);
     setIsAnalyzing(true);
@@ -77,6 +83,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
       if (settings.provider === "embedding") {
         const result = await invoke("fast_scan", { image: selectedImage });
         setFastResult(result);
+        if (result.feedback_warning) setFeedbackError(result.feedback_warning);
         setHasAnalyzed(true);
         setScanSummary(
           "Select only the foods you can see. Rename labels and set package counts and fill levels before saving.",
@@ -90,6 +97,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             fill_percentage: 100,
             unit: "package",
             similarity: match.score,
+            adjustment: match.adjustment,
             notes:
               "Confirmed from a fast local suggestion; quantity and fill level set during review.",
           })),
@@ -141,6 +149,55 @@ export const ScanView: React.FC<ScanViewProps> = ({
       if (isSystem) void checkSystemAi();
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const rememberLabel = async (name: string, accepted: boolean) => {
+    if (!fastResult?.scan_id || feedbackBusy) return;
+    setFeedbackBusy(true);
+    setFeedbackError(null);
+    setFeedbackMessage(null);
+    try {
+      const result = await invoke("embedding_feedback", {
+        scan_id: fastResult.scan_id,
+        label: name.trim(),
+        accepted,
+      });
+      setFastResult((previous) =>
+        previous ? { ...previous, correction_count: result.count } : previous,
+      );
+      setFeedbackMessage(
+        `${accepted ? "Remembered" : "Marked as wrong"}: ${name.trim()}. This will affect future scans of very similar photos.`,
+      );
+    } catch (error) {
+      setFeedbackError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setFeedbackBusy(false);
+    }
+  };
+
+  const clearCorrections = async () => {
+    if (
+      !window.confirm(
+        "Clear all learned food corrections on this phone? Your pantry and downloaded model will be kept.",
+      )
+    )
+      return;
+    setFeedbackBusy(true);
+    setFeedbackError(null);
+    setFeedbackMessage(null);
+    try {
+      await invoke("embedding_clear_feedback");
+      setFastResult((previous) =>
+        previous ? { ...previous, correction_count: 0 } : previous,
+      );
+      setFeedbackMessage(
+        "Learned corrections cleared. Scan again to refresh the suggestions.",
+      );
+    } catch (error) {
+      setFeedbackError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setFeedbackBusy(false);
     }
   };
 
@@ -259,7 +316,11 @@ export const ScanView: React.FC<ScanViewProps> = ({
             className={`seg-btn ${location === "fridge" ? "active" : ""}`}
             onClick={() => setLocation("fridge")}
             disabled={
-              isAnalyzing || isSaving || changingBackend || embeddingBusy
+              isAnalyzing ||
+              isSaving ||
+              changingBackend ||
+              embeddingBusy ||
+              feedbackBusy
             }
           >
             Fridge
@@ -269,7 +330,11 @@ export const ScanView: React.FC<ScanViewProps> = ({
             className={`seg-btn ${location === "pantry" ? "active" : ""}`}
             onClick={() => setLocation("pantry")}
             disabled={
-              isAnalyzing || isSaving || changingBackend || embeddingBusy
+              isAnalyzing ||
+              isSaving ||
+              changingBackend ||
+              embeddingBusy ||
+              feedbackBusy
             }
           >
             Pantry
@@ -279,7 +344,11 @@ export const ScanView: React.FC<ScanViewProps> = ({
             className={`seg-btn ${location === "freezer" ? "active" : ""}`}
             onClick={() => setLocation("freezer")}
             disabled={
-              isAnalyzing || isSaving || changingBackend || embeddingBusy
+              isAnalyzing ||
+              isSaving ||
+              changingBackend ||
+              embeddingBusy ||
+              feedbackBusy
             }
           >
             Freezer
@@ -329,9 +398,42 @@ export const ScanView: React.FC<ScanViewProps> = ({
               })
               .finally(() => setChangingBackend(false));
           }}
-          disabled={isAnalyzing || isSaving || changingBackend}
+          disabled={isAnalyzing || isSaving || changingBackend || feedbackBusy}
           onBusyChange={setEmbeddingBusy}
         />
+      )}
+
+      {isFast && (
+        <div className="suggestion-intro">
+          <strong>Learn from your corrections</strong>
+          <p>
+            After a scan, remember a correct label or mark a wrong suggestion.
+            Corrections stay on this phone and only adjust very similar photos.
+            Nothing is learned from unchecked items. CPU and GPU keep separate
+            memories.
+          </p>
+          {fastResult && (
+            <p>
+              {fastResult.correction_count} saved examples for this processor.
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn"
+            onClick={clearCorrections}
+            disabled={
+              feedbackBusy ||
+              isAnalyzing ||
+              isSaving ||
+              changingBackend ||
+              embeddingBusy
+            }
+          >
+            Clear learned corrections
+          </button>
+          {feedbackMessage && <p role="status">{feedbackMessage}</p>}
+          {feedbackError && <p role="alert">{feedbackError}</p>}
+        </div>
       )}
 
       {isSystem && !hasAnalyzed && (
@@ -341,7 +443,11 @@ export const ScanView: React.FC<ScanViewProps> = ({
             status={systemStatus}
             busy={systemBusy}
             disabled={
-              isAnalyzing || isSaving || changingBackend || embeddingBusy
+              isAnalyzing ||
+              isSaving ||
+              changingBackend ||
+              embeddingBusy ||
+              feedbackBusy
             }
             onCheck={() => {
               setAnalysisError(null);
@@ -365,6 +471,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
         <CameraCapture
           selectedImage={selectedImage}
           onImageSelected={(img) => {
+            setFeedbackMessage(null);
+            setFeedbackError(null);
             setHasAnalyzed(false);
             setFastResult(null);
             setSelectedImage(img);
@@ -372,13 +480,21 @@ export const ScanView: React.FC<ScanViewProps> = ({
             setAnalysisError(null);
           }}
           onClear={() => {
+            setFeedbackMessage(null);
+            setFeedbackError(null);
             setHasAnalyzed(false);
             setFastResult(null);
             setSelectedImage(null);
             setDetectedItems([]);
             setAnalysisError(null);
           }}
-          disabled={isAnalyzing || isSaving || changingBackend || embeddingBusy}
+          disabled={
+            isAnalyzing ||
+            isSaving ||
+            changingBackend ||
+            embeddingBusy ||
+            feedbackBusy
+          }
         />
 
         {/* Immediate CTA directly below image preview */}
@@ -390,6 +506,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
               onClick={handleStartAnalysis}
               disabled={
                 changingBackend ||
+                feedbackBusy ||
                 embeddingBusy ||
                 isAnalyzing ||
                 isSaving ||
@@ -428,7 +545,11 @@ export const ScanView: React.FC<ScanViewProps> = ({
             className="btn"
             aria-expanded={showEmbedding}
             disabled={
-              isAnalyzing || isSaving || changingBackend || embeddingBusy
+              isAnalyzing ||
+              isSaving ||
+              changingBackend ||
+              embeddingBusy ||
+              feedbackBusy
             }
             onClick={() => setShowEmbedding(!showEmbedding)}
           >
@@ -438,7 +559,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
             <EmbeddingGemmaPanel
               key={selectedImage}
               image={selectedImage}
-              disabled={isAnalyzing || isSaving || changingBackend}
+              disabled={
+                isAnalyzing || isSaving || changingBackend || feedbackBusy
+              }
               onBusyChange={setEmbeddingBusy}
             />
           )}
@@ -501,9 +624,22 @@ export const ScanView: React.FC<ScanViewProps> = ({
             <div className="suggestion-intro">
               <strong>Which foods are actually here?</strong>
               <p>
-                These are the closest food labels, not confirmed detections.
-                Nothing is selected automatically. Quantities start at one
-                package and fill at 100%; adjust them to match your shelf.
+                Compared {fastResult.labels_count} food labels from your saved
+                list. These are the closest food labels, not confirmed
+                detections. Nothing is selected automatically. Quantities start
+                at one package and fill at 100%; adjust them to match your
+                shelf.
+              </p>
+              {fastResult.needs_review && (
+                <p role="status">
+                  Other food, non-food objects, or an empty shelf matched better
+                  than these suggestions. Your list may be missing the food in
+                  this photo.
+                </p>
+              )}
+              <p>
+                If a food is missing, add it below or use the full food list in
+                Settings.
               </p>
               <button
                 type="button"
@@ -553,6 +689,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
                           onChange={(e) =>
                             updateItemField(index, "name", e.target.value)
                           }
+                          maxLength={fastResult ? 120 : undefined}
                           placeholder="e.g. Milk, Pasta"
                         />
                       </div>
@@ -561,7 +698,34 @@ export const ScanView: React.FC<ScanViewProps> = ({
                         <small className="suggestion-score">
                           Similarity {item.similarity.toFixed(3)} · not a
                           probability
+                          {!!item.adjustment && (
+                            <span> · Adjusted using your corrections</span>
+                          )}
                         </small>
+                      )}
+                      {fastResult?.scan_id && (
+                        <div className="embedding-actions">
+                          <button
+                            type="button"
+                            className="btn"
+                            disabled={
+                              feedbackBusy || isSaving || !item.name.trim()
+                            }
+                            onClick={() => void rememberLabel(item.name, true)}
+                          >
+                            Remember this label
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            disabled={
+                              feedbackBusy || isSaving || !item.name.trim()
+                            }
+                            onClick={() => void rememberLabel(item.name, false)}
+                          >
+                            Wrong suggestion
+                          </button>
+                        </div>
                       )}
                       <div className="field-row">
                         <div className="field-group flex-1">
@@ -627,6 +791,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
               onClick={handleApplyResults}
               disabled={
                 isSaving ||
+                feedbackBusy ||
                 detectedItems.filter((i) => i.selected).length === 0 ||
                 detectedItems.some((i) => i.selected && !i.name.trim())
               }

@@ -25,6 +25,7 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
@@ -50,6 +51,10 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
         @Volatile private var connection: HttpURLConnection? = null
         private var engine: EmbeddingEngine? = null
         private var engineBackend = ""
+        private var lastScanId = ""
+        private var lastImageVector: FloatArray? = null
+        private var lastFeedbackConfiguration = ""
+        private var lastFeedbackBackend = "cpu"
         private var cachedLabels = emptyList<String>()
         private var cachedVectors = emptyList<FloatArray>()
 
@@ -74,6 +79,14 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
                         "cancel" -> { cancelDownload.set(true); connection?.disconnect(); status() }
                         "prepare" -> { load(input.optString("backend", "cpu")); probe(); status() }
                         "match" -> try { match(input) } catch (failure: Exception) { release(); throw failure }
+                        "feedback" -> feedback(input)
+                        "clear_feedback" -> {
+                            for (backend in listOf("cpu", "gpu")) {
+                                val file = feedbackFile(backend)
+                                check(!file.exists() || file.delete()) { "Cannot clear corrections" }
+                            }
+                            JSONObject().put("count", 0)
+                        }
                         "release" -> { release(); status() }
                         "delete" -> {
                             check(!downloading.get()) { "Pause the download before deleting the model" }
@@ -251,9 +264,11 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
         private fun match(input: JSONObject): JSONObject {
             val started = System.nanoTime()
             val labelsJson = input.getJSONArray("labels")
-            require(labelsJson.length() in 2..48) { "Provide 2–48 food labels" }
-            val labels = (0 until labelsJson.length()).map { labelsJson.getString(it).trim() }.distinct()
-            require(labels.size >= 2 && labels.all { it.isNotEmpty() && it.length <= 120 }) { "Each food label must contain 1–120 characters" }
+            require(labelsJson.length() in 2..1024) { "Provide 2–1,024 food labels" }
+            val userLabels = (0 until labelsJson.length()).map { labelsJson.getString(it).trim() }.distinct()
+            val backgroundLabels = listOf("other food", "non-food objects", "empty shelf")
+            val labels = (userLabels + backgroundLabels).distinct()
+            require(userLabels.size >= 2 && labels.all { it.isNotEmpty() && it.length <= 120 }) { "Each food label must contain 1–120 characters" }
             val image = input.getString("image")
             require(image.startsWith("data:image/") && image.contains(";base64,")) { "Invalid photo" }
             val bytes = Base64.decode(image.substringAfter(";base64,"), Base64.DEFAULT)
@@ -267,14 +282,53 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
             val imageStarted = System.nanoTime()
             val imageVector = embed(InputData.Image(bytes))
             val imageMs = elapsed(imageStarted)
-            val ranked = labels.indices.map { labels[it] to EmbeddingMath.similarity(imageVector, cachedVectors[it]) }
-                .sortedByDescending { it.second }.take(input.optInt("max_matches", 5).coerceIn(1, 10))
+            val personalized = input.optBoolean("personalized", false)
+            val configuration = "$MODEL_SHA|litertlm-0.18|$engineBackend|fp32|256|128|70"
+            var feedbackWarning = ""
+            val examples = if (personalized) try { EmbeddingFeedback.read(feedbackFile(engineBackend), configuration) }
+                catch (failure: Exception) { feedbackWarning = failure.message ?: "Could not read corrections"; emptyList() }
+                else emptyList()
+            val backgroundScore = labels.indices.filter { labels[it] in backgroundLabels }
+                .maxOf { EmbeddingMath.similarity(imageVector, cachedVectors[it]) }
+            val candidates = labels.mapIndexedNotNull { index, label ->
+                if (label in backgroundLabels) null else label to cachedVectors[index]
+            }.toMutableList()
+            val known = labels.map { EmbeddingFeedback.canonical(it) }.toSet()
+            val recalled = examples.asReversed().filter { it.accepted && EmbeddingMath.similarity(imageVector, it.vector) > 0.94 }
+                .distinctBy { EmbeddingFeedback.canonical(it.label) }.filter { EmbeddingFeedback.canonical(it.label) !in known && it.label !in backgroundLabels }.take(16)
+            for (example in recalled) candidates.add(example.label to embed(InputData.Text("A photo of ${example.label}")))
+            val ranked = candidates.map { (label, vector) ->
+                val score = EmbeddingMath.similarity(imageVector, vector)
+                val adjustment = EmbeddingFeedback.adjustment(examples, label, imageVector)
+                Triple(label, score, adjustment)
+            }.sortedByDescending { it.second + it.third }.take(input.optInt("max_matches", 5).coerceIn(1, 10))
+            val needsReview = ranked.isEmpty() || backgroundScore >= ranked.first().second + ranked.first().third
             val matches = JSONArray()
-            ranked.forEach { matches.put(JSONObject().put("label", it.first).put("score", it.second)) }
+            ranked.forEach { matches.put(JSONObject().put("label", it.first).put("score", it.second).put("adjustment", it.third)) }
+            val scanId = if (personalized) UUID.randomUUID().toString() else ""
+            if (personalized) {
+                lastScanId = scanId
+                lastImageVector = imageVector.copyOf()
+                lastFeedbackConfiguration = configuration
+                lastFeedbackBackend = engineBackend
+            }
             val memory = Debug.MemoryInfo().also { Debug.getMemoryInfo(it) }
             return JSONObject().put("matches", matches).put("device", device()).put("backend", engineBackend)
+                .put("labels_count", userLabels.size).put("needs_review", needsReview).put("background_score", backgroundScore)
+                .put("scan_id", scanId).put("correction_count", examples.size).put("feedback_warning", feedbackWarning)
                 .put("total_ms", elapsed(started)).put("load_ms", loadMs).put("labels_ms", labelsMs).put("image_ms", imageMs)
                 .put("pss_mb", memory.totalPss / 1024.0).put("dimensions", 256).put("vision_tokens", 70).put("labels_cached", labelCache != "computed").put("label_cache", labelCache)
+        }
+
+        private fun feedbackFile(backend: String) = File(folder(), "corrections-$backend.bin")
+
+        private fun feedback(input: JSONObject): JSONObject {
+            check(input.getString("scan_id") == lastScanId && lastScanId.isNotEmpty()) { "Scan this photo again before teaching a correction" }
+            val vector = checkNotNull(lastImageVector) { "Scan this photo again before teaching a correction" }
+            val examples = EmbeddingFeedback.read(feedbackFile(lastFeedbackBackend), lastFeedbackConfiguration)
+            val updated = EmbeddingFeedback.remember(examples, input.getString("label"), input.getBoolean("accepted"), vector)
+            EmbeddingFeedback.write(feedbackFile(lastFeedbackBackend), lastFeedbackConfiguration, updated)
+            return JSONObject().put("count", updated.size)
         }
 
         private fun prepareLabels(labels: List<String>): String {

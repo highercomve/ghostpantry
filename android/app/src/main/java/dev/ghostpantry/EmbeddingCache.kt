@@ -10,7 +10,7 @@ import java.security.MessageDigest
 
 /** One bounded, checksummed vocabulary per backend; invalid caches become misses. */
 object EmbeddingCache {
-    private const val MAX_BYTES = 512 * 1024
+    private const val MAX_BYTES = 2 * 1024 * 1024
     private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
 
     fun key(configuration: String, labels: List<String>): ByteArray {
@@ -23,7 +23,7 @@ object EmbeddingCache {
     }
 
     fun read(file: File, key: ByteArray, count: Int): List<FloatArray>? {
-        if (count !in 2..48 || key.size != 32 || file.length() !in 64L..MAX_BYTES.toLong()) return null
+        if (count !in 2..1027 || key.size != 32 || file.length() !in 64L..MAX_BYTES.toLong()) return null
         return try {
             val bytes = file.readBytes()
             val body = bytes.copyOfRange(0, bytes.size - 32)
@@ -39,7 +39,7 @@ object EmbeddingCache {
     }
 
     fun write(file: File, key: ByteArray, vectors: List<FloatArray>) {
-        require(key.size == 32 && vectors.size in 2..48)
+        require(key.size == 32 && vectors.size in 2..1027)
         val bytes = ByteArrayOutputStream()
         DataOutputStream(bytes).use { output ->
             output.write(key)

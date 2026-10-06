@@ -18,7 +18,21 @@ class EmbeddingCacheTest {
             assertNull(EmbeddingCache.read(file, EmbeddingCache.key("other-model|cpu|256|caption-v1", listOf("pasta", "rice")), 2))
             assertNull(EmbeddingCache.read(file, EmbeddingCache.key("model|cpu|256|caption-v1", listOf("rice", "pasta")), 2))
             assertNull(EmbeddingCache.read(file, key, 3))
-            assertNull(EmbeddingCache.read(file, key, 49))
+            assertNull(EmbeddingCache.read(file, key, 1028))
+        } finally { folder.deleteRecursively() }
+    }
+
+    @Test fun fullVocabularyIncludingBackgroundCandidatesSurvivesRestart() {
+        val folder = Files.createTempDirectory("embedding-full-cache-test").toFile()
+        try {
+            val file = java.io.File(folder, "labels.bin")
+            val labels = List(1027) { "food $it" }
+            val key = EmbeddingCache.key("model|cpu|256|caption-v1", labels)
+            val vectors = List(1027) { index -> FloatArray(256).apply { this[index % 256] = 1f } }
+            EmbeddingCache.write(file, key, vectors)
+            val restored = checkNotNull(EmbeddingCache.read(file, key, 1027))
+            assertEquals(1027, restored.size)
+            assertEquals(1.0, EmbeddingMath.similarity(vectors.last(), restored.last()), 1e-6)
         } finally { folder.deleteRecursively() }
     }
 

@@ -101,6 +101,8 @@ pub const Commands = struct {
         "embedding_prepare",
         "embedding_match",
         "fast_scan",
+        "embedding_feedback",
+        "embedding_clear_feedback",
         "embedding_release",
         "embedding_delete",
         "local_status",
@@ -151,7 +153,7 @@ pub const Commands = struct {
 
     pub fn save_settings(arena: std.mem.Allocator, args: struct { settings: AppSettings }) !void {
         if (args.settings.matchingLabels.len > 0 or std.mem.eql(u8, args.settings.provider, "embedding")) _ = @import("embedding_labels.zig").parse(arena, args.settings.matchingLabels) catch |err| {
-            return oriel.ipc.fail("Set 2–48 unique food labels ({s}).", .{@errorName(err)});
+            return oriel.ipc.fail("Set 2–1,024 unique food labels ({s}).", .{@errorName(err)});
         };
         if (!std.mem.eql(u8, args.settings.embeddingBackend, "cpu") and !std.mem.eql(u8, args.settings.embeddingBackend, "gpu"))
             return oriel.ipc.fail("Choose CPU or GPU for fast local scans.", .{});
@@ -233,6 +235,10 @@ pub const Commands = struct {
         return system_ai.download(arena);
     }
 
+    pub fn embedding_default_labels(arena: std.mem.Allocator) ![]const []const u8 {
+        return @import("embedding_labels.zig").parse(arena, @import("embedding_labels.zig").defaults);
+    }
+
     pub fn embedding_status(arena: std.mem.Allocator) !embedding.Status {
         return embedding.status(arena);
     }
@@ -260,6 +266,14 @@ pub const Commands = struct {
         const settings = readSettings(arena, d);
         local_mod.unload();
         return embedding.scan(arena, args.image, settings.embeddingBackend, settings.matchingLabels);
+    }
+
+    pub fn embedding_feedback(arena: std.mem.Allocator, args: struct { scan_id: []const u8, label: []const u8, accepted: bool }) !embedding.FeedbackStatus {
+        return embedding.feedback(arena, args.scan_id, args.label, args.accepted);
+    }
+
+    pub fn embedding_clear_feedback(arena: std.mem.Allocator) !embedding.FeedbackStatus {
+        return embedding.clearFeedback(arena);
     }
 
     pub fn embedding_release(arena: std.mem.Allocator) !embedding.Status {

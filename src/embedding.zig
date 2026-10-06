@@ -19,7 +19,8 @@ pub const Status = struct {
     bytes_downloaded: u64 = 0,
     total_bytes: u64 = 387710976,
 };
-pub const Match = struct { label: []const u8, score: f64 };
+pub const Match = struct { label: []const u8, score: f64, adjustment: f64 = 0 };
+pub const FeedbackStatus = struct { count: u32 };
 pub const Result = struct {
     matches: []const Match,
     device: []const u8,
@@ -33,6 +34,12 @@ pub const Result = struct {
     vision_tokens: u32,
     labels_cached: bool,
     label_cache: []const u8 = "computed",
+    scan_id: []const u8 = "",
+    correction_count: u32 = 0,
+    feedback_warning: []const u8 = "",
+    labels_count: u32 = 0,
+    needs_review: bool = false,
+    background_score: f64 = 0,
 };
 const Request = struct {
     operation: []const u8,
@@ -40,6 +47,10 @@ const Request = struct {
     image: []const u8 = "",
     labels: []const []const u8 = &.{},
     max_matches: u32 = 5,
+    personalized: bool = false,
+    scan_id: []const u8 = "",
+    label: []const u8 = "",
+    accepted: bool = false,
 };
 
 fn request(comptime Reply: type, arena: std.mem.Allocator, input: Request) !Reply {
@@ -64,18 +75,27 @@ pub fn manage(arena: std.mem.Allocator, operation: []const u8, backend: []const 
 
 pub fn match(arena: std.mem.Allocator, image: []const u8, backend: []const u8, labels: []const []const u8) !Result {
     if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("Photo is too large.", .{});
-    if (labels.len < 2 or labels.len > 48) return oriel.ipc.fail("Provide 2–48 food labels.", .{});
+    if (labels.len < 2 or labels.len > 1024) return oriel.ipc.fail("Provide 2–1,024 food labels.", .{});
     return request(Result, arena, .{ .operation = "match", .backend = backend, .image = image, .labels = labels });
 }
 
 pub fn scan(arena: std.mem.Allocator, image: []const u8, backend: []const u8, vocabulary: []const u8) !Result {
     if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("Photo is too large.", .{});
     const labels = @import("embedding_labels.zig").parse(arena, vocabulary) catch |err| {
-        return oriel.ipc.fail("Set 2–48 food labels in Settings ({s}).", .{@errorName(err)});
+        return oriel.ipc.fail("Set 2–1,024 food labels in Settings ({s}).", .{@errorName(err)});
     };
-    return request(Result, arena, .{ .operation = "match", .backend = backend, .image = image, .labels = labels, .max_matches = 10 });
+    return request(Result, arena, .{ .operation = "match", .backend = backend, .image = image, .labels = labels, .max_matches = 10, .personalized = true });
 }
 
 pub fn releaseForScan(arena: std.mem.Allocator) !void {
     if (is_android) _ = try manage(arena, "release", "cpu");
+}
+
+pub fn feedback(arena: std.mem.Allocator, scan_id: []const u8, label: []const u8, accepted: bool) !FeedbackStatus {
+    if (scan_id.len > 64 or label.len > 480) return oriel.ipc.fail("Invalid correction.", .{});
+    return request(FeedbackStatus, arena, .{ .operation = "feedback", .scan_id = scan_id, .label = label, .accepted = accepted });
+}
+
+pub fn clearFeedback(arena: std.mem.Allocator) !FeedbackStatus {
+    return request(FeedbackStatus, arena, .{ .operation = "clear_feedback" });
 }
