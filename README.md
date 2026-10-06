@@ -397,3 +397,12 @@ have a slower initial label-cache preparation, then reuse cached vectors.
 Historical desktop comparison reports use the committed
 [307-label baseline](experiments/food-labels-307.json). Benchmark scripts default to
 that vocabulary so expanding the app preset does not silently change those results.
+
+
+Crop review groups nearby rice-grain and wheat-pasta varieties (and a few other
+explicit food families) into a broad **review suggestion** when at least three
+nearby top candidates agree on that family and beat the background. Related
+varieties are alternatives, not independent evidence that food is present; exact
+variety and presence still require confirmation. Rice noodles and rice flour do
+not belong to the rice-grain family. The review also displays background similarity
+and warns about small source crops; unreadable OCR must not erase visual candidates.

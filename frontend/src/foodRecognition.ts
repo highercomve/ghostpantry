@@ -149,6 +149,114 @@ export function foodTextEvidence(
   }
   return [...found.values()].slice(0, 32);
 }
+// Variants are alternatives within a category, not independent detections.
+// Keep rice noodles/flour and other processed rice products outside rice grains.
+const FOOD_FAMILIES: Record<string, string[]> = {
+  rice: [
+    "rice",
+    "white rice",
+    "brown rice",
+    "risotto rice",
+    "basmati rice",
+    "jasmine rice",
+    "wild rice",
+    "sushi rice",
+    "sticky rice",
+    "yellow rice",
+  ],
+  pasta: [
+    "pasta",
+    "spaghetti",
+    "macaroni",
+    "penne",
+    "lasagna sheets",
+    "baby pasta",
+    "capellini",
+    "fettuccine",
+    "rigatoni",
+    "fusilli",
+    "angel hair pasta",
+    "orzo",
+    "farfalle",
+    "linguine",
+  ],
+  cheese: [
+    "cheese",
+    "cheddar cheese",
+    "mozzarella",
+    "parmesan",
+    "feta cheese",
+    "swiss cheese",
+    "goat cheese",
+    "brie cheese",
+    "ricotta cheese",
+    "string cheese",
+    "shredded cheese",
+  ],
+  bread: [
+    "bread",
+    "sliced bread",
+    "white bread",
+    "whole wheat bread",
+    "sourdough bread",
+    "multigrain bread",
+    "rye bread",
+    "bread rolls",
+    "baguettes",
+  ],
+  oats: ["oats", "rolled oats", "quick oats", "steel cut oats"],
+  yogurt: ["yogurt", "greek yogurt"],
+};
+function foodFamily(label: string): string {
+  const normalized = normalizeFoodText(label);
+  return (
+    Object.entries(FOOD_FAMILIES).find(([, variants]) =>
+      variants.includes(normalized),
+    )?.[0] ?? normalized
+  );
+}
+function visualFamilyCandidate(
+  matches: FoodMatch[],
+  labels: string[],
+  background: number,
+): string | null {
+  if (matches.length < 3) return null;
+  const first = matches[0],
+    family = foodFamily(first.label);
+  const parent = labels.find((label) => normalizeFoodText(label) === family);
+  const parentMatch = matches.find(
+    (match) => normalizeFoodText(match.label) === family,
+  );
+  if (
+    !parentMatch ||
+    (parentMatch.adjustment ?? 0) < 0 ||
+    !parent ||
+    !FOOD_FAMILIES[family] ||
+    first.score + (first.adjustment ?? 0) <= background
+  )
+    return null;
+  const near = matches
+    .slice(0, 5)
+    .filter(
+      (match) =>
+        first.score +
+          (first.adjustment ?? 0) -
+          match.score -
+          (match.adjustment ?? 0) <=
+        0.04,
+    );
+  const relatives = new Set(
+    near
+      .filter((match) => foodFamily(match.label) === family)
+      .map((match) => normalizeFoodText(match.label)),
+  );
+  // Nearby variants may suggest the broad family for review, never establish presence.
+  return foodFamily(matches[1].label) === family &&
+    relatives.size >= 3 &&
+    relatives.size > near.length / 2
+    ? parent
+    : null;
+}
 export function recognizeFood(
   text: string,
   labels: string[],
@@ -183,7 +291,8 @@ export function recognizeFood(
       });
     }
   if (evidence.length === 1 && !evidence[0].fuzzy) {
-    const conflict = strong && first.label !== evidence[0].label;
+    const conflict =
+      strong && foodFamily(first.label) !== foodFamily(evidence[0].label);
     return {
       label: evidence[0].label,
       state: conflict ? "review" : "supported",
@@ -211,6 +320,19 @@ export function recognizeFood(
       suggestions,
       evidence,
     };
+  const family = visualFamilyCandidate(ranked, labels, background);
+  if (family) {
+    if (!suggestions.some((item) => item.label === family))
+      suggestions.unshift({ label: family, source: "image" });
+    return {
+      label: family,
+      state: "review",
+      reason:
+        "Nearby image matches suggest this broad category. The exact variety is uncertain; confirm the crop.",
+      suggestions,
+      evidence,
+    };
+  }
   return {
     label: null,
     state: "unknown",

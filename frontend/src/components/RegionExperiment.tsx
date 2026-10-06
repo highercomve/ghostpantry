@@ -428,9 +428,11 @@ export function RegionExperiment({
                       {result.withOcr ? " · OCR" : " · visual only"}
                       {result.useMemory ? " · crop memory" : ""}
                     </td>
-                    <td>{(result.totalMs / 1000).toFixed(2)} s</td>
-                    <td>{result.regions.length}</td>
-                    <td>
+                    <td data-label="Total">
+                      {(result.totalMs / 1000).toFixed(2)} s
+                    </td>
+                    <td data-label="Regions">{result.regions.length}</td>
+                    <td data-label="Sampled PSS">
                       {Math.max(
                         result.detectorPeak,
                         ...result.regions.map((x) =>
@@ -568,8 +570,10 @@ export function RegionExperiment({
                 {result.recognition && (
                   <div className="region-recognition">
                     <strong>
-                      {result.recognition.label ?? "Unknown"} ·{" "}
-                      {result.recognition.state}
+                      {result.recognition.label ?? "Unknown"}
+                      {result.recognition.state !== "unknown"
+                        ? ` · ${result.recognition.state}`
+                        : ""}
                     </strong>
                     <p>{result.recognition.reason}</p>
                     {result.ocrError && (
@@ -654,7 +658,7 @@ export function RegionExperiment({
                         </li>
                       ))}
                     </ul>
-                    <details>
+                    <details open={result.recognition.evidence.length === 0}>
                       <summary>Read text and keyword evidence</summary>
                       <pre className="ocr-text">
                         {result.ocr?.text || "No readable text"}
@@ -674,6 +678,15 @@ export function RegionExperiment({
                       source crop pixels · {result.ocr?.rotations ?? 0}{" "}
                       rotations · {result.result.correction_count ?? 0} local
                       examples
+                    </small>
+                    <small className="recognition-diagnostics">
+                      Best image similarity{" "}
+                      {result.result.matches[0]?.score.toFixed(3) ?? "—"} ·
+                      background{" "}
+                      {result.result.background_score?.toFixed(3) ?? "—"}.
+                      {result.ocr &&
+                        Math.min(result.ocr.width, result.ocr.height) < 320 &&
+                        " This crop has few source pixels for reading small text. Try the original photo or a closer shot."}
                     </small>
                     {result.result.feedback_warning && (
                       <p role="alert">{result.result.feedback_warning}</p>

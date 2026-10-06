@@ -162,3 +162,19 @@ and partially hidden items need user confirmation. The user's earlier annotation
 identify rice noodles, baby pasta, risotto rice and ramen variants. Future recall
 evaluation should use confirmed boxes/categories and retain occluded/unknown items
 rather than treating Gemini's prose as training labels.
+
+
+## Follow-up phone OCR result
+
+The user reported Lite2 visual-only **2.43 s / 2 regions / 910 MiB** sampled PSS,
+OCR **4.78 s / 2 regions / 910 MiB**, and an earlier OCR+memory run **7.49 s /
+860 MiB**, still with 307 saved labels. These are sequential exploratory runs with
+different warm states/options, not isolated OCR overhead measurements. Both crops
+were shown as Unknown despite nearby rice/pasta variants; the old strict top-two
+margin treated related varieties as competing categories. Family-aware review now
+uses a bounded nearby-majority rule, retains background rejection and explicit
+negative corrections, and never confirms presence or the exact variety. The
+visible OCR crop was only 122×289 pixels; no usable OCR keywords are visible in
+these screenshots. Raw OCR text is needed to distinguish unreadable text from
+missing aliases. A bigger source image or closer package photo may help text
+recognition; upscaling would not recover missing source detail.

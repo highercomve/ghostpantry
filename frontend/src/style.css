@@ -1965,3 +1965,49 @@ input[type="checkbox"] {
   max-height: 240px;
   overflow: auto;
 }
+
+.region-recognition li {
+  display: block;
+}
+.region-recognition li .btn {
+  margin-bottom: 6px;
+}
+.recognition-diagnostics {
+  display: block;
+  margin-top: 8px;
+}
+@media (max-width: 560px) {
+  .region-table thead {
+    display: none;
+  }
+  .region-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+  .region-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .region-table td {
+    border: 0;
+    padding: 6px;
+    overflow-wrap: normal;
+  }
+  .region-table td:first-child {
+    grid-column: 1 / -1;
+    font-weight: 600;
+  }
+  .region-table td[data-label] {
+    display: grid;
+    white-space: nowrap;
+  }
+  .region-table td[data-label]::before {
+    content: attr(data-label);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: normal;
+  }
+}
