@@ -1,3 +1,4 @@
+import { NumberInput } from "./NumberInput";
 import { RegionExperiment } from "./RegionExperiment";
 import { splitSuggestions } from "../foodSuggestions";
 import React, { useEffect, useState } from "react";
@@ -822,17 +823,12 @@ export const ScanView: React.FC<ScanViewProps> = ({
                           <label>
                             {fastResult ? "Quantity (you set)" : "Quantity"}
                           </label>
-                          <input
-                            type="number"
+                          <NumberInput
                             step="0.5"
                             min="0"
                             value={item.quantity ?? 1}
-                            onChange={(e) =>
-                              updateItemField(
-                                index,
-                                "quantity",
-                                Math.max(0, parseFloat(e.target.value) || 0),
-                              )
+                            onValueChange={(value) =>
+                              updateItemField(index, "quantity", value)
                             }
                           />
                         </div>

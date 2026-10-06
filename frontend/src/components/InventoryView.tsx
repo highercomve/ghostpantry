@@ -1,3 +1,4 @@
+import { NumberInput } from "./NumberInput";
 import React, { useState } from "react";
 import { InventoryItem } from "../types";
 import { invoke } from "../oriel";
@@ -512,8 +513,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               <div className="form-row">
                 <div className="form-group">
                   <label>Current Quantity</label>
-                  <input
-                    type="number"
+                  <NumberInput
                     step="0.5"
                     min="0"
                     value={
@@ -521,8 +521,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         ? (editingItem.quantity ?? 1)
                         : (newItem.quantity ?? 1)
                     }
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
+                    onValueChange={(val) => {
                       if (editingItem)
                         setEditingItem({ ...editingItem, quantity: val });
                       else setNewItem({ ...newItem, quantity: val });
@@ -553,8 +552,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
                 <div className="form-group">
                   <label>Target Desired Amount</label>
-                  <input
-                    type="number"
+                  <NumberInput
                     step="1"
                     min="1"
                     value={
@@ -562,8 +560,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         ? (editingItem.desired_quantity ?? 1)
                         : (newItem.desired_quantity ?? 1)
                     }
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 1;
+                    onValueChange={(val) => {
                       if (editingItem)
                         setEditingItem({
                           ...editingItem,
