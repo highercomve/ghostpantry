@@ -101,12 +101,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     state: string;
     message: string;
   } | null>(null);
-  const [systemBusy, setSystemBusy] = useState(false);
+  const [systemBusy, setSystemBusy] = useState<"checking" | "downloading" | null>(null);
   const systemRequestPending = React.useRef(false);
   const checkSystemAi = React.useCallback(async (download = false) => {
     if (systemRequestPending.current) return;
     systemRequestPending.current = true;
-    setSystemBusy(true);
+    setSystemBusy(download ? "downloading" : "checking");
     try {
       const status = download
         ? await invoke("system_ai_download")
@@ -119,7 +119,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       });
     } finally {
       systemRequestPending.current = false;
-      setSystemBusy(false);
+      setSystemBusy(null);
     }
   }, []);
 
@@ -530,7 +530,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               aria-checked={isLocal}
               onClick={() => handleProviderChange("local")}
             >
-              📱 This device
+              Local
             </button>
             <button
               type="button"
@@ -539,7 +539,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               aria-checked={!isLocal && !isSystem}
               onClick={() => handleProviderChange("api")}
             >
-              🌐 Server / API
+              Server / API
             </button>
             <button
               type="button"
@@ -563,11 +563,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </p>
             <div
               role="status"
-              className={`alert ${systemStatus?.state === "available" ? "alert-success" : "alert-info"}`}
+              className={`alert system-ai-status ${systemStatus?.state === "available" ? "alert-success" : "alert-info"}`}
             >
               <strong>
-                {systemBusy
-                  ? "Checking system AI…"
+                {systemBusy === "downloading"
+                  ? "Downloading system model…"
+                  : systemBusy === "checking"
+                    ? "Checking system AI…"
                   : systemStatus?.state === "available"
                     ? "Ready to scan"
                     : systemStatus?.state === "downloadable"
@@ -579,15 +581,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           : "System AI unavailable"}
               </strong>
               <p>
-                {systemStatus?.message ||
-                  "Open this screen in the Android app to check support."}
+                {systemBusy === "downloading"
+                  ? "Downloading Gemini Nano to enable scans on this phone."
+                  : systemBusy === "checking"
+                    ? "Checking system AI support on this phone."
+                    : systemStatus?.message ||
+                      "Open this screen in the Android app to check support."}
               </p>
             </div>
             <div className="system-ai-actions">
               <button
                 type="button"
                 className="btn btn-secondary"
-                disabled={systemBusy}
+                disabled={systemBusy !== null}
                 onClick={() => checkSystemAi()}
               >
                 Check support again
@@ -596,7 +602,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={systemBusy}
+                  disabled={systemBusy !== null}
                   onClick={() => checkSystemAi(true)}
                 >
                   {systemBusy ? "Downloading…" : "Download system model"}
@@ -1082,7 +1088,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               type="button"
               className="btn"
               onClick={handleTestConnection}
-              disabled={testing || systemBusy || localBusy !== null}
+              disabled={testing || systemBusy !== null || localBusy !== null}
             >
               {testing ? (
                 <>
