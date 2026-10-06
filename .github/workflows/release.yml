@@ -44,6 +44,8 @@ jobs:
         run: |
           zig test build/android_manifest.zig
           zig test --dep android_manifest -Mroot=tools/package/android.zig -Mandroid_manifest=build/android_manifest.zig
+      - name: Bundled detector integrity
+        run: python3 scripts/verify-detectors.py
       - name: Fast scan vocabulary tests
         run: zig test src/embedding_labels.zig
       - name: Release helper tests

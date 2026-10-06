@@ -1811,3 +1811,11 @@ input[type="checkbox"] {
 .suggestion-intro { padding: 16px; background: var(--sage, #edf0e1); border-radius: 12px; margin: 16px 0; }
 .suggestion-score { display: block; color: var(--text-muted); font-size: 0.8rem; margin: 4px 0 12px; }
 .fast-scan-timing { margin-top: 10px; }
+
+.region-photo { position: relative; margin: 16px 0; }
+.region-photo img { display: block; width: 100%; height: auto; }
+.region-outline { position: absolute; border: 3px solid #e8a93b; box-sizing: border-box; pointer-events: none; }
+.region-crop { display: block; max-width: 100%; max-height: 260px; object-fit: contain; margin: 12px 0; }
+.region-table { overflow-x: auto; }
+.region-table table { width: 100%; border-collapse: collapse; }
+.region-table th, .region-table td { padding: 8px; text-align: left; border-bottom: 1px solid var(--border); }

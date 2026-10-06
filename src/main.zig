@@ -100,6 +100,7 @@ pub const Commands = struct {
         "embedding_cancel",
         "embedding_prepare",
         "embedding_match",
+        "detect_regions",
         "fast_scan",
         "embedding_feedback",
         "embedding_clear_feedback",
@@ -259,6 +260,10 @@ pub const Commands = struct {
     pub fn embedding_match(arena: std.mem.Allocator, args: struct { image: []const u8, backend: []const u8, labels: []const []const u8 }) !embedding.Result {
         local_mod.unload();
         return embedding.match(arena, args.image, args.backend, args.labels);
+    }
+
+    pub fn detect_regions(arena: std.mem.Allocator, args: struct { image: []const u8, detector: []const u8 }) !embedding.DetectionResult {
+        return embedding.detect(arena, args.image, args.detector);
     }
 
     pub fn fast_scan(arena: std.mem.Allocator, args: struct { image: []const u8 }) !embedding.Result {

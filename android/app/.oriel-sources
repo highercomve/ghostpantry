@@ -5,3 +5,4 @@ app/src/main/java/dev/ghostpantry/EmbeddingGemmaExtension.kt
 app/src/main/java/dev/ghostpantry/EmbeddingMath.kt
 app/src/main/java/dev/ghostpantry/EmbeddingCache.kt
 app/src/main/java/dev/ghostpantry/EmbeddingFeedback.kt
+app/src/main/java/dev/ghostpantry/PantryDetector.kt

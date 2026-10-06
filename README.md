@@ -303,3 +303,39 @@ collapsed. This score-gap rule reduces clutter (the egg-only example shows eggs
 instead of five equally presented foods), but is a presentation heuristic, not a
 calibrated food-presence detector. Crowded photos may have real foods in the weaker
 list. All items still require explicit selection before saving.
+
+
+### Experiment: multi-item regions
+
+After choosing a photo, tap **Compare multi-item scanning**. Run **Whole photo**,
+**Overlapping grid**, **Lite0 detector**, and **Lite2 detector** on the same photo
+with the same saved food list and embedding backend. Repeat each method after its
+first run to compare warm timings. Set the full 307-label list in Settings if an
+older installation still has the small list.
+
+The grid checks the whole photo plus nine overlapping half-size crops. The
+CPU-only EfficientDet detectors propose up to 12 boxes at a 0.25 detector-score
+threshold; each box gets 5% padding and EmbeddingGemma classification. Their
+original COCO labels remain visible for diagnosis. Zero boxes remains a zero-box
+result; it does not silently fall back to the grid. Both models are bundled in
+the APK, while the existing EmbeddingGemma download is reused.
+
+Stage text, elapsed time, region progress, and **Stop after current region** keep
+the operation reviewable. Cancellation waits for the current native inference;
+completed regions are retained. The comparison table keeps the last four runs
+and the highest sampled app PSS, rather than claiming continuous peak memory.
+First-use label-cache preparation can exceed 20 seconds. No fixed runtime limit
+is enforced; warm timing on actual phones remains to be measured.
+
+Combined labels use the best crop score and record supporting regions. Scores
+are similarities, not presence probabilities. Overlapping regions do not imply
+multiple packages or quantities. These experimental runs do not change inventory
+or learn corrections. Review each crop, including its weaker matches, before
+deciding whether the approach improves your photos.
+
+The first desktop test found generic COCO detectors unsuitable for these pantry
+photos: Lite0 proposed a whole-pantry “bed” and Lite2 found no pantry regions.
+Grid crops recovered rice-related matches but introduced false labels. See
+[the experiment report](experiments/README.md) for reproducible results and the
+remaining phone checks. This is a comparison baseline, not a validated inventory
+detector.

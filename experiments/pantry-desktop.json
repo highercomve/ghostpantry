@@ -1,0 +1,697 @@
+{
+  "platform": "desktop CPU, 4 threads; not phone timings",
+  "photo_size": [
+    1205,
+    1600
+  ],
+  "labels": 307,
+  "embedding_load_s": 0.17748307600413682,
+  "cold_text_s": 8.041417431006266,
+  "precision": "SDK default desktop precision; Android uses FP32",
+  "runs": [
+    {
+      "mode": "whole",
+      "warm_total_s": 0.31812788199749775,
+      "detection": null,
+      "regions": [
+        {
+          "region": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "detector_label": "Whole photo",
+          "image_s": 0.30164491899631685,
+          "background_score": 0.7102370909173921,
+          "matches": [
+            {
+              "label": "pasta",
+              "score": 0.7507694360388049
+            },
+            {
+              "label": "pasta sauce",
+              "score": 0.7312476360897647
+            },
+            {
+              "label": "macaroni",
+              "score": 0.7234150371988578
+            },
+            {
+              "label": "spaghetti",
+              "score": 0.7223369140360554
+            },
+            {
+              "label": "baby pasta",
+              "score": 0.7188072882750967
+            }
+          ],
+          "stronger": [
+            "pasta",
+            "pasta sauce",
+            "macaroni",
+            "spaghetti",
+            "baby pasta"
+          ]
+        }
+      ],
+      "merged": {
+        "pasta": {
+          "score": 0.7507694360388049,
+          "regions": [
+            1
+          ]
+        },
+        "pasta sauce": {
+          "score": 0.7312476360897647,
+          "regions": [
+            1
+          ]
+        },
+        "macaroni": {
+          "score": 0.7234150371988578,
+          "regions": [
+            1
+          ]
+        },
+        "spaghetti": {
+          "score": 0.7223369140360554,
+          "regions": [
+            1
+          ]
+        },
+        "baby pasta": {
+          "score": 0.7188072882750967,
+          "regions": [
+            1
+          ]
+        }
+      }
+    },
+    {
+      "mode": "grid",
+      "warm_total_s": 2.4805687650004984,
+      "detection": null,
+      "regions": [
+        {
+          "region": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "detector_label": "Whole photo",
+          "image_s": 0.26893075599946314,
+          "background_score": 0.7102370909173921,
+          "matches": [
+            {
+              "label": "pasta",
+              "score": 0.7507694360388049
+            },
+            {
+              "label": "pasta sauce",
+              "score": 0.7312476360897647
+            },
+            {
+              "label": "macaroni",
+              "score": 0.7234150371988578
+            },
+            {
+              "label": "spaghetti",
+              "score": 0.7223369140360554
+            },
+            {
+              "label": "baby pasta",
+              "score": 0.7188072882750967
+            }
+          ],
+          "stronger": [
+            "pasta",
+            "pasta sauce",
+            "macaroni",
+            "spaghetti",
+            "baby pasta"
+          ]
+        },
+        {
+          "region": [
+            0.0,
+            0.0,
+            0.5,
+            0.5
+          ],
+          "detector_label": "Grid 1",
+          "image_s": 0.24217769000097178,
+          "background_score": 0.699593291424758,
+          "matches": [
+            {
+              "label": "pasta",
+              "score": 0.7643036598962304
+            },
+            {
+              "label": "spaghetti",
+              "score": 0.755482659728127
+            },
+            {
+              "label": "pasta sauce",
+              "score": 0.730260413091822
+            },
+            {
+              "label": "penne",
+              "score": 0.7280202463863478
+            },
+            {
+              "label": "rice noodles",
+              "score": 0.7235557792662445
+            }
+          ],
+          "stronger": [
+            "pasta",
+            "spaghetti",
+            "pasta sauce",
+            "penne"
+          ]
+        },
+        {
+          "region": [
+            0.25,
+            0.0,
+            0.5,
+            0.5
+          ],
+          "detector_label": "Grid 2",
+          "image_s": 0.23526784400019096,
+          "background_score": 0.7025658994971402,
+          "matches": [
+            {
+              "label": "pasta",
+              "score": 0.7740408892858963
+            },
+            {
+              "label": "spaghetti",
+              "score": 0.7528018884110099
+            },
+            {
+              "label": "pasta sauce",
+              "score": 0.7455251005296571
+            },
+            {
+              "label": "macaroni",
+              "score": 0.7357674011162748
+            },
+            {
+              "label": "penne",
+              "score": 0.7349847009810164
+            }
+          ],
+          "stronger": [
+            "pasta",
+            "spaghetti",
+            "pasta sauce",
+            "macaroni",
+            "penne"
+          ]
+        },
+        {
+          "region": [
+            0.5,
+            0.0,
+            0.5,
+            0.5
+          ],
+          "detector_label": "Grid 3",
+          "image_s": 0.2502949509944301,
+          "background_score": 0.7147865592861513,
+          "matches": [
+            {
+              "label": "pasta",
+              "score": 0.7330246102233895
+            },
+            {
+              "label": "pasta sauce",
+              "score": 0.7145807385437855
+            },
+            {
+              "label": "macaroni",
+              "score": 0.7118364945510531
+            },
+            {
+              "label": "tortillas",
+              "score": 0.7114289980658131
+            },
+            {
+              "label": "spaghetti",
+              "score": 0.7052093536750383
+            }
+          ],
+          "stronger": [
+            "pasta"
+          ]
+        },
+        {
+          "region": [
+            0.0,
+            0.25,
+            0.5,
+            0.5
+          ],
+          "detector_label": "Grid 4",
+          "image_s": 0.23786006099544466,
+          "background_score": 0.6992156898609969,
+          "matches": [
+            {
+              "label": "pasta",
+              "score": 0.7208599224612093
+            },
+            {
+              "label": "spaghetti",
+              "score": 0.7089732207648687
+            },
+            {
+              "label": "pasta sauce",
+              "score": 0.7021698592622312
+            },
+            {
+              "label": "penne",
+              "score": 0.6999130172054072
+            },
+            {
+              "label": "macaroni",
+              "score": 0.689415107288289
+            }
+          ],
+          "stronger": [
+            "pasta",
+            "spaghetti",
+            "pasta sauce",
+            "penne"
+          ]
+        },
+        {
+          "region": [
+            0.25,
+            0.25,
+            0.5,
+            0.5
+          ],
+          "detector_label": "Grid 5",
+          "image_s": 0.25319878500158666,
+          "background_score": 0.7234807974031501,
+          "matches": [
+            {
+              "label": "canned corn",
+              "score": 0.7225553597663619
+            },
+            {
+              "label": "tortilla chips",
+              "score": 0.7211790574948694
+            },
+            {
+              "label": "canned beans",
+              "score": 0.7184860106432582
+            },
+            {
+              "label": "corn flakes",
+              "score": 0.7179855298390152
+            },
+            {
+              "label": "ready-made meals",
+              "score": 0.7155174668177084
+            }
+          ],
+          "stronger": []
+        },
+        {
+          "region": [
+            0.5,
+            0.25,
+            0.5,
+            0.5
+          ],
+          "detector_label": "Grid 6",
+          "image_s": 0.2450759380008094,
+          "background_score": 0.6814342478844385,
+          "matches": [
+            {
+              "label": "rice",
+              "score": 0.7561880929923417
+            },
+            {
+              "label": "risotto rice",
+              "score": 0.742981302117461
+            },
+            {
+              "label": "rice flour",
+              "score": 0.7293423070701993
+            },
+            {
+              "label": "white rice",
+              "score": 0.7252198871168677
+            },
+            {
+              "label": "basmati rice",
+              "score": 0.7200326962865972
+            }
+          ],
+          "stronger": [
+            "rice",
+            "risotto rice",
+            "rice flour",
+            "white rice",
+            "basmati rice"
+          ]
+        },
+        {
+          "region": [
+            0.0,
+            0.5,
+            0.5,
+            0.5
+          ],
+          "detector_label": "Grid 7",
+          "image_s": 0.2380624670040561,
+          "background_score": 0.7269983236759211,
+          "matches": [
+            {
+              "label": "pasta",
+              "score": 0.750068693717694
+            },
+            {
+              "label": "macaroni",
+              "score": 0.7391405441708272
+            },
+            {
+              "label": "penne",
+              "score": 0.7315307698935898
+            },
+            {
+              "label": "pasta sauce",
+              "score": 0.7274756209080484
+            },
+            {
+              "label": "baby pasta",
+              "score": 0.7211945776972378
+            }
+          ],
+          "stronger": [
+            "pasta",
+            "macaroni",
+            "penne",
+            "pasta sauce"
+          ]
+        },
+        {
+          "region": [
+            0.25,
+            0.5,
+            0.5,
+            0.5
+          ],
+          "detector_label": "Grid 8",
+          "image_s": 0.25257199499901617,
+          "background_score": 0.712945639322353,
+          "matches": [
+            {
+              "label": "macaroni",
+              "score": 0.742262689881316
+            },
+            {
+              "label": "pasta",
+              "score": 0.7407886656337628
+            },
+            {
+              "label": "penne",
+              "score": 0.7161820824594651
+            },
+            {
+              "label": "pasta sauce",
+              "score": 0.7150635780530381
+            },
+            {
+              "label": "ready-made meals",
+              "score": 0.710039469808568
+            }
+          ],
+          "stronger": [
+            "macaroni",
+            "pasta",
+            "penne",
+            "pasta sauce"
+          ]
+        },
+        {
+          "region": [
+            0.5,
+            0.5,
+            0.5,
+            0.5
+          ],
+          "detector_label": "Grid 9",
+          "image_s": 0.2389752499948372,
+          "background_score": 0.729176647931189,
+          "matches": [
+            {
+              "label": "breakfast cereal",
+              "score": 0.7450268640928044
+            },
+            {
+              "label": "corn flakes",
+              "score": 0.7436663664479445
+            },
+            {
+              "label": "tortilla chips",
+              "score": 0.7348175416750363
+            },
+            {
+              "label": "tortillas",
+              "score": 0.7332025138756001
+            },
+            {
+              "label": "granola",
+              "score": 0.731814929644266
+            }
+          ],
+          "stronger": [
+            "breakfast cereal",
+            "corn flakes",
+            "tortilla chips",
+            "tortillas",
+            "granola"
+          ]
+        }
+      ],
+      "merged": {
+        "pasta": {
+          "score": 0.7740408892858963,
+          "regions": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            8,
+            9
+          ]
+        },
+        "rice": {
+          "score": 0.7561880929923417,
+          "regions": [
+            7
+          ]
+        },
+        "spaghetti": {
+          "score": 0.755482659728127,
+          "regions": [
+            1,
+            2,
+            3,
+            5
+          ]
+        },
+        "pasta sauce": {
+          "score": 0.7455251005296571,
+          "regions": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            9
+          ]
+        },
+        "breakfast cereal": {
+          "score": 0.7450268640928044,
+          "regions": [
+            10
+          ]
+        },
+        "corn flakes": {
+          "score": 0.7436663664479445,
+          "regions": [
+            10
+          ]
+        },
+        "risotto rice": {
+          "score": 0.742981302117461,
+          "regions": [
+            7
+          ]
+        },
+        "macaroni": {
+          "score": 0.742262689881316,
+          "regions": [
+            1,
+            3,
+            8,
+            9
+          ]
+        },
+        "penne": {
+          "score": 0.7349847009810164,
+          "regions": [
+            2,
+            3,
+            5,
+            8,
+            9
+          ]
+        },
+        "tortilla chips": {
+          "score": 0.7348175416750363,
+          "regions": [
+            10
+          ]
+        },
+        "tortillas": {
+          "score": 0.7332025138756001,
+          "regions": [
+            10
+          ]
+        },
+        "granola": {
+          "score": 0.731814929644266,
+          "regions": [
+            10
+          ]
+        },
+        "rice flour": {
+          "score": 0.7293423070701993,
+          "regions": [
+            7
+          ]
+        },
+        "white rice": {
+          "score": 0.7252198871168677,
+          "regions": [
+            7
+          ]
+        },
+        "basmati rice": {
+          "score": 0.7200326962865972,
+          "regions": [
+            7
+          ]
+        },
+        "baby pasta": {
+          "score": 0.7188072882750967,
+          "regions": [
+            1
+          ]
+        }
+      }
+    },
+    {
+      "mode": "efficientdet_lite0",
+      "warm_total_s": 0.953654300996277,
+      "detection": {
+        "load_s": 0.6708682600001339,
+        "inference_s": 0.024468884002999403
+      },
+      "regions": [
+        {
+          "region": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "detector_label": "bed",
+          "image_s": 0.2523977700038813,
+          "background_score": 0.7102370909173921,
+          "matches": [
+            {
+              "label": "pasta",
+              "score": 0.7507694360388049
+            },
+            {
+              "label": "pasta sauce",
+              "score": 0.7312476360897647
+            },
+            {
+              "label": "macaroni",
+              "score": 0.7234150371988578
+            },
+            {
+              "label": "spaghetti",
+              "score": 0.7223369140360554
+            },
+            {
+              "label": "baby pasta",
+              "score": 0.7188072882750967
+            }
+          ],
+          "stronger": [
+            "pasta",
+            "pasta sauce",
+            "macaroni",
+            "spaghetti",
+            "baby pasta"
+          ]
+        }
+      ],
+      "merged": {
+        "pasta": {
+          "score": 0.7507694360388049,
+          "regions": [
+            1
+          ]
+        },
+        "pasta sauce": {
+          "score": 0.7312476360897647,
+          "regions": [
+            1
+          ]
+        },
+        "macaroni": {
+          "score": 0.7234150371988578,
+          "regions": [
+            1
+          ]
+        },
+        "spaghetti": {
+          "score": 0.7223369140360554,
+          "regions": [
+            1
+          ]
+        },
+        "baby pasta": {
+          "score": 0.7188072882750967,
+          "regions": [
+            1
+          ]
+        }
+      }
+    },
+    {
+      "mode": "efficientdet_lite2",
+      "warm_total_s": 1.1301126920006936,
+      "detection": {
+        "load_s": 1.0769666269989102,
+        "inference_s": 0.050748107001709286
+      },
+      "regions": [],
+      "merged": {}
+    }
+  ],
+  "input_description": "Unannotated pantry photo provided by user"
+}

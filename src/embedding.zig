@@ -41,6 +41,8 @@ pub const Result = struct {
     needs_review: bool = false,
     background_score: f64 = 0,
 };
+pub const Box = struct { x: f64, y: f64, width: f64, height: f64, label: []const u8, score: f64 };
+pub const DetectionResult = struct { boxes: []const Box, detector: []const u8, load_ms: u64, detect_ms: u64, total_ms: u64, pss_mb: f64 };
 const Request = struct {
     operation: []const u8,
     backend: []const u8 = "cpu",
@@ -48,6 +50,7 @@ const Request = struct {
     labels: []const []const u8 = &.{},
     max_matches: u32 = 5,
     personalized: bool = false,
+    detector: []const u8 = "efficientdet_lite0",
     scan_id: []const u8 = "",
     label: []const u8 = "",
     accepted: bool = false,
@@ -98,4 +101,9 @@ pub fn feedback(arena: std.mem.Allocator, scan_id: []const u8, label: []const u8
 
 pub fn clearFeedback(arena: std.mem.Allocator) !FeedbackStatus {
     return request(FeedbackStatus, arena, .{ .operation = "clear_feedback" });
+}
+
+pub fn detect(arena: std.mem.Allocator, image: []const u8, detector: []const u8) !DetectionResult {
+    if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("Photo is too large.", .{});
+    return request(DetectionResult, arena, .{ .operation = "detect", .image = image, .detector = detector });
 }

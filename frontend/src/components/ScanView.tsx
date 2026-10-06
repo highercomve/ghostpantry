@@ -1,3 +1,4 @@
+import { RegionExperiment } from "./RegionExperiment";
 import { splitSuggestions } from "../foodSuggestions";
 import React, { useEffect, useState } from "react";
 import { EmbeddingGemmaPanel } from "./EmbeddingGemmaPanel";
@@ -23,6 +24,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [embeddingBusy, setEmbeddingBusy] = useState(false);
   const [changingBackend, setChangingBackend] = useState(false);
+  const [showRegions, setShowRegions] = useState(false);
   const [showEmbedding, setShowEmbedding] = useState(false);
   const [isSystem, setIsSystem] = useState(false);
   const [isFast, setIsFast] = useState(false);
@@ -554,6 +556,38 @@ export const ScanView: React.FC<ScanViewProps> = ({
           </div>
         )}
       </div>
+
+      {selectedImage && (
+        <div className="embedding-entry">
+          <button
+            type="button"
+            className="btn"
+            aria-expanded={showRegions}
+            disabled={
+              isAnalyzing ||
+              isSaving ||
+              changingBackend ||
+              embeddingBusy ||
+              feedbackBusy
+            }
+            onClick={() => setShowRegions((shown) => !shown)}
+          >
+            {showRegions
+              ? "Close multi-item comparison"
+              : "Compare multi-item scanning"}
+          </button>
+          {showRegions && (
+            <RegionExperiment
+              key={selectedImage}
+              image={selectedImage}
+              disabled={
+                isAnalyzing || isSaving || changingBackend || feedbackBusy
+              }
+              onBusyChange={setEmbeddingBusy}
+            />
+          )}
+        </div>
+      )}
 
       {selectedImage && !isFast && (
         <div className="embedding-entry">
