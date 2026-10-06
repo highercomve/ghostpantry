@@ -32,12 +32,14 @@ pub const Result = struct {
     dimensions: u32,
     vision_tokens: u32,
     labels_cached: bool,
+    label_cache: []const u8 = "computed",
 };
 const Request = struct {
     operation: []const u8,
     backend: []const u8 = "cpu",
     image: []const u8 = "",
     labels: []const []const u8 = &.{},
+    max_matches: u32 = 5,
 };
 
 fn request(comptime Reply: type, arena: std.mem.Allocator, input: Request) !Reply {
@@ -64,6 +66,14 @@ pub fn match(arena: std.mem.Allocator, image: []const u8, backend: []const u8, l
     if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("Photo is too large.", .{});
     if (labels.len < 2 or labels.len > 48) return oriel.ipc.fail("Provide 2–48 food labels.", .{});
     return request(Result, arena, .{ .operation = "match", .backend = backend, .image = image, .labels = labels });
+}
+
+pub fn scan(arena: std.mem.Allocator, image: []const u8, backend: []const u8, vocabulary: []const u8) !Result {
+    if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("Photo is too large.", .{});
+    const labels = @import("embedding_labels.zig").parse(arena, vocabulary) catch |err| {
+        return oriel.ipc.fail("Set 2–48 food labels in Settings ({s}).", .{@errorName(err)});
+    };
+    return request(Result, arena, .{ .operation = "match", .backend = backend, .image = image, .labels = labels, .max_matches = 10 });
 }
 
 pub fn releaseForScan(arena: std.mem.Allocator) !void {

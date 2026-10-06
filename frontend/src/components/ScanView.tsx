@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { EmbeddingGemmaPanel } from "./EmbeddingGemmaPanel";
 import { CameraCapture } from "./CameraCapture";
-import { invoke } from "../oriel";
+import { Commands, invoke } from "../oriel";
 import { useSystemAi } from "../hooks/useSystemAi";
 import { SystemAiStatusPanel } from "./SystemAiStatusPanel";
 import { InventoryItem, VisionDetectedItem, VisionResult } from "../types";
@@ -17,8 +17,14 @@ export const ScanView: React.FC<ScanViewProps> = ({
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [embeddingBusy, setEmbeddingBusy] = useState(false);
+  const [changingBackend, setChangingBackend] = useState(false);
   const [showEmbedding, setShowEmbedding] = useState(false);
   const [isSystem, setIsSystem] = useState(false);
+  const [isFast, setIsFast] = useState(false);
+  const [fastBackend, setFastBackend] = useState<"cpu" | "gpu">("cpu");
+  const [fastResult, setFastResult] = useState<
+    Commands["fast_scan"]["result"] | null
+  >(null);
   const {
     status: systemStatus,
     busy: systemBusy,
@@ -29,6 +35,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
       void invoke("get_settings")
         .then((settings) => {
           setIsSystem(settings.provider === "system");
+          setIsFast(settings.provider === "embedding");
+          setFastBackend(settings.embeddingBackend === "gpu" ? "gpu" : "cpu");
         })
         .catch(() => {});
   }, []);
@@ -40,7 +48,11 @@ export const ScanView: React.FC<ScanViewProps> = ({
 
   // Results to review before persisting to SQLite
   const [detectedItems, setDetectedItems] = useState<
-    (VisionDetectedItem & { selected: boolean; desired: number })[]
+    (VisionDetectedItem & {
+      selected: boolean;
+      desired: number;
+      similarity?: number;
+    })[]
   >([]);
   const [scanSummary, setScanSummary] = useState<string>("");
   const [scanTiming, setScanTiming] = useState<VisionResult["timing"]>(null);
@@ -51,6 +63,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
     if (!selectedImage) return;
 
     setScanTiming(null);
+    setFastResult(null);
     setIsAnalyzing(true);
     setAnalysisError(null);
     setSaveSuccessMsg(null);
@@ -60,6 +73,29 @@ export const ScanView: React.FC<ScanViewProps> = ({
       const settings = await invoke("get_settings");
       const system = settings.provider === "system";
       setIsSystem(system);
+      setIsFast(settings.provider === "embedding");
+      if (settings.provider === "embedding") {
+        const result = await invoke("fast_scan", { image: selectedImage });
+        setFastResult(result);
+        setHasAnalyzed(true);
+        setScanSummary(
+          "Select only the foods you can see. Rename labels and set package counts and fill levels before saving.",
+        );
+        setDetectedItems(
+          result.matches.map((match) => ({
+            name: match.label,
+            selected: false,
+            desired: 1,
+            quantity: 1,
+            fill_percentage: 100,
+            unit: "package",
+            similarity: match.score,
+            notes:
+              "Confirmed from a fast local suggestion; quantity and fill level set during review.",
+          })),
+        );
+        return;
+      }
       if (system) {
         const status = await checkSystemAi();
         if (status.state !== "available") return;
@@ -115,10 +151,23 @@ export const ScanView: React.FC<ScanViewProps> = ({
       return;
     }
 
+    if (
+      selected.some(
+        (item) =>
+          !item.name.trim() ||
+          !Number.isFinite(item.quantity ?? 1) ||
+          (item.quantity ?? 1) < 0,
+      )
+    ) {
+      setAnalysisError(
+        "Enter a food name and a valid quantity for every selected item.",
+      );
+      return;
+    }
     setIsSaving(true);
     try {
       const itemsToSave: InventoryItem[] = selected.map((it) => ({
-        name: it.name,
+        name: it.name.trim(),
         category: location,
         location:
           location === "fridge"
@@ -209,7 +258,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
             type="button"
             className={`seg-btn ${location === "fridge" ? "active" : ""}`}
             onClick={() => setLocation("fridge")}
-            disabled={isAnalyzing || isSaving || embeddingBusy}
+            disabled={
+              isAnalyzing || isSaving || changingBackend || embeddingBusy
+            }
           >
             Fridge
           </button>
@@ -217,7 +268,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
             type="button"
             className={`seg-btn ${location === "pantry" ? "active" : ""}`}
             onClick={() => setLocation("pantry")}
-            disabled={isAnalyzing || isSaving || embeddingBusy}
+            disabled={
+              isAnalyzing || isSaving || changingBackend || embeddingBusy
+            }
           >
             Pantry
           </button>
@@ -225,7 +278,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
             type="button"
             className={`seg-btn ${location === "freezer" ? "active" : ""}`}
             onClick={() => setLocation("freezer")}
-            disabled={isAnalyzing || isSaving || embeddingBusy}
+            disabled={
+              isAnalyzing || isSaving || changingBackend || embeddingBusy
+            }
           >
             Freezer
           </button>
@@ -252,13 +307,42 @@ export const ScanView: React.FC<ScanViewProps> = ({
         </div>
       )}
 
+      {isFast && !hasAnalyzed && (
+        <EmbeddingGemmaPanel
+          setupOnly
+          selectedBackend={fastBackend}
+          onBackendChange={(backend) => {
+            const previous = fastBackend;
+            setChangingBackend(true);
+            setFastBackend(backend);
+            void invoke("get_settings")
+              .then((settings) =>
+                invoke("save_settings", {
+                  settings: { ...settings, embeddingBackend: backend },
+                }),
+              )
+              .catch((err) => {
+                setFastBackend(previous);
+                setAnalysisError(
+                  err instanceof Error ? err.message : String(err),
+                );
+              })
+              .finally(() => setChangingBackend(false));
+          }}
+          disabled={isAnalyzing || isSaving || changingBackend}
+          onBusyChange={setEmbeddingBusy}
+        />
+      )}
+
       {isSystem && !hasAnalyzed && (
         <div className="settings-section">
           <h3>System AI</h3>
           <SystemAiStatusPanel
             status={systemStatus}
             busy={systemBusy}
-            disabled={isAnalyzing || isSaving || embeddingBusy}
+            disabled={
+              isAnalyzing || isSaving || changingBackend || embeddingBusy
+            }
             onCheck={() => {
               setAnalysisError(null);
               void checkSystemAi();
@@ -282,17 +366,19 @@ export const ScanView: React.FC<ScanViewProps> = ({
           selectedImage={selectedImage}
           onImageSelected={(img) => {
             setHasAnalyzed(false);
+            setFastResult(null);
             setSelectedImage(img);
             setDetectedItems([]);
             setAnalysisError(null);
           }}
           onClear={() => {
             setHasAnalyzed(false);
+            setFastResult(null);
             setSelectedImage(null);
             setDetectedItems([]);
             setAnalysisError(null);
           }}
-          disabled={isAnalyzing || isSaving || embeddingBusy}
+          disabled={isAnalyzing || isSaving || changingBackend || embeddingBusy}
         />
 
         {/* Immediate CTA directly below image preview */}
@@ -303,6 +389,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
               className="btn primary btn-lg w-full"
               onClick={handleStartAnalysis}
               disabled={
+                changingBackend ||
                 embeddingBusy ||
                 isAnalyzing ||
                 isSaving ||
@@ -313,7 +400,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
               {isAnalyzing ? (
                 <>
                   <span className="spinner-sm"></span>
-                  Analyzing shelf with AI...
+                  {isFast
+                    ? "Matching foods on your phone…"
+                    : "Analyzing shelf with AI..."}
                 </>
               ) : isSystem && systemStatus?.state !== "available" ? (
                 systemBusy === "downloading" ||
@@ -322,6 +411,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
                 ) : (
                   "System AI must be ready to scan"
                 )
+              ) : isFast ? (
+                "Suggest foods in this photo"
               ) : (
                 "Find items in this photo"
               )}
@@ -330,13 +421,15 @@ export const ScanView: React.FC<ScanViewProps> = ({
         )}
       </div>
 
-      {selectedImage && (
+      {selectedImage && !isFast && (
         <div className="embedding-entry">
           <button
             type="button"
             className="btn"
             aria-expanded={showEmbedding}
-            disabled={isAnalyzing || isSaving || embeddingBusy}
+            disabled={
+              isAnalyzing || isSaving || changingBackend || embeddingBusy
+            }
             onClick={() => setShowEmbedding(!showEmbedding)}
           >
             {showEmbedding ? "Close image matching" : "Try image matching"}
@@ -345,7 +438,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             <EmbeddingGemmaPanel
               key={selectedImage}
               image={selectedImage}
-              disabled={isAnalyzing || isSaving}
+              disabled={isAnalyzing || isSaving || changingBackend}
               onBusyChange={setEmbeddingBusy}
             />
           )}
@@ -370,8 +463,22 @@ export const ScanView: React.FC<ScanViewProps> = ({
         <div className="review-card">
           <div className="review-card-head">
             <div>
-              <h3>Detected Items ({detectedItems.length})</h3>
+              <h3>
+                {fastResult ? "Suggested foods" : "Detected Items"} (
+                {detectedItems.length})
+              </h3>
               <p className="text-muted small">{scanSummary}</p>
+              {fastResult && (
+                <p className="text-muted small fast-scan-timing">
+                  {fastResult.backend.toUpperCase()} ·{" "}
+                  {(fastResult.total_ms / 1000).toFixed(2)} s total · photo{" "}
+                  {(fastResult.image_ms / 1000).toFixed(2)} s · labels{" "}
+                  {(fastResult.labels_ms / 1000).toFixed(2)} s
+                  {fastResult.labels_cached
+                    ? ` (${fastResult.label_cache})`
+                    : ""}
+                </p>
+              )}
               {scanTiming && (
                 <p className="text-muted small">
                   Scan: {(scanTiming.total_ms / 1000).toFixed(1)} s
@@ -390,6 +497,36 @@ export const ScanView: React.FC<ScanViewProps> = ({
             <span className="badge badge-primary">Review & Save</span>
           </div>
 
+          {fastResult && (
+            <div className="suggestion-intro">
+              <strong>Which foods are actually here?</strong>
+              <p>
+                These are the closest food labels, not confirmed detections.
+                Nothing is selected automatically. Quantities start at one
+                package and fill at 100%; adjust them to match your shelf.
+              </p>
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  setDetectedItems((items) => [
+                    ...items,
+                    {
+                      name: "",
+                      selected: true,
+                      desired: 1,
+                      quantity: 1,
+                      fill_percentage: 100,
+                      unit: "package",
+                      notes: "Added during fast local scan review.",
+                    },
+                  ])
+                }
+              >
+                Add a missing food
+              </button>
+            </div>
+          )}
           <div className="detected-items-list">
             {detectedItems.map((item, index) => {
               const fill = item.fill_percentage ?? 100;
@@ -404,6 +541,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
                         updateItemField(index, "selected", e.target.checked)
                       }
                       className="item-check"
+                      aria-label={`Confirm ${item.name || "new food"}`}
                     />
 
                     <div className="item-inputs-grid">
@@ -419,9 +557,17 @@ export const ScanView: React.FC<ScanViewProps> = ({
                         />
                       </div>
 
+                      {item.similarity !== undefined && (
+                        <small className="suggestion-score">
+                          Similarity {item.similarity.toFixed(3)} · not a
+                          probability
+                        </small>
+                      )}
                       <div className="field-row">
                         <div className="field-group flex-1">
-                          <label>Quantity</label>
+                          <label>
+                            {fastResult ? "Quantity (you set)" : "Quantity"}
+                          </label>
                           <input
                             type="number"
                             step="0.5"
@@ -438,7 +584,10 @@ export const ScanView: React.FC<ScanViewProps> = ({
                         </div>
 
                         <div className="field-group flex-1">
-                          <label>Fill Level: {fill}%</label>
+                          <label>
+                            {fastResult ? "Fill (you set)" : "Fill Level"}:{" "}
+                            {fill}%
+                          </label>
                           <input
                             type="range"
                             min="0"
@@ -477,7 +626,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
               className="btn primary btn-lg w-full"
               onClick={handleApplyResults}
               disabled={
-                isSaving || detectedItems.filter((i) => i.selected).length === 0
+                isSaving ||
+                detectedItems.filter((i) => i.selected).length === 0 ||
+                detectedItems.some((i) => i.selected && !i.name.trim())
               }
             >
               {isSaving

@@ -12,13 +12,20 @@ export function EmbeddingGemmaPanel({
   image,
   disabled = false,
   onBusyChange,
+  setupOnly = false,
+  selectedBackend,
+  onBackendChange,
 }: {
   image?: string | null;
   disabled?: boolean;
   onBusyChange?: (busy: boolean) => void;
+  setupOnly?: boolean;
+  selectedBackend?: "cpu" | "gpu";
+  onBackendChange?: (backend: "cpu" | "gpu") => void;
 }) {
   const [status, setStatus] = useState<Status | null>(null);
-  const [backend, setBackend] = useState<"cpu" | "gpu">("cpu");
+  const [backendChoice, setBackendChoice] = useState<"cpu" | "gpu">("cpu");
+  const backend = selectedBackend || backendChoice;
   const [labels, setLabels] = useState(INITIAL_LABELS);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,14 +121,18 @@ export function EmbeddingGemmaPanel({
   return (
     <section
       className="settings-section embedding-panel"
-      aria-label="EmbeddingGemma experiment"
+      aria-label={
+        setupOnly ? "Fast local model setup" : "EmbeddingGemma experiment"
+      }
     >
-      <span className="eyebrow">ON-DEVICE EXPERIMENT</span>
-      <h3>EmbeddingGemma 2</h3>
+      <span className="eyebrow">
+        {setupOnly ? "FAST & OFFLINE" : "ON-DEVICE EXPERIMENT"}
+      </span>
+      <h3>{setupOnly ? "Fast local scan" : "EmbeddingGemma 2"}</h3>
       <p className="text-muted">
-        Compare a photo with food labels, entirely on your phone. Try one item
-        or package at a time. This ranks labels; it does not count items or add
-        them to your pantry.
+        {setupOnly
+          ? "EmbeddingGemma 2 suggests foods from your saved labels. Confirm what is visible and set quantities before saving. Download the model once to scan offline."
+          : "Compare a photo with food labels, entirely on your phone. Try one item or package at a time. This ranks labels; it does not count items or add them to your pantry."}
       </p>
       <div className="embedding-status" role="status" aria-live="polite">
         <strong>
@@ -206,7 +217,8 @@ export function EmbeddingGemmaPanel({
                   className={`seg-btn ${backend === option ? "active" : ""}`}
                   disabled={blocked}
                   onClick={() => {
-                    setBackend(option);
+                    setBackendChoice(option);
+                    onBackendChange?.(option);
                     setResult(null);
                   }}
                 >
@@ -244,44 +256,47 @@ export function EmbeddingGemmaPanel({
               disabled={blocked}
               onClick={() => void run("delete")}
             >
-              Delete experiment model
+              {setupOnly
+                ? "Delete downloaded model"
+                : "Delete experiment model"}
             </button>
           </div>
-          {image ? (
-            <>
-              <div className="form-group">
-                <label htmlFor={labelId}>Food labels to compare</label>
-                <textarea
-                  id={labelId}
-                  rows={6}
-                  value={labels}
-                  disabled={blocked}
-                  onChange={(e) => {
-                    setLabels(e.target.value);
-                    setResult(null);
-                  }}
-                />
-                <small className="text-muted">
-                  2–48 labels, one per line or separated by commas. Up to 120
-                  characters each.
-                </small>
-              </div>
-              <button
-                type="button"
-                className="btn primary w-full"
-                disabled={blocked || !validLabels}
-                onClick={() => void run("match")}
-              >
-                {busy === "match"
-                  ? "Matching photo…"
-                  : `Match photo on ${backend.toUpperCase()}`}
-              </button>
-            </>
-          ) : (
-            <p className="text-muted">
-              Select a photo in Scan a shelf, then open “Try image matching”.
-            </p>
-          )}
+          {!setupOnly &&
+            (image ? (
+              <>
+                <div className="form-group">
+                  <label htmlFor={labelId}>Food labels to compare</label>
+                  <textarea
+                    id={labelId}
+                    rows={6}
+                    value={labels}
+                    disabled={blocked}
+                    onChange={(e) => {
+                      setLabels(e.target.value);
+                      setResult(null);
+                    }}
+                  />
+                  <small className="text-muted">
+                    2–48 labels, one per line or separated by commas. Up to 120
+                    characters each.
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  className="btn primary w-full"
+                  disabled={blocked || !validLabels}
+                  onClick={() => void run("match")}
+                >
+                  {busy === "match"
+                    ? "Matching photo…"
+                    : `Match photo on ${backend.toUpperCase()}`}
+                </button>
+              </>
+            ) : (
+              <p className="text-muted">
+                Select a photo in Scan a shelf, then open “Try image matching”.
+              </p>
+            ))}
         </>
       )}
       {result && (
@@ -309,7 +324,12 @@ export function EmbeddingGemmaPanel({
               <dd>{seconds(result.load_ms)}</dd>
             </div>
             <div>
-              <dt>Food labels{result.labels_cached ? " · cached" : ""}</dt>
+              <dt>
+                Food labels
+                {result.labels_cached
+                  ? ` · ${result.label_cache || "cached"}`
+                  : ""}
+              </dt>
               <dd>{seconds(result.labels_ms)}</dd>
             </div>
             <div>

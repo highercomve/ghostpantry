@@ -50,6 +50,8 @@ export interface AppSettings {
   defaultLocation?: string;
   localBackend?: string;
   localScanMode?: string;
+  embeddingBackend?: string;
+  matchingLabels?: string;
 }
 
 export interface ScanLog {

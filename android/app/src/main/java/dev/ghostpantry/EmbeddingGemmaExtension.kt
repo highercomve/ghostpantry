@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.Debug
 import android.os.Looper
 import android.util.Base64
+import android.util.Log
 import com.google.ai.edge.litertlm.ActivationDataType
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.EmbeddingEngine
@@ -79,6 +80,7 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
                             release()
                             check(!modelFile().exists() || modelFile().delete()) { "Cannot delete model" }
                             check(!partFile().exists() || partFile().delete()) { "Cannot delete partial download" }
+                            for (backend in listOf("cpu", "gpu")) File(folder(), "labels-$backend.bin").delete()
                             downloadError = null
                             status()
                         }
@@ -260,24 +262,34 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
             require(bounds.outWidth in 1..1600 && bounds.outHeight in 1..1600) { "Photo must be at most 1600 pixels per side" }
             val loadMs = load(input.optString("backend", "cpu"))
             val labelsStarted = System.nanoTime()
-            val labelsCached = labels == cachedLabels
-            if (!labelsCached) {
-                val vectors = labels.map { embed(InputData.Text("A photo of $it")) }
-                cachedLabels = labels
-                cachedVectors = vectors
-            }
+            val labelCache = prepareLabels(labels)
             val labelsMs = elapsed(labelsStarted)
             val imageStarted = System.nanoTime()
             val imageVector = embed(InputData.Image(bytes))
             val imageMs = elapsed(imageStarted)
             val ranked = labels.indices.map { labels[it] to EmbeddingMath.similarity(imageVector, cachedVectors[it]) }
-                .sortedByDescending { it.second }.take(5)
+                .sortedByDescending { it.second }.take(input.optInt("max_matches", 5).coerceIn(1, 10))
             val matches = JSONArray()
             ranked.forEach { matches.put(JSONObject().put("label", it.first).put("score", it.second)) }
             val memory = Debug.MemoryInfo().also { Debug.getMemoryInfo(it) }
             return JSONObject().put("matches", matches).put("device", device()).put("backend", engineBackend)
                 .put("total_ms", elapsed(started)).put("load_ms", loadMs).put("labels_ms", labelsMs).put("image_ms", imageMs)
-                .put("pss_mb", memory.totalPss / 1024.0).put("dimensions", 256).put("vision_tokens", 70).put("labels_cached", labelsCached)
+                .put("pss_mb", memory.totalPss / 1024.0).put("dimensions", 256).put("vision_tokens", 70).put("labels_cached", labelCache != "computed").put("label_cache", labelCache)
+        }
+
+        private fun prepareLabels(labels: List<String>): String {
+            if (labels == cachedLabels) return "memory"
+            val key = EmbeddingCache.key("$MODEL_SHA|litertlm-0.18|$engineBackend|fp32|256|128|70|caption-v1", labels)
+            val file = File(folder(), "labels-$engineBackend.bin")
+            val restored = EmbeddingCache.read(file, key, labels.size)
+            val vectors = restored ?: labels.map { embed(InputData.Text("A photo of $it")) }
+            cachedLabels = labels
+            cachedVectors = vectors
+            if (restored == null) {
+                try { EmbeddingCache.write(file, key, vectors) }
+                catch (failure: Exception) { Log.w("GhostPantryEmbedding", "Label cache could not be saved", failure) }
+            }
+            return if (restored == null) "computed" else "disk"
         }
 
         private fun elapsed(started: Long) = (System.nanoTime() - started) / 1_000_000

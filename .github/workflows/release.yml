@@ -43,6 +43,8 @@ jobs:
         run: |
           zig test build/android_manifest.zig
           zig test --dep android_manifest -Mroot=tools/package/android.zig -Mandroid_manifest=build/android_manifest.zig
+      - name: Fast scan vocabulary tests
+        run: zig test src/embedding_labels.zig
       - name: Release helper tests
         run: python3 -m unittest discover -s tests -p 'test_*.py'
   linux:

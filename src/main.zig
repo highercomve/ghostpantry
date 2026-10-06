@@ -69,6 +69,8 @@ pub const AppSettings = struct {
     defaultLocation: []const u8 = "fridge",
     localBackend: []const u8 = "auto",
     localScanMode: []const u8 = "balanced",
+    embeddingBackend: []const u8 = "cpu",
+    matchingLabels: []const u8 = @import("embedding_labels.zig").defaults,
 };
 
 fn readSettings(arena: std.mem.Allocator, d: db_mod.Db) AppSettings {
@@ -80,6 +82,10 @@ fn readSettings(arena: std.mem.Allocator, d: db_mod.Db) AppSettings {
     if (d.getSetting(arena, "defaultLocation") catch null) |v| s.defaultLocation = v;
     if (d.getSetting(arena, "localBackend") catch null) |v| s.localBackend = v;
     if (d.getSetting(arena, "localScanMode") catch null) |v| s.localScanMode = v;
+    if (d.getSetting(arena, "embeddingBackend") catch null) |v| s.embeddingBackend = v;
+    if (d.getSetting(arena, "matchingLabels") catch null) |v| {
+        if (v.len > 0) s.matchingLabels = v;
+    }
     return s;
 }
 
@@ -94,6 +100,7 @@ pub const Commands = struct {
         "embedding_cancel",
         "embedding_prepare",
         "embedding_match",
+        "fast_scan",
         "embedding_release",
         "embedding_delete",
         "local_status",
@@ -143,6 +150,11 @@ pub const Commands = struct {
     }
 
     pub fn save_settings(arena: std.mem.Allocator, args: struct { settings: AppSettings }) !void {
+        if (args.settings.matchingLabels.len > 0 or std.mem.eql(u8, args.settings.provider, "embedding")) _ = @import("embedding_labels.zig").parse(arena, args.settings.matchingLabels) catch |err| {
+            return oriel.ipc.fail("Set 2–48 unique food labels ({s}).", .{@errorName(err)});
+        };
+        if (!std.mem.eql(u8, args.settings.embeddingBackend, "cpu") and !std.mem.eql(u8, args.settings.embeddingBackend, "gpu"))
+            return oriel.ipc.fail("Choose CPU or GPU for fast local scans.", .{});
         const d = try getDb(arena);
         try d.setSetting("provider", args.settings.provider);
         try d.setSetting("baseUrl", args.settings.baseUrl);
@@ -151,6 +163,8 @@ pub const Commands = struct {
         try d.setSetting("defaultLocation", args.settings.defaultLocation);
         try d.setSetting("localBackend", args.settings.localBackend);
         try d.setSetting("localScanMode", args.settings.localScanMode);
+        try d.setSetting("embeddingBackend", args.settings.embeddingBackend);
+        if (args.settings.matchingLabels.len > 0) try d.setSetting("matchingLabels", args.settings.matchingLabels);
     }
 
     pub fn get_available_models(
@@ -172,6 +186,8 @@ pub const Commands = struct {
         const d = try getDb(arena);
         const s = readSettings(arena, d);
 
+        if (std.mem.eql(u8, s.provider, "embedding"))
+            return oriel.ipc.fail("Use fast local matching to get suggestions for review.", .{});
         try embedding.releaseForScan(arena);
         if (std.mem.eql(u8, s.provider, "system")) {
             local_mod.unload();
@@ -237,6 +253,13 @@ pub const Commands = struct {
     pub fn embedding_match(arena: std.mem.Allocator, args: struct { image: []const u8, backend: []const u8, labels: []const []const u8 }) !embedding.Result {
         local_mod.unload();
         return embedding.match(arena, args.image, args.backend, args.labels);
+    }
+
+    pub fn fast_scan(arena: std.mem.Allocator, args: struct { image: []const u8 }) !embedding.Result {
+        const d = try getDb(arena);
+        const settings = readSettings(arena, d);
+        local_mod.unload();
+        return embedding.scan(arena, args.image, settings.embeddingBackend, settings.matchingLabels);
     }
 
     pub fn embedding_release(arena: std.mem.Allocator) !embedding.Status {

@@ -60,6 +60,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     model: "qwen2.5-vl-3b",
     defaultLocation: "fridge",
     localBackend: "auto",
+    embeddingBackend: "cpu",
+    matchingLabels: "",
   });
 
   const [embeddingBusy, setEmbeddingBusy] = useState(false);
@@ -238,17 +240,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       if (res) {
         setSettings({
           provider:
-            res.provider === "system"
-              ? "system"
-              : res.provider === "local"
-                ? "local"
-                : "api",
+            res.provider === "embedding"
+              ? "embedding"
+              : res.provider === "system"
+                ? "system"
+                : res.provider === "local"
+                  ? "local"
+                  : "api",
           baseUrl: res.baseUrl || "https://api.openai.com/v1",
           apiKey: res.apiKey || "",
           model: res.model || "qwen2.5-vl-3b",
           defaultLocation: res.defaultLocation || "fridge",
           localBackend: (res as any).localBackend || "auto",
           localScanMode: res.localScanMode || "balanced",
+          embeddingBackend: res.embeddingBackend || "cpu",
+          matchingLabels: res.matchingLabels || "",
         });
       }
     } catch (err: any) {
@@ -256,7 +262,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const handleProviderChange = (segment: "local" | "system" | "api") => {
+  const handleProviderChange = (
+    segment: "local" | "system" | "api" | "embedding",
+  ) => {
     setSettings((prev) => ({ ...prev, provider: segment }));
   };
 
@@ -387,6 +395,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleTestConnection = async () => {
+    if (settings.provider === "embedding") {
+      setTesting(true);
+      setTestResult(null);
+      try {
+        await invoke("save_settings", { settings });
+        const status = await invoke("embedding_prepare", {
+          backend: settings.embeddingBackend || "cpu",
+        });
+        setTestResult({
+          success: true,
+          message: status.message || "Fast local model is ready.",
+        });
+      } catch (err) {
+        setTestResult({
+          success: false,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        setTesting(false);
+      }
+      return;
+    }
+
     if (settings.provider === "system") {
       await checkSystemAi();
       return;
@@ -444,6 +475,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
+  const isFast = settings.provider === "embedding";
   const isLocal = settings.provider === "local";
   const isSystem = settings.provider === "system";
 
@@ -499,10 +531,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="settings-section">
           <h3>1. Vision provider</h3>
           <div
-            className="seg provider-seg"
+            className="seg provider-seg provider-grid"
             role="radiogroup"
             aria-label="Vision provider"
           >
+            <button
+              type="button"
+              className={`seg-btn ${isFast ? "active" : ""}`}
+              role="radio"
+              aria-checked={isFast}
+              onClick={() => handleProviderChange("embedding")}
+            >
+              Fast local
+            </button>
             <button
               type="button"
               className={`seg-btn ${isLocal ? "active" : ""}`}
@@ -510,13 +551,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               aria-checked={isLocal}
               onClick={() => handleProviderChange("local")}
             >
-              Local
+              Local LLM
             </button>
             <button
               type="button"
-              className={`seg-btn ${!isLocal && !isSystem ? "active" : ""}`}
+              className={`seg-btn ${!isLocal && !isSystem && !isFast ? "active" : ""}`}
               role="radio"
-              aria-checked={!isLocal && !isSystem}
+              aria-checked={!isLocal && !isSystem && !isFast}
               onClick={() => handleProviderChange("api")}
             >
               Server / API
@@ -534,7 +575,61 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* On-device models, or endpoint & key */}
-        {isSystem ? (
+        {isFast ? (
+          <>
+            <EmbeddingGemmaPanel
+              setupOnly
+              selectedBackend={
+                settings.embeddingBackend === "gpu" ? "gpu" : "cpu"
+              }
+              onBackendChange={(backend) =>
+                setSettings((prev) => ({ ...prev, embeddingBackend: backend }))
+              }
+              disabled={testing || localBusy !== null}
+              onBusyChange={setEmbeddingBusy}
+            />
+            <div className="settings-section">
+              <h3>Food labels for fast scans</h3>
+              <p className="text-muted">
+                Start with common foods, then use the names you keep in your
+                kitchen. Each scan suggests the ten closest labels for you to
+                review.
+              </p>
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    matchingLabels:
+                      "pasta\nrice noodles\nbaby pasta\nramen noodles\nrisotto rice",
+                  }))
+                }
+              >
+                Use pasta and rice labels
+              </button>
+              <div className="form-group">
+                <label htmlFor="matching-food-labels">One food per line</label>
+                <textarea
+                  id="matching-food-labels"
+                  rows={10}
+                  value={settings.matchingLabels || ""}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      matchingLabels: e.target.value,
+                    }))
+                  }
+                />
+                <small className="text-muted">
+                  2–48 unique labels, up to 120 characters each. Similarity
+                  suggests food types; it does not count packages or confirm
+                  presence.
+                </small>
+              </div>
+            </div>
+          </>
+        ) : isSystem ? (
           <div className="settings-section">
             <h3>2. Android system AI</h3>
             <p className="text-muted">
@@ -1041,6 +1136,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <span className="spinner-sm"></span>
                   Testing AI Vision...
                 </>
+              ) : isFast ? (
+                "Test fast local model"
               ) : isSystem ? (
                 "Check system AI"
               ) : isLocal ? (
@@ -1061,10 +1158,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </form>
 
-      <EmbeddingGemmaPanel
-        disabled={testing || localBusy !== null || systemBusy !== null}
-        onBusyChange={setEmbeddingBusy}
-      />
+      {!isFast && (
+        <EmbeddingGemmaPanel
+          disabled={testing || localBusy !== null || systemBusy !== null}
+          onBusyChange={setEmbeddingBusy}
+        />
+      )}
 
       {appInfo && (
         <div className="app-info-footer">

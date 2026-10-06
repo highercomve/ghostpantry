@@ -1806,3 +1806,8 @@ input[type="checkbox"] {
 .embedding-timings dt { font-size: 0.85rem; color: var(--muted, #727b70); }
 .embedding-timings dd { margin: 4px 0 0; font-weight: 600; }
 .embedding-entry { margin: 20px 0; }
+
+.provider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.suggestion-intro { padding: 16px; background: var(--sage, #edf0e1); border-radius: 12px; margin: 16px 0; }
+.suggestion-score { display: block; color: var(--text-muted); font-size: 0.8rem; margin: 4px 0 12px; }
+.fast-scan-timing { margin-top: 10px; }
