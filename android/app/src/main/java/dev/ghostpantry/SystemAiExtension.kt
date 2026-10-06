@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.os.Looper
 import android.graphics.BitmapFactory
 import android.util.Base64
+import android.util.Log
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.prompt.Generation
@@ -25,6 +26,7 @@ class SystemAiExtension : OrielAndroidExtension {
         @JvmStatic private external fun bind()
         private val lock = ReentrantLock()
         private val model by lazy { Generation.getClient() }
+        private var lastFeatureState: Int? = null
 
         /** Called only by a Zig IPC worker attached to the JVM, never the UI thread. */
         @JvmStatic fun request(bytes: ByteArray): ByteArray {
@@ -41,7 +43,7 @@ class SystemAiExtension : OrielAndroidExtension {
                         when (operation) {
                             "status" -> status()
                             "download" -> {
-                                when (model.checkStatus()) {
+                                when (checkedState("download")) {
                                     FeatureStatus.DOWNLOADABLE -> model.download().collect { progress ->
                                         if (progress is DownloadStatus.DownloadFailed) throw progress.e
                                     }
@@ -63,8 +65,15 @@ class SystemAiExtension : OrielAndroidExtension {
 
         private fun error(message: String) = JSONObject().put("error", message).toString().toByteArray(Charsets.UTF_8)
 
+        private suspend fun checkedState(operation: String): Int {
+            val state = model.checkStatus()
+            Log.i("GhostPantrySystemAI", "$operation: AICore state=$state, previous=$lastFeatureState")
+            lastFeatureState = state
+            return state
+        }
+
         private suspend fun status(): JSONObject {
-            val state = when (model.checkStatus()) {
+            val state = when (checkedState("status")) {
                 FeatureStatus.AVAILABLE -> "available"
                 FeatureStatus.DOWNLOADABLE -> "downloadable"
                 FeatureStatus.DOWNLOADING -> "downloading"
@@ -79,7 +88,12 @@ class SystemAiExtension : OrielAndroidExtension {
         }
 
         private suspend fun analyze(input: JSONObject): JSONObject {
-            check(model.checkStatus() == FeatureStatus.AVAILABLE) { "System AI is not ready. Check its status in Settings or choose a downloaded local model." }
+            when (checkedState("analyze")) {
+                FeatureStatus.AVAILABLE -> Unit
+                FeatureStatus.DOWNLOADABLE -> throw IllegalStateException("Gemini Nano needs to be downloaded before scanning. Download the system model and wait for Ready to scan.")
+                FeatureStatus.DOWNLOADING -> throw IllegalStateException("Gemini Nano is still downloading. Wait for Ready to scan, then retry this photo.")
+                else -> throw IllegalStateException("System AI is unavailable in this phone's AICore configuration. Check support again or choose a downloaded local model.")
+            }
             val image = input.getString("image")
             require(image.startsWith("data:image/") && image.contains(";base64,")) { "Invalid image data" }
             val data = Base64.decode(image.substringAfter(";base64,"), Base64.DEFAULT)

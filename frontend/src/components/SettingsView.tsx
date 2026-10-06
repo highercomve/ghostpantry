@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { AppSettings } from "../types";
 import { invoke, listen } from "../oriel";
+import { useSystemAi } from "../hooks/useSystemAi";
+import { SystemAiStatusPanel } from "./SystemAiStatusPanel";
 
 interface SettingsViewProps {
   onSettingsSaved: () => void;
@@ -97,35 +99,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     text: string;
   } | null>(null);
 
-  const [systemStatus, setSystemStatus] = useState<{
-    state: string;
-    message: string;
-  } | null>(null);
-  const [systemBusy, setSystemBusy] = useState<"checking" | "downloading" | null>(null);
-  const systemRequestPending = React.useRef(false);
-  const checkSystemAi = React.useCallback(async (download = false) => {
-    if (systemRequestPending.current) return;
-    systemRequestPending.current = true;
-    setSystemBusy(download ? "downloading" : "checking");
-    try {
-      const status = download
-        ? await invoke("system_ai_download")
-        : await invoke("system_ai_status");
-      setSystemStatus(status);
-    } catch (err: unknown) {
-      setSystemStatus({
-        state: "error",
-        message: err instanceof Error ? err.message : String(err),
-      });
-    } finally {
-      systemRequestPending.current = false;
-      setSystemBusy(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (window.oriel) void checkSystemAi();
-  }, [checkSystemAi]);
+  const {
+    status: systemStatus,
+    busy: systemBusy,
+    check: checkSystemAi,
+  } = useSystemAi(settings.provider === "system");
 
   const refreshLocalStatus = React.useCallback(async () => {
     try {
@@ -561,53 +539,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               Uses the phone’s shared Gemini Nano model. Android checks support
               on this device; no API key is needed and scans run on the phone.
             </p>
-            <div
-              role="status"
-              className={`alert system-ai-status ${systemStatus?.state === "available" ? "alert-success" : "alert-info"}`}
-            >
-              <strong>
-                {systemBusy === "downloading"
-                  ? "Downloading system model…"
-                  : systemBusy === "checking"
-                    ? "Checking system AI…"
-                  : systemStatus?.state === "available"
-                    ? "Ready to scan"
-                    : systemStatus?.state === "downloadable"
-                      ? "Model download needed"
-                      : systemStatus?.state === "downloading"
-                        ? "Download in progress"
-                        : systemStatus?.state === "error"
-                          ? "Could not check support"
-                          : "System AI unavailable"}
-              </strong>
-              <p>
-                {systemBusy === "downloading"
-                  ? "Downloading Gemini Nano to enable scans on this phone."
-                  : systemBusy === "checking"
-                    ? "Checking system AI support on this phone."
-                    : systemStatus?.message ||
-                      "Open this screen in the Android app to check support."}
-              </p>
-            </div>
+            <SystemAiStatusPanel
+              status={systemStatus}
+              busy={systemBusy}
+              onCheck={() => void checkSystemAi()}
+              onDownload={() => void checkSystemAi(true)}
+            />
             <div className="system-ai-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={systemBusy !== null}
-                onClick={() => checkSystemAi()}
-              >
-                Check support again
-              </button>
-              {systemStatus?.state === "downloadable" && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={systemBusy !== null}
-                  onClick={() => checkSystemAi(true)}
-                >
-                  {systemBusy ? "Downloading…" : "Download system model"}
-                </button>
-              )}
               {systemStatus?.state !== "available" && (
                 <button
                   type="button"

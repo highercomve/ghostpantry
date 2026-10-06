@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { CameraCapture } from "./CameraCapture";
 import { invoke } from "../oriel";
+import { useSystemAi } from "../hooks/useSystemAi";
+import { SystemAiStatusPanel } from "./SystemAiStatusPanel";
 import { InventoryItem, VisionDetectedItem, VisionResult } from "../types";
 
 interface ScanViewProps {
@@ -12,10 +14,25 @@ export const ScanView: React.FC<ScanViewProps> = ({
   onScanSuccess,
   defaultLocation = "fridge",
 }) => {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSystem, setIsSystem] = useState(false);
+  const {
+    status: systemStatus,
+    busy: systemBusy,
+    check: checkSystemAi,
+  } = useSystemAi(isSystem && !isAnalyzing);
+  useEffect(() => {
+    if (window.oriel)
+      void invoke("get_settings")
+        .then((settings) => {
+          setIsSystem(settings.provider === "system");
+        })
+        .catch(() => {});
+  }, []);
+
   const [location, setLocation] = useState<string>(defaultLocation);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   // Results to review before persisting to SQLite
@@ -36,6 +53,14 @@ export const ScanView: React.FC<ScanViewProps> = ({
     setSaveSuccessMsg(null);
 
     try {
+      // Check saved provider and live readiness again at the point of use.
+      const settings = await invoke("get_settings");
+      const system = settings.provider === "system";
+      setIsSystem(system);
+      if (system) {
+        const status = await checkSystemAi();
+        if (status.state !== "available") return;
+      }
       const res = await invoke("analyze_image", {
         location:
           location === "fridge"
@@ -74,6 +99,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
           ? err
           : err?.message || "Failed to analyze image with AI.";
       setAnalysisError(msg);
+      if (isSystem) void checkSystemAi();
     } finally {
       setIsAnalyzing(false);
     }
@@ -223,6 +249,30 @@ export const ScanView: React.FC<ScanViewProps> = ({
         </div>
       )}
 
+      {isSystem && !hasAnalyzed && (
+        <div className="settings-section">
+          <h3>System AI</h3>
+          <SystemAiStatusPanel
+            status={systemStatus}
+            busy={systemBusy}
+            disabled={isAnalyzing || isSaving}
+            onCheck={() => {
+              setAnalysisError(null);
+              void checkSystemAi();
+            }}
+            onDownload={() => {
+              setAnalysisError(null);
+              void checkSystemAi(true);
+            }}
+          />
+          {systemStatus?.state === "unavailable" && (
+            <p className="text-muted">
+              Choose a local model or server in Settings to scan on this device.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Camera Capture Card */}
       <div className="scan-card">
         <CameraCapture
@@ -249,13 +299,25 @@ export const ScanView: React.FC<ScanViewProps> = ({
               type="button"
               className="btn primary btn-lg w-full"
               onClick={handleStartAnalysis}
-              disabled={isAnalyzing || isSaving}
+              disabled={
+                isAnalyzing ||
+                isSaving ||
+                (isSystem &&
+                  (systemBusy !== null || systemStatus?.state !== "available"))
+              }
             >
               {isAnalyzing ? (
                 <>
                   <span className="spinner-sm"></span>
                   Analyzing shelf with AI...
                 </>
+              ) : isSystem && systemStatus?.state !== "available" ? (
+                systemBusy === "downloading" ||
+                systemStatus?.state === "downloading" ? (
+                  "Waiting for system model…"
+                ) : (
+                  "System AI must be ready to scan"
+                )
               ) : (
                 "Find items in this photo"
               )}
