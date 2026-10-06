@@ -8,6 +8,7 @@ const db_mod = @import("db.zig");
 const ai_mod = @import("ai.zig");
 const local_mod = @import("local.zig");
 const system_ai = @import("system_ai.zig");
+const embedding = @import("embedding.zig");
 
 pub const std_options: std.Options = .{ .logFn = oriel.log.logFn };
 
@@ -88,6 +89,13 @@ pub const Commands = struct {
         "get_available_models",
         "system_ai_status",
         "system_ai_download",
+        "embedding_status",
+        "embedding_download",
+        "embedding_cancel",
+        "embedding_prepare",
+        "embedding_match",
+        "embedding_release",
+        "embedding_delete",
         "local_status",
         "local_download",
         "local_test",
@@ -164,6 +172,7 @@ pub const Commands = struct {
         const d = try getDb(arena);
         const s = readSettings(arena, d);
 
+        try embedding.releaseForScan(arena);
         if (std.mem.eql(u8, s.provider, "system")) {
             local_mod.unload();
             return system_ai.analyze(arena, args.location, args.image) catch |err| {
@@ -208,6 +217,36 @@ pub const Commands = struct {
         return system_ai.download(arena);
     }
 
+    pub fn embedding_status(arena: std.mem.Allocator) !embedding.Status {
+        return embedding.status(arena);
+    }
+
+    pub fn embedding_download(arena: std.mem.Allocator) !embedding.Status {
+        return embedding.manage(arena, "download", "cpu");
+    }
+
+    pub fn embedding_cancel(arena: std.mem.Allocator) !embedding.Status {
+        return embedding.manage(arena, "cancel", "cpu");
+    }
+
+    pub fn embedding_prepare(arena: std.mem.Allocator, args: struct { backend: []const u8 }) !embedding.Status {
+        local_mod.unload();
+        return embedding.manage(arena, "prepare", args.backend);
+    }
+
+    pub fn embedding_match(arena: std.mem.Allocator, args: struct { image: []const u8, backend: []const u8, labels: []const []const u8 }) !embedding.Result {
+        local_mod.unload();
+        return embedding.match(arena, args.image, args.backend, args.labels);
+    }
+
+    pub fn embedding_release(arena: std.mem.Allocator) !embedding.Status {
+        return embedding.manage(arena, "release", "cpu");
+    }
+
+    pub fn embedding_delete(arena: std.mem.Allocator) !embedding.Status {
+        return embedding.manage(arena, "delete", "cpu");
+    }
+
     pub fn local_status(arena: std.mem.Allocator) !local_mod.Status {
         return local_mod.status(arena) catch |err| {
             return oriel.ipc.fail("The local model runner isn't available ({s}).", .{@errorName(err)});
@@ -243,7 +282,7 @@ pub const Commands = struct {
     }
 
     pub fn local_test(arena: std.mem.Allocator, args: struct { id: []const u8, backend: ?[]const u8 = null, fast: bool = false }) !local_mod.LoadInfo {
-        _ = arena;
+        try embedding.releaseForScan(arena);
         return local_mod.testLoad(args.id, args.backend orelse "auto", args.fast) catch |err| {
             log.err("Local model load failed: {s}", .{@errorName(err)});
             return oriel.ipc.fail("The model didn't load ({s}). Pick a smaller model or free some memory and try again.", .{@errorName(err)});

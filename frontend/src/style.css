@@ -1785,3 +1785,24 @@ input[type="checkbox"] {
 .system-ai-status p {
   margin: 0;
 }
+
+/* The image-matching experiment stays usable on narrow phone screens. */
+.embedding-panel { margin-top: 24px; min-width: 0; }
+.embedding-panel h3 { margin-top: 6px; }
+.embedding-status { background: var(--sage, #edf0e1); padding: 16px; border-radius: 12px; margin: 16px 0; }
+.embedding-status p { margin: 6px 0; }
+.embedding-status, .embedding-results { overflow-wrap: anywhere; }
+.embedding-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.embedding-actions .btn { white-space: normal; max-width: 100%; }
+.embedding-backends { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 8px 0; }
+.embedding-progress { display: grid; gap: 6px; margin: 16px 0; }
+.embedding-progress progress { width: 100%; accent-color: var(--forest, #285e49); }
+.embedding-panel textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.embedding-results { border-top: 1px solid var(--border, #d9ddd0); padding-top: 18px; margin-top: 22px; }
+.embedding-results ol { list-style: none; padding: 0; }
+.embedding-results li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--border, #d9ddd0); }
+.embedding-results li strong { font-variant-numeric: tabular-nums; }
+.embedding-timings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.embedding-timings dt { font-size: 0.85rem; color: var(--muted, #727b70); }
+.embedding-timings dd { margin: 4px 0 0; font-weight: 600; }
+.embedding-entry { margin: 20px 0; }

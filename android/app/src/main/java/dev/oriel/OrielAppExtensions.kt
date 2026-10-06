@@ -6,7 +6,7 @@ import android.content.Intent
 /** Generated registration only. Implementations belong to the app's sources. */
 internal object OrielAppExtensions {
     val registered: List<OrielAndroidExtension> by lazy {
-        listOf<OrielAndroidExtension>(dev.ghostpantry.PantryAndroidExtension(),dev.ghostpantry.SystemAiExtension(),).also { extensions ->
+        listOf<OrielAndroidExtension>(dev.ghostpantry.PantryAndroidExtension(),dev.ghostpantry.SystemAiExtension(),dev.ghostpantry.EmbeddingGemmaExtension(),).also { extensions ->
             extensions.forEachIndexed { index, extension -> extension.onRegistered(OrielAndroidExtensionContext(index)) }
         }
     }

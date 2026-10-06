@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { EmbeddingGemmaPanel } from "./EmbeddingGemmaPanel";
 import { CameraCapture } from "./CameraCapture";
 import { invoke } from "../oriel";
 import { useSystemAi } from "../hooks/useSystemAi";
@@ -15,6 +16,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
   defaultLocation = "fridge",
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [embeddingBusy, setEmbeddingBusy] = useState(false);
+  const [showEmbedding, setShowEmbedding] = useState(false);
   const [isSystem, setIsSystem] = useState(false);
   const {
     status: systemStatus,
@@ -206,7 +209,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             type="button"
             className={`seg-btn ${location === "fridge" ? "active" : ""}`}
             onClick={() => setLocation("fridge")}
-            disabled={isAnalyzing || isSaving}
+            disabled={isAnalyzing || isSaving || embeddingBusy}
           >
             Fridge
           </button>
@@ -214,7 +217,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             type="button"
             className={`seg-btn ${location === "pantry" ? "active" : ""}`}
             onClick={() => setLocation("pantry")}
-            disabled={isAnalyzing || isSaving}
+            disabled={isAnalyzing || isSaving || embeddingBusy}
           >
             Pantry
           </button>
@@ -222,7 +225,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             type="button"
             className={`seg-btn ${location === "freezer" ? "active" : ""}`}
             onClick={() => setLocation("freezer")}
-            disabled={isAnalyzing || isSaving}
+            disabled={isAnalyzing || isSaving || embeddingBusy}
           >
             Freezer
           </button>
@@ -255,7 +258,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
           <SystemAiStatusPanel
             status={systemStatus}
             busy={systemBusy}
-            disabled={isAnalyzing || isSaving}
+            disabled={isAnalyzing || isSaving || embeddingBusy}
             onCheck={() => {
               setAnalysisError(null);
               void checkSystemAi();
@@ -289,7 +292,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             setDetectedItems([]);
             setAnalysisError(null);
           }}
-          disabled={isAnalyzing || isSaving}
+          disabled={isAnalyzing || isSaving || embeddingBusy}
         />
 
         {/* Immediate CTA directly below image preview */}
@@ -300,6 +303,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
               className="btn primary btn-lg w-full"
               onClick={handleStartAnalysis}
               disabled={
+                embeddingBusy ||
                 isAnalyzing ||
                 isSaving ||
                 (isSystem &&
@@ -325,6 +329,28 @@ export const ScanView: React.FC<ScanViewProps> = ({
           </div>
         )}
       </div>
+
+      {selectedImage && (
+        <div className="embedding-entry">
+          <button
+            type="button"
+            className="btn"
+            aria-expanded={showEmbedding}
+            disabled={isAnalyzing || isSaving || embeddingBusy}
+            onClick={() => setShowEmbedding(!showEmbedding)}
+          >
+            {showEmbedding ? "Close image matching" : "Try image matching"}
+          </button>
+          {showEmbedding && (
+            <EmbeddingGemmaPanel
+              key={selectedImage}
+              image={selectedImage}
+              disabled={isAnalyzing || isSaving}
+              onBusyChange={setEmbeddingBusy}
+            />
+          )}
+        </div>
+      )}
 
       {hasAnalyzed && detectedItems.length === 0 && (
         <div className="alert alert-info" role="status">

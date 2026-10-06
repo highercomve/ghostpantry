@@ -190,7 +190,7 @@ jobs:
             printf '%s' "$KEYSTORE" | base64 --decode > "$ORIEL_ANDROID_KEYSTORE"
           fi
           cd android
-          ./gradlew --no-daemon :app:assembleDebug :app:assembleRelease :app:bundleRelease
+          ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease
           if [ "$SIGN_ANDROID" = true ]; then
             "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify app/build/outputs/apk/release/app-release.apk
           fi

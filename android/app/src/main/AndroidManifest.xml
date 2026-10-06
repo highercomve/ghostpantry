@@ -75,6 +75,7 @@
             android:exported="false"
             android:grantUriPermissions="true" />
         <!-- oriel:components begin -->
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
         <!-- oriel:components end -->
     </application>
 </manifest>

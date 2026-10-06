@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { AppSettings } from "../types";
 import { invoke, listen } from "../oriel";
 import { useSystemAi } from "../hooks/useSystemAi";
+import { EmbeddingGemmaPanel } from "./EmbeddingGemmaPanel";
 import { SystemAiStatusPanel } from "./SystemAiStatusPanel";
 
 interface SettingsViewProps {
@@ -61,6 +62,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     localBackend: "auto",
   });
 
+  const [embeddingBusy, setEmbeddingBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -674,6 +676,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <button
                               type="button"
                               className="btn"
+                              disabled={embeddingBusy}
                               onClick={() => handleLocalTest(m.id)}
                             >
                               Test
@@ -1026,7 +1029,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               type="button"
               className="btn"
               onClick={handleTestConnection}
-              disabled={testing || systemBusy !== null || localBusy !== null}
+              disabled={
+                embeddingBusy ||
+                testing ||
+                systemBusy !== null ||
+                localBusy !== null
+              }
             >
               {testing ? (
                 <>
@@ -1052,6 +1060,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
       </form>
+
+      <EmbeddingGemmaPanel
+        disabled={testing || localBusy !== null || systemBusy !== null}
+        onBusyChange={setEmbeddingBusy}
+      />
 
       {appInfo && (
         <div className="app-info-footer">

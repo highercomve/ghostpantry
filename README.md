@@ -95,6 +95,21 @@ Select **System AI** in Settings. GhostPantry asks Android’s ML Kit Prompt API
 
 A failed support check is shown separately from an unavailable model and can be retried. The app never silently sends a system-AI photo to a cloud provider. See [Google’s setup and capability API](https://developers.google.com/ml-kit/genai/prompt/android/get-started).
 
+### Experiment: EmbeddingGemma 2 image matching
+
+Try the same experiment on **Pixel 8 and Pixel 10**:
+
+1. In **Settings → EmbeddingGemma 2**, download the 388 MB text-and-image model. Keep the app open; **Pause download** retains progress for resuming. The app checks the exact size and SHA-256 before installing it.
+2. Start with **CPU** and **Test CPU support**. This initializes the model and verifies both text and image embeddings on the actual device. Select **GPU** and test separately; an unsupported backend reports its error and lets you choose CPU.
+3. In **Scan a shelf**, select a clear photo of one item or package, then open **Try image matching**. Edit the candidate food labels and tap **Match photo on CPU** (or GPU).
+4. Repeat with the same photo and labels for a warm run. Compare total time, model loading, label embedding, photo embedding, and app PSS memory across both phones. **Release model memory** clears the engine and label cache for another cold run. PSS includes the app and does not capture all GPU allocations.
+
+This is a whole-photo similarity experiment. Its top labels and cosine scores are **not probabilities, quantities, object detections, or complete inventory scans**. It compares only the supplied 2–48 labels and does not save matches to the pantry. A crowded shelf needs a different detection/extraction step. Ordinary scans release this experiment's model memory before loading another provider.
+
+Inference runs offline after the model download. This app-owned LiteRT model is independent of Android's shared AICore model, so it does not require System AI support. The app checks Android/ABI eligibility first and verifies backend execution when tested; Pixel models are not hardcoded. CPU and GPU are explicit choices, with no automatic cloud fallback or NPU acceleration claim. Performance and accuracy on physical Pixel 8/10 devices have not yet been measured. A desktop CPU smoke test with this exact model and 70-token/256-dimension configuration produced finite unit vectors for text and a photo, ranking pasta first for a pasta-heavy pantry image. This validates the basic matching path, not phone performance or shelf-detection accuracy.
+
+The experiment uses [LiteRT-LM's embedding API](https://developers.google.com/edge/litert-lm/embedding_models), Android SDK `com.google.ai.edge.litertlm:litertlm-android:0.18.0`, 70 image tokens, and 256-dimensional normalized embeddings. Food-label embeddings are cached while the engine remains loaded. The [Apache-2.0 text/vision model](https://huggingface.co/litert-community/embeddinggemma-2-text-vision-440m-litert-lm) is pinned to revision `e301f74d5551b0c2641bd5cb4652a76239d5c5f8`, file `embeddinggemma-2-text-vision-440m.litertlm` (387,710,976 bytes), SHA-256 `92dcbea108899e5d6e30d919b0744f90d9967e80c67a4ab5503ac16d54f62eb0`. See Google's [EmbeddingGemma 2 model card](https://ai.google.dev/gemma/docs/embeddinggemma/model_card_2) for intended uses and limitations.
+
 ### Option B: On this device (downloaded models, offline)
 Download a vision model once from the model catalog (Qwen3.5 0.8B/2B, Qwen2.5-VL 3B, Gemma 3/4 — smallest first; phones are offered the small ones), and scans then run entirely on the device with llama.cpp: no server, no API key, works offline. The model stays loaded between scans and is freed again when Android reports memory pressure.
 

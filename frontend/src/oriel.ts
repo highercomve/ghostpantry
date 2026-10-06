@@ -13,6 +13,13 @@ export interface Commands {
   analyze_image: { args: { location: string; image: string; }; result: { items: ({ name: string; category?: string; quantity?: number; fill_percentage?: number; unit?: string; notes?: string; })[]; summary: string; timing?: { total_ms: number; load_ms?: number; vision_ms?: number; generation_ms?: number; input_tokens?: number; output_tokens?: number; } | null; } };
   system_ai_status: { args: null; result: { state: string; message: string; } };
   system_ai_download: { args: null; result: { state: string; message: string; } };
+  embedding_status: { args: null; result: { state?: string; message?: string; supported?: boolean; device?: string; backend?: string; loaded?: boolean; bytes_downloaded?: number; total_bytes?: number; } };
+  embedding_download: { args: null; result: { state?: string; message?: string; supported?: boolean; device?: string; backend?: string; loaded?: boolean; bytes_downloaded?: number; total_bytes?: number; } };
+  embedding_cancel: { args: null; result: { state?: string; message?: string; supported?: boolean; device?: string; backend?: string; loaded?: boolean; bytes_downloaded?: number; total_bytes?: number; } };
+  embedding_prepare: { args: { backend: string; }; result: { state?: string; message?: string; supported?: boolean; device?: string; backend?: string; loaded?: boolean; bytes_downloaded?: number; total_bytes?: number; } };
+  embedding_match: { args: { image: string; backend: string; labels: (string)[]; }; result: { matches: ({ label: string; score: number; })[]; device: string; backend: string; total_ms: number; load_ms: number; labels_ms: number; image_ms: number; pss_mb: number; dimensions: number; vision_tokens: number; labels_cached: boolean; } };
+  embedding_release: { args: null; result: { state?: string; message?: string; supported?: boolean; device?: string; backend?: string; loaded?: boolean; bytes_downloaded?: number; total_bytes?: number; } };
+  embedding_delete: { args: null; result: { state?: string; message?: string; supported?: boolean; device?: string; backend?: string; loaded?: boolean; bytes_downloaded?: number; total_bytes?: number; } };
   local_status: { args: null; result: { backend: string; gpu: string | null; models_dir: string; supported: boolean; models: ({ id: string; label: string; mb: number; projector_mb: number; speed: number; quality: number; note: string; present: boolean; partial: boolean; partial_mb: number; })[]; loaded: string | null; loaded_gpu?: boolean; load_ms?: number; downloading: string | null; generating: boolean; } };
   local_download: { args: { id: string; }; result: null };
   local_cancel_download: { args: null; result: null };
