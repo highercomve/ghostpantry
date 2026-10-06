@@ -53,4 +53,23 @@ class EmbeddingFeedbackTest {
             }
         } finally { folder.deleteRecursively() }
     }
+
+    @Test fun feedbackKeepsEarlierCropIdentityAndSeparatesScope() {
+        val scans = EmbeddingFeedbackSessions()
+        val first = vector(0)
+        scans.remember("first", first, "model|crop-v1", "cpu", "crop")
+        first[0] = 0f
+        scans.remember("second", vector(1), "model", "gpu", "photo")
+        assertEquals(1f, scans["first"]!!.vector[0], 0f)
+        assertEquals("crop", scans["first"]!!.scope)
+        assertEquals("cpu", scans["first"]!!.backend)
+        assertEquals("model|crop-v1", scans["first"]!!.configuration)
+        assertEquals(1f, scans["second"]!!.vector[1], 0f)
+        assertEquals("photo", scans["second"]!!.scope)
+        repeat(63) { scans.remember("more-$it", vector(2), "model", "cpu", "crop") }
+        assertNull(scans["first"])
+        assertNotNull(scans["second"])
+        scans.clear()
+        assertNull(scans["second"])
+    }
 }

@@ -1,0 +1,710 @@
+pasta
+spaghetti
+macaroni
+penne
+lasagna sheets
+baby pasta
+ramen noodles
+rice noodles
+udon noodles
+soba noodles
+egg noodles
+couscous
+quinoa
+bulgur
+rice
+white rice
+brown rice
+risotto rice
+basmati rice
+jasmine rice
+wild rice
+oats
+granola
+breakfast cereal
+muesli
+corn flakes
+flour
+whole wheat flour
+corn flour
+rice flour
+almond flour
+cornstarch
+breadcrumbs
+bread
+sliced bread
+whole wheat bread
+bread rolls
+bagels
+pita bread
+tortillas
+croissants
+crackers
+rice cakes
+breadsticks
+biscuits
+cookies
+beans
+black beans
+white beans
+kidney beans
+pinto beans
+lentils
+chickpeas
+split peas
+dried peas
+canned beans
+canned lentils
+canned chickpeas
+canned corn
+canned peas
+canned tomatoes
+tomato paste
+tomato sauce
+pasta sauce
+pesto
+canned tuna
+canned salmon
+canned sardines
+canned fish
+canned soup
+canned fruit
+olives
+pickles
+capers
+roasted peppers
+coconut milk
+evaporated milk
+condensed milk
+powdered milk
+sugar
+brown sugar
+icing sugar
+honey
+maple syrup
+jam
+marmalade
+peanut butter
+almond butter
+chocolate spread
+tahini
+cooking oil
+olive oil
+sunflower oil
+canola oil
+coconut oil
+sesame oil
+vinegar
+balsamic vinegar
+soy sauce
+fish sauce
+hot sauce
+ketchup
+mustard
+mayonnaise
+barbecue sauce
+salad dressing
+salt
+black pepper
+paprika
+cumin
+cinnamon
+oregano
+basil
+thyme
+rosemary
+bay leaves
+turmeric
+curry powder
+chili powder
+garlic powder
+onion powder
+spices
+baking powder
+baking soda
+yeast
+vanilla extract
+cocoa powder
+chocolate chips
+gelatin
+stock cubes
+milk
+lactose-free milk
+oat milk
+almond milk
+soy milk
+cream
+sour cream
+yogurt
+Greek yogurt
+butter
+margarine
+cheese
+cheddar cheese
+mozzarella
+parmesan
+cream cheese
+cottage cheese
+feta cheese
+eggs
+egg whites
+chicken
+chicken breasts
+chicken thighs
+chicken wings
+beef
+ground beef
+steak
+pork
+pork chops
+bacon
+ham
+sausages
+chorizo
+salami
+turkey
+lamb
+fish
+salmon
+tuna
+white fish
+shrimp
+mussels
+squid
+tofu
+tempeh
+seitan
+hummus
+apples
+bananas
+oranges
+mandarins
+lemons
+limes
+grapefruit
+pears
+peaches
+nectarines
+plums
+apricots
+grapes
+strawberries
+blueberries
+raspberries
+blackberries
+cherries
+kiwi
+pineapple
+mango
+papaya
+watermelon
+melon
+avocados
+coconut
+dates
+raisins
+dried apricots
+prunes
+dried cranberries
+tomatoes
+cherry tomatoes
+potatoes
+sweet potatoes
+onions
+red onions
+spring onions
+garlic
+carrots
+broccoli
+cauliflower
+lettuce
+spinach
+kale
+cabbage
+red cabbage
+cucumbers
+zucchini
+eggplant
+bell peppers
+chili peppers
+mushrooms
+celery
+leeks
+asparagus
+green beans
+peas
+corn
+pumpkin
+squash
+beetroot
+radishes
+artichokes
+ginger
+parsley
+cilantro
+fresh basil
+mint
+frozen vegetables
+frozen peas
+frozen corn
+frozen broccoli
+frozen spinach
+frozen berries
+frozen fruit
+frozen chicken
+frozen fish
+frozen shrimp
+frozen pizza
+frozen dumplings
+french fries
+ice cream
+nuts
+almonds
+walnuts
+cashews
+peanuts
+pistachios
+hazelnuts
+sunflower seeds
+pumpkin seeds
+chia seeds
+flax seeds
+sesame seeds
+popcorn
+potato chips
+tortilla chips
+pretzels
+chocolate
+candy
+cereal bars
+protein bars
+fruit snacks
+coffee
+instant coffee
+coffee beans
+tea
+herbal tea
+hot chocolate
+juice
+orange juice
+apple juice
+soda
+sparkling water
+bottled water
+sports drinks
+energy drinks
+beer
+wine
+baby food
+infant formula
+protein powder
+meal replacement shakes
+ready-made meals
+sandwiches
+empanadas
+pizza
+soup
+salad
+heavy cream
+berries
+sliced deli meat
+dried herbs
+broth
+chips
+seeds
+ground coffee
+ice cubes
+frozen burger patties
+frozen waffles
+pastry dough
+leftovers
+plant milk
+half and half
+swiss cheese
+goat cheese
+brie cheese
+ricotta cheese
+string cheese
+shredded cheese
+gelato
+sorbet
+frozen yogurt
+frozen strawberries
+frozen blueberries
+frozen mango
+frozen edamame
+frozen green beans
+frozen tater tots
+frozen onion rings
+frozen hash browns
+frozen pancakes
+frozen potstickers
+frozen wontons
+frozen burritos
+frozen taquitos
+frozen salmon
+frozen chicken breasts
+frozen chicken wings
+frozen chicken nuggets
+frozen chicken tenders
+frozen ground beef
+frozen sausages
+frozen hot dogs
+frozen meatballs
+frozen puff pastry
+frozen pie crust
+frozen bread dough
+frozen phyllo dough
+romaine lettuce
+iceberg lettuce
+mixed greens
+arugula
+swiss chard
+napa cabbage
+bok choy
+broccolini
+brussels sprouts
+yellow squash
+jalapeno peppers
+serrano peppers
+habanero peppers
+roma tomatoes
+yellow onions
+white onions
+shallots
+fresh turmeric
+russet potatoes
+red potatoes
+gold potatoes
+yams
+turnips
+parsnips
+cremini mushrooms
+shiitake mushrooms
+portobello mushrooms
+white button mushrooms
+clementines
+red grapes
+green grapes
+cantaloupe
+honeydew melon
+pomegranates
+fresh rosemary
+fresh thyme
+fresh mint
+fresh dill
+fresh oregano
+fresh sage
+fresh chives
+chicken drumsticks
+whole chicken
+ground chicken
+ground turkey
+turkey breast
+ribeye steak
+sirloin steak
+beef roast
+beef ribs
+beef brisket
+beef stew meat
+pork loin
+pork tenderloin
+ground pork
+pork ribs
+pancetta
+prosciutto
+pork sausages
+breakfast sausages
+italian sausages
+bratwurst
+hot dogs
+sliced turkey deli meat
+sliced ham deli meat
+sliced chicken deli meat
+pepperoni
+bologna
+roast beef deli meat
+salmon fillets
+tuna steaks
+cod fillets
+halibut fillets
+tilapia fillets
+trout fillets
+prawns
+scallops
+clams
+crab meat
+lobster tails
+white bread
+sourdough bread
+multigrain bread
+rye bread
+brioche
+baguettes
+naan bread
+flatbread
+english muffins
+burger buns
+hot dog buns
+dinner rolls
+flour tortillas
+corn tortillas
+taco shells
+corn chips
+saltine crackers
+water crackers
+snack crackers
+graham crackers
+animal crackers
+chocolate chip cookies
+sandwich cookies
+shortbread cookies
+brownies
+muffins
+pound cake
+dried fruit
+dried figs
+dried mango
+pecans
+macadamia nuts
+pine nuts
+mixed nuts
+hemp seeds
+cashew butter
+sunflower seed butter
+strawberry jam
+raspberry jam
+grape jelly
+orange marmalade
+apricot jam
+agave nectar
+molasses
+pancake syrup
+fettuccine
+rigatoni
+fusilli
+capellini
+angel hair pasta
+orzo
+farfalle
+linguine
+glass noodles
+chow mein noodles
+lo mein noodles
+pad thai rice noodles
+sushi rice
+sticky rice
+yellow rice
+rolled oats
+quick oats
+steel cut oats
+instant oatmeal packets
+frosted cereal
+bran flakes
+puffed rice cereal
+wheat cereal
+pearl couscous
+polenta
+cornmeal
+barley
+farro
+millet
+all purpose flour
+bread flour
+cake flour
+coconut flour
+gluten free flour blend
+tapioca starch
+potato starch
+active dry yeast
+instant yeast
+granulated white sugar
+dark brown sugar
+raw cane sugar
+dark chocolate chips
+milk chocolate chips
+white chocolate chips
+almond extract
+food coloring
+canned black beans
+canned pinto beans
+canned kidney beans
+canned cannellini beans
+canned refried beans
+canned baked beans
+dry black beans
+dry pinto beans
+dry kidney beans
+dry navy beans
+dry chickpeas
+dry brown lentils
+dry red lentils
+dry green lentils
+dry split peas
+canned anchovies
+canned mackerel
+canned chicken
+canned spam
+canned corned beef
+canned diced tomatoes
+canned crushed tomatoes
+canned whole peeled tomatoes
+marinara sauce
+alfredo sauce
+pizza sauce
+enchilada sauce
+canned tomato soup
+canned chicken noodle soup
+canned vegetable soup
+canned clam chowder
+canned minestrone soup
+canned mushroom soup
+canned green beans
+canned sliced mushrooms
+canned artichoke hearts
+canned hearts of palm
+canned green chiles
+canned chipotle peppers
+canned jalapenos
+canned black olives
+canned green olives
+kalamata olives
+dill pickles
+sweet bread and butter pickles
+pickled relish
+sauerkraut
+kimchi
+pickled jalapenos
+chicken broth
+beef broth
+vegetable broth
+bone broth
+bouillon powder
+canned coconut cream
+canned condensed cream soup
+canned pineapple chunks
+canned peach slices
+canned pear halves
+canned mandarin oranges
+applesauce
+canned fruit cocktail
+extra virgin olive oil
+corn oil
+avocado oil
+toasted sesame oil
+peanut oil
+grapeseed oil
+cooking spray
+ghee
+lard
+vegetable shortening
+white distilled vinegar
+apple cider vinegar
+red wine vinegar
+white wine vinegar
+rice vinegar
+sherry vinegar
+dark soy sauce
+low sodium soy sauce
+tamari
+liquid aminos
+teriyaki sauce
+oyster sauce
+hoisin sauce
+sweet chili sauce
+sriracha sauce
+sambal oelek
+chili garlic sauce
+chili crisp
+gochujang
+gochugaru
+miso paste
+curry paste
+worcestershire sauce
+hot pepper sauce
+tabasco sauce
+buffalo wing sauce
+yellow mustard
+dijon mustard
+whole grain mustard
+spicy brown mustard
+honey mustard
+vegan mayonnaise
+tartar sauce
+horseradish
+ranch dressing
+caesar dressing
+italian dressing
+blue cheese dressing
+thousand island dressing
+balsamic vinaigrette
+table salt
+kosher salt
+sea salt
+coarse salt
+black peppercorns
+ground black pepper
+white pepper
+cayenne pepper
+crushed red pepper flakes
+ground cumin
+ground coriander
+smoked paprika
+sweet paprika
+ground cinnamon
+cinnamon sticks
+ground nutmeg
+ground allspice
+ground cloves
+whole cloves
+ground ginger
+ground turmeric
+ground cardamom
+garam masala
+chinese five spice
+taco seasoning mix
+fajita seasoning mix
+cajun seasoning
+italian seasoning blend
+dried oregano
+dried basil
+dried parsley
+dried thyme
+dried rosemary
+dried dill weed
+dried tarragon
+dried sage
+celery salt
+lemon pepper seasoning
+decaf coffee
+espresso beans
+black tea bags
+green tea bags
+herbal tea bags
+loose leaf tea
+matcha powder
+hot chocolate mix
+tonic water
+club soda
+cola soda
+lemon lime soda
+ginger ale
+diet soda
+cranberry juice
+grape juice
+lemonade
+iced tea
+tomato juice
+vegetable juice
+coconut water
+light beer
+lager beer
+ipa beer
+stout beer
+hard cider
+red wine
+white wine
+rose wine
+sparkling wine
+champagne
+cooking wine

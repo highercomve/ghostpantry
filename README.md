@@ -103,7 +103,7 @@ support test. The provider selector uses two columns on phones so all four scan
 options remain visible.
 
 **Food labels for fast scans** persists an editable vocabulary of 2–1,024 food
-names. The initial catalog contains 307 common food labels; **Use pasta and rice
+names. The initial catalog contains 710 common food labels; **Use pasta and rice
 labels** replaces it with pasta, rice noodles (rice-based pasta), baby pasta, ramen noodles, and
 risotto rice. Save the labels before scanning. A scan ranks up to ten food
 labels against the selected photo and opens the usual pantry review screen.
@@ -130,7 +130,7 @@ Whole-photo matching does not locate individual packages or establish counts.
 Tests with the original unmarked pantry photo favored pasta; manually cropped
 rice regions favored rice, but small-pasta and ramen regions still confused
 some labels. The annotated image is a reference for evaluating the unmarked
-photo, not an inference input. Package localization, OCR, and calibrated
+photo, not an inference input. Package localization and calibrated
 presence checks would need further evaluation before automatic counting.
 
 ### Experiment: EmbeddingGemma 2 image matching
@@ -285,9 +285,9 @@ restarts. CPU and GPU memories are separate and tied to the model/runtime settin
 or the model. A newer correction replaces the same label for effectively the same
 photo. Damaged memory is reported and ignored during scans; clear it to recover.
 
-The full food preset contains 307 labels, including eggs, pasta variants, produce,
+The full food preset contains 710 labels, including eggs, pasta variants, produce,
 dairy, meat, seafood, frozen foods, snacks, drinks, condiments, and baking supplies.
-Existing saved vocabularies are preserved: choose **Use full food list (307)** and
+Existing saved vocabularies are preserved: choose **Use full food list (710)** and
 save Settings to replace a narrow preset. Custom lists support up to 1,024 labels.
 Three background candidates (other food, non-food objects, empty shelf) can trigger
 a review hint when they outrank all food suggestions. This comparison is also
@@ -310,7 +310,7 @@ list. All items still require explicit selection before saving.
 After choosing a photo, tap **Compare multi-item scanning**. Run **Whole photo**,
 **Overlapping grid**, **Lite0 detector**, and **Lite2 detector** on the same photo
 with the same saved food list and embedding backend. Repeat each method after its
-first run to compare warm timings. Set the full 307-label list in Settings if an
+first run to compare warm timings. Set the full 710-label list in Settings if an
 older installation still has the small list.
 
 The grid checks the whole photo plus nine overlapping half-size crops. The
@@ -330,7 +330,7 @@ is enforced; warm timing on actual phones remains to be measured.
 Combined labels use the best crop score and record supporting regions. Scores
 are similarities, not presence probabilities. Overlapping regions do not imply
 multiple packages or quantities. These experimental runs do not change inventory
-or learn corrections. Review each crop, including its weaker matches, before
+automatically. Review each crop, including its weaker matches, before
 deciding whether the approach improves your photos.
 
 The first desktop test found generic COCO detectors unsuitable for these pantry
@@ -339,3 +339,61 @@ Grid crops recovered rice-related matches but introduced false labels. See
 [the experiment report](experiments/README.md) for reproducible results and the
 remaining phone checks. This is a comparison baseline, not a validated inventory
 detector.
+
+
+### OCR and crop corrections
+
+**Scan a shelf → Compare multi-item scanning** now starts with **Lite2 detector**,
+following the phone comparison where it gave more useful regions than Lite0 or the
+grid. Detection classes such as “bottle” and “sandwich” describe the proposal model,
+not the food category. Its crops are classified separately with EmbeddingGemma.
+
+**Read package text** uses bundled, offline ML Kit Latin OCR (`16.0.1`) on source-photo
+crop pixels while visual matching keeps the smaller preview. Gallery and Android
+camera selection retain the source file for this experiment; browser live-camera
+captures have only preview pixels. Android may transcode unsupported image formats.
+Crops are bounded to 24 megapixels / 7 MiB encoded. **Read rotated text** tries four
+orientations and takes longer; leave it off for an initial speed comparison.
+OCR errors retain visual suggestions and show an error for the affected crop.
+
+Food words and aliases (English, Spanish, Italian) map only to categories in your
+saved food list: `capellini → pasta`, `rice pasta / fideos de arroz → rice noodles`,
+`ramen → ramen noodles`. Brand names alone do not assign a category. Multiple food
+words, uncertain spellings, conflicting evidence and weak matches remain subject
+to review; weak text and image evidence yields **Unknown**. These are conservative
+heuristics, not calibrated probabilities. Ingredient headings are ignored, but
+small text and overlapping packages can still confuse OCR.
+
+Type the actual category in each crop and choose **Confirm and remember crop** or
+**Wrong category for this crop**. Only these explicit actions teach crop memory;
+comparison runs never add inventory. Up to 128 positive/negative vector examples
+are persisted separately for each CPU/GPU backend and for photo/crop scopes. No
+photos are stored in this memory and model weights are unchanged. Similar future
+crops receive bounded ranking adjustments; custom confirmed categories can join
+visual candidates even when absent from the saved list. The last 64 scan identities
+are retained so teaching an earlier region uses that region's vector; expired
+regions must be scanned again. **Use remembered crop examples** can be switched off
+for a baseline. **Clear learned corrections** in Settings clears photo and crop
+memory on both backends. Food keyword aliases themselves are not learned.
+
+The [research comparison](experiments/README.md) includes actual desktop runs of
+MobileCLIP-S0 and a SKU110K-trained detector. Neither new model is bundled: the
+faster image encoder was less reliable on this pantry sample, and the package
+checkpoint missed most items and has research-use constraints. Native OCR accuracy
+and end-to-end timings still need a Pixel 8 / Pixel 10 test; browser checks use
+mock native responses.
+
+
+The comprehensive preset now has **710 unique labels**, merging the supplied
+pantry/fridge/freezer lists with the original catalog. The editable source is
+[src/food_labels.txt](src/food_labels.txt); Zig embeds it automatically. Existing
+saved lists remain unchanged until **Use full food list (710)** is selected and
+Settings saved. All 710 labels are compared per crop; only the best candidates are presented,
+and matching does not imply that those foods are present. The hard limit remains
+1,024, leaving room for custom labels. Similar variants can still compete, so
+confirm OCR/visual suggestions before using them for inventory. Larger catalogs
+have a slower initial label-cache preparation, then reuse cached vectors.
+
+Historical desktop comparison reports use the committed
+[307-label baseline](experiments/food-labels-307.json). Benchmark scripts default to
+that vocabulary so expanding the app preset does not silently change those results.

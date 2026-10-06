@@ -101,6 +101,8 @@ pub const Commands = struct {
         "embedding_prepare",
         "embedding_match",
         "detect_regions",
+        "ocr_region",
+        "embedding_region_match",
         "fast_scan",
         "embedding_feedback",
         "embedding_clear_feedback",
@@ -264,6 +266,13 @@ pub const Commands = struct {
 
     pub fn detect_regions(arena: std.mem.Allocator, args: struct { image: []const u8, detector: []const u8 }) !embedding.DetectionResult {
         return embedding.detect(arena, args.image, args.detector);
+    }
+
+    pub fn ocr_region(arena: std.mem.Allocator, args: struct { image: []const u8, rotated: bool }) !embedding.OcrResult {
+        return embedding.ocr(arena, args.image, args.rotated);
+    }
+    pub fn embedding_region_match(arena: std.mem.Allocator, args: struct { image: []const u8, backend: []const u8, labels: []const []const u8, use_feedback: bool }) !embedding.Result {
+        return embedding.regionMatch(arena, args.image, args.backend, args.labels, args.use_feedback);
     }
 
     pub fn fast_scan(arena: std.mem.Allocator, args: struct { image: []const u8 }) !embedding.Result {

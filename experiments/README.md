@@ -2,8 +2,8 @@
 
 Tested 2026-10-06 with the user's unannotated pantry photo and the egg photo
 extracted from a screenshot. Photos are not committed. Desktop CPU, four threads,
-Python 3.12, LiteRT-LM 0.18.0, MediaPipe 0.10.32. Model and label vocabulary match
-the app; desktop SDK default precision differs from Android's explicit FP32.
+Python 3.12, LiteRT-LM 0.18.0, MediaPipe 0.10.32. The model matches the app; the historical 307-label vocabulary is saved in
+`food-labels-307.json` (the app preset has since expanded to 710); desktop SDK default precision differs from Android's explicit FP32.
 These times are **not Pixel performance estimates**. Cold preparation of all
 307 food labels plus three backgrounds took 8.04 s / 7.80 s for pantry / eggs;
 all method timings below reuse those vectors. Runs were sequential in the order
@@ -51,7 +51,7 @@ python experiments/benchmark_regions.py --model /path/to/model.litertlm \
 Only crop a screenshot when necessary; do not feed annotations or app text to
 classification. The script resizes the extracted photo to at most 1600 pixels per
 side, embeds “A photo of <label>”, and classifies JPEG crops against all labels.
-The top five are retained per region. Stronger matches must beat the background
+The historical 307-label JSON is the default; pass `--labels` with a different JSON array to compare another catalog. The top five are retained per region. Stronger matches must beat the background
 and be within 0.04 of that region's best label. This is a heuristic, not a
 calibrated probability or detection threshold.
 
@@ -66,3 +66,99 @@ loading after releasing memory. No physical phone was attached for this test.
 The next accuracy experiment should prioritize package-oriented region proposals
 and visual reference examples or OCR for ambiguous labels. A generic COCO detector
 is not supported as the default inventory path by these results.
+
+
+## Phone result reported by the user
+
+The phone comparison with 307 labels gave Lite2 **5.81 s / 2 regions / 848 MiB**
+sampled app PSS, Lite0 **3.09 s / 1 region / 762 MiB**, and grid **16.82 s / 10
+regions / 779 MiB**. Lite2 isolated the rice bag and a pasta packet despite calling
+them “bottle” and “sandwich”. The user preferred Lite2's crops; the grid produced
+many unrelated suggestions. These are reported app measurements, not reproduced
+desktop timings. Lite2 is now the default experiment method; other methods remain
+available for comparison. Two useful crops still do not demonstrate full package
+recall or reliable inventory counts.
+
+## MobileCLIP-S0 image encoder comparison
+
+Official [Apple code](https://github.com/apple/ml-mobileclip) at revision
+`48faa0fea4b08d74188b3841771aca6ff2c92852`; [S0 checkpoint](https://huggingface.co/apple/MobileCLIP-S0)
+at revision `71aa3e13dda93115871afbd017336535ba29886c`. Python 3.12, Torch
+2.14.1+cpu, torchvision 0.29.1+cpu, timm 1.0.30, open-clip-torch 3.3.0, four CPU
+threads. The reparameterized image encoder has 11,356,992 parameters. Apple model
+terms differ from its code license; this benchmark does not bundle any weights.
+
+Both models received the same JPEG whole-photo/grid crops and 307 “A photo of”
+labels plus three backgrounds, with their respective official image preprocessing.
+MobileCLIP used 512-dimensional normalized vectors, Gemma 256. One MobileCLIP
+warm-up is excluded; each MobileCLIP image time is the median of three runs, while
+Gemma uses one run per crop. Label preparation is measured separately. Gemma
+SDK-default desktop precision differs from Android's explicit FP32. These are
+small exploratory samples, **not phone latency, memory or accuracy benchmarks**.
+
+| Photo | MobileCLIP median image inference | Gemma median image inference |
+|---|---:|---:|
+| Pantry, 10 crops | 19.0 ms | 269.9 ms |
+| Eggs, 10 crops | 18.3 ms | 233.0 ms |
+
+Speed alone did not give better recognition. MobileCLIP's whole pantry top label
+was “ready-made meals”, with several crops returning that, potato chips, cereal or
+muesli. Gemma's whole-photo top label was pasta and it recovered rice in a crop,
+although it also gave false suggestions. Both found eggs in the whole egg photo;
+MobileCLIP called the bottom three crops “frozen chicken”, while Gemma retained eggs.
+Raw rankings and timings: [pantry](mobileclip-pantry-desktop.json),
+[eggs](mobileclip-eggs-desktop.json). Keep Gemma in the APK pending a larger
+labeled evaluation and a real mobile encoder export/benchmark.
+
+```sh
+python experiments/benchmark_mobileclip.py --mobileclip-code /path/to/ml-mobileclip \
+  --mobileclip-model /path/to/mobileclip_s0.pt --gemma-model /path/to/model.litertlm \
+  --photo /path/to/pantry.jpg --output /tmp/mobileclip-pantry.json
+```
+
+## Package-oriented proposal checkpoint
+
+Evaluated the author's ONNX [SKU110K-trained YOLO11n checkpoint](https://huggingface.co/chistopat/sku110k-yolo11-object-detector),
+revision `ee1b8ac34eb3b68969ffa8165e50c43457fe4e35`, file
+`weights/sku110k-yolo11-n640.onnx`. The script verifies its published SHA-256
+`5810269bf9687ca93b0d4e1bc91cb83ac4311cd48d91c4f6091777721ba083c5` before loading.
+ONNX Runtime 1.30.0 CPU, four threads, 640×640 letterbox input, score ≥0.25,
+NMS IoU 0.45. One cold plus three warm calls; ~17 ms median warm desktop inference.
+This measures proposals only, not OCR, recognition, model loading or mobile speed.
+
+It proposed **2 pantry regions** (part of the capellini packet and a logo fragment)
+and **5 egg-scene regions**. It missed most pantry packages and split the egg scene;
+these proposals are not package quantities. Raw boxes and times:
+[pantry](packages-pantry-desktop.json), [eggs](packages-eggs-desktop.json).
+The [SKU110K dataset](https://github.com/eg4000/SKU110K_CVPR19) restricts commercial
+use and upstream YOLO/model terms require review. This is research-only, not an APK
+asset or a replacement for the phone's useful Lite2 baseline.
+
+```sh
+python experiments/benchmark_packages.py --model /path/to/sku110k-yolo11-n640.onnx \
+  --photo /path/to/pantry.jpg --output /tmp/packages.json --overlay /tmp/packages.png
+```
+
+## OCR experiment validation
+
+Automated food-evidence tests cover variants, brand-only text, ingredient headings,
+fuzzy OCR, unknown, disagreement and multiple products. Browser tests mock native
+OCR to check source-resolution crop arguments, review, correction identities and
+failure handling. Android builds verify bundled ML Kit integration. They do not
+measure actual ML Kit accuracy on these phone photos. Compare Lite2 with OCR off/on
+and rotation off/on on the same Pixel photos, record total and OCR times, inspect
+raw recognized text, then confirm/reject crops and repeat with memory off/on.
+
+
+## Candidate package reference
+
+The user also supplied Gemini's description of roughly twelve visible packages:
+long pasta/Capellini, another long pasta bag, Lucchetti packaging, Maruchan ramen,
+a folded white/red packet, a red small-pasta bag, green/white Mira packaging, the
+large foreground pouch, a prepared-dish pouch, a clear spiral-pasta bag, a tucked
+green bag and a partially visible checkered item. This is a tentative localization
+reference, **not verified food-category ground truth**: brand-only, wrapper-only
+and partially hidden items need user confirmation. The user's earlier annotations
+identify rice noodles, baby pasta, risotto rice and ramen variants. Future recall
+evaluation should use confirmed boxes/categories and retain occluded/unknown items
+rather than treating Gemini's prose as training labels.

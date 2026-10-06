@@ -630,7 +630,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       );
                   }}
                 >
-                  Use full food list (307)
+                  Use full food list (710)
                 </button>
               </div>
               <div className="form-group">

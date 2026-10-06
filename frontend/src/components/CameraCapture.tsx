@@ -3,7 +3,7 @@ import { Icon } from "./Icon";
 import { captureVideo, preparePhoto } from "../lib/photos";
 
 interface CameraCaptureProps {
-  onImageSelected: (image: string) => void;
+  onImageSelected: (image: string, source?: Blob) => void;
   selectedImage: string | null;
   onClear: () => void;
   disabled?: boolean;
@@ -50,7 +50,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     setError(null);
     try {
       const image = await preparePhoto(file);
-      if (mounted.current) onImageSelected(image);
+      if (mounted.current) onImageSelected(image, file);
     } catch (err) {
       if (mounted.current)
         setError(

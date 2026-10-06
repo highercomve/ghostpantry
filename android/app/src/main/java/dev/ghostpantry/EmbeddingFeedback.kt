@@ -83,3 +83,16 @@ object EmbeddingFeedback {
         } finally { part.delete() }
     }
 }
+
+/** Retain bounded scan identities so feedback on an earlier crop cannot teach the last crop. */
+class EmbeddingFeedbackSessions {
+    data class Crop(val vector: FloatArray, val configuration: String, val backend: String, val scope: String)
+    private val scans = linkedMapOf<String, Crop>()
+    fun remember(id: String, vector: FloatArray, configuration: String, backend: String, scope: String) {
+        require(scope == "photo" || scope == "crop")
+        scans[id] = Crop(vector.copyOf(), configuration, backend, scope)
+        while (scans.size > 64) scans.remove(scans.keys.first())
+    }
+    operator fun get(id: String) = scans[id]
+    fun clear() = scans.clear()
+}

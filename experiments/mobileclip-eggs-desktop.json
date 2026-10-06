@@ -1,0 +1,614 @@
+{
+  "platform": "desktop CPU, four threads; NOT phone benchmarks",
+  "labels": 307,
+  "mobileclip": {
+    "revision": "71aa3e13dda93115871afbd017336535ba29886c",
+    "sha256": "809b408eff74f8058843e86a1f92967097d42ba782450e85b8f4867b7f0ca0b7",
+    "load_s": 0.6302204189996701,
+    "cold_labels_s": 2.1104951209999854,
+    "image_parameters": 11356992,
+    "warmup_excluded": true,
+    "code_revision": "48faa0fea4b08d74188b3841771aca6ff2c92852"
+  },
+  "runs": [
+    {
+      "region": "Whole photo",
+      "mobileclip_image_s": [
+        0.01976741399994353,
+        0.01836678800464142,
+        0.018316633002541494
+      ],
+      "mobileclip": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.2933503985404968
+          },
+          {
+            "label": "egg whites",
+            "score": 0.27277544140815735
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.21511417627334595
+          },
+          {
+            "label": "frozen chicken",
+            "score": 0.20188552141189575
+          },
+          {
+            "label": "soy milk",
+            "score": 0.19861704111099243
+          }
+        ],
+        "background": 0.18876604735851288
+      },
+      "gemma_image_s": 0.279468626002199,
+      "gemma": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.7418472396999329
+          },
+          {
+            "label": "egg whites",
+            "score": 0.6970874862133385
+          },
+          {
+            "label": "yogurt",
+            "score": 0.661704186986425
+          },
+          {
+            "label": "cottage cheese",
+            "score": 0.6586973550783521
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.6551312605941407
+          }
+        ],
+        "background": 0.6847593797878233
+      }
+    },
+    {
+      "region": "Grid 1",
+      "mobileclip_image_s": [
+        0.019523069997376297,
+        0.018180293998739216,
+        0.01802777600096306
+      ],
+      "mobileclip": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.2974521815776825
+          },
+          {
+            "label": "egg whites",
+            "score": 0.27301669120788574
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.21692469716072083
+          },
+          {
+            "label": "mozzarella",
+            "score": 0.20662686228752136
+          },
+          {
+            "label": "chicken",
+            "score": 0.20421883463859558
+          }
+        ],
+        "background": 0.20366428792476654
+      },
+      "gemma_image_s": 0.23659244399459567,
+      "gemma": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.7759923810174361
+          },
+          {
+            "label": "egg whites",
+            "score": 0.7214294646854071
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.6801602652304437
+          },
+          {
+            "label": "potatoes",
+            "score": 0.6774369224658394
+          },
+          {
+            "label": "milk",
+            "score": 0.6760109003609883
+          }
+        ],
+        "background": 0.6720762136623386
+      }
+    },
+    {
+      "region": "Grid 2",
+      "mobileclip_image_s": [
+        0.019853265999699943,
+        0.01842797399876872,
+        0.018070395999529865
+      ],
+      "mobileclip": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.3006769120693207
+          },
+          {
+            "label": "egg whites",
+            "score": 0.2818002700805664
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.21397429704666138
+          },
+          {
+            "label": "chicken",
+            "score": 0.20050902664661407
+          },
+          {
+            "label": "mozzarella",
+            "score": 0.19654321670532227
+          }
+        ],
+        "background": 0.18960849940776825
+      },
+      "gemma_image_s": 0.2329290600027889,
+      "gemma": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.7709558561632786
+          },
+          {
+            "label": "egg whites",
+            "score": 0.7192349790672843
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.6722209778206061
+          },
+          {
+            "label": "milk",
+            "score": 0.668815641179276
+          },
+          {
+            "label": "cottage cheese",
+            "score": 0.6659394981427325
+          }
+        ],
+        "background": 0.6648231908437592
+      }
+    },
+    {
+      "region": "Grid 3",
+      "mobileclip_image_s": [
+        0.01947754400316626,
+        0.018259985001350287,
+        0.01798976399732055
+      ],
+      "mobileclip": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.3063476085662842
+          },
+          {
+            "label": "egg whites",
+            "score": 0.278961181640625
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.22842656075954437
+          },
+          {
+            "label": "mozzarella",
+            "score": 0.20705127716064453
+          },
+          {
+            "label": "rice cakes",
+            "score": 0.20023950934410095
+          }
+        ],
+        "background": 0.19863249361515045
+      },
+      "gemma_image_s": 0.2331521119995159,
+      "gemma": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.7686262768936664
+          },
+          {
+            "label": "egg whites",
+            "score": 0.7240240162994371
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.6749961285109515
+          },
+          {
+            "label": "milk",
+            "score": 0.672257006978536
+          },
+          {
+            "label": "cottage cheese",
+            "score": 0.6708559900013777
+          }
+        ],
+        "background": 0.6692565129824822
+      }
+    },
+    {
+      "region": "Grid 4",
+      "mobileclip_image_s": [
+        0.019469769002171233,
+        0.017809001001296565,
+        0.01783584200165933
+      ],
+      "mobileclip": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.287202924489975
+          },
+          {
+            "label": "egg whites",
+            "score": 0.2576170563697815
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.2064298540353775
+          },
+          {
+            "label": "chicken",
+            "score": 0.19297510385513306
+          },
+          {
+            "label": "stock cubes",
+            "score": 0.19036582112312317
+          }
+        ],
+        "background": 0.201379656791687
+      },
+      "gemma_image_s": 0.23218487900157925,
+      "gemma": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.7574927923069283
+          },
+          {
+            "label": "egg whites",
+            "score": 0.7027338700373075
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.6671350957487041
+          },
+          {
+            "label": "cottage cheese",
+            "score": 0.6647766302347633
+          },
+          {
+            "label": "stock cubes",
+            "score": 0.6632628867064811
+          }
+        ],
+        "background": 0.6825294806171132
+      }
+    },
+    {
+      "region": "Grid 5",
+      "mobileclip_image_s": [
+        0.019151887005136814,
+        0.019938397999794688,
+        0.019675768999150023
+      ],
+      "mobileclip": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.30001959204673767
+          },
+          {
+            "label": "egg whites",
+            "score": 0.2751936912536621
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.21712800860404968
+          },
+          {
+            "label": "chicken",
+            "score": 0.20381733775138855
+          },
+          {
+            "label": "frozen chicken",
+            "score": 0.19689789414405823
+          }
+        ],
+        "background": 0.1912565529346466
+      },
+      "gemma_image_s": 0.23508281200338388,
+      "gemma": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.7645603883276484
+          },
+          {
+            "label": "egg whites",
+            "score": 0.7244951912119401
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.6805396029338614
+          },
+          {
+            "label": "milk",
+            "score": 0.6752742307880245
+          },
+          {
+            "label": "yogurt",
+            "score": 0.6663194076290817
+          }
+        ],
+        "background": 0.6669886830741192
+      }
+    },
+    {
+      "region": "Grid 6",
+      "mobileclip_image_s": [
+        0.019341004997841083,
+        0.017970355998841114,
+        0.01780672700260766
+      ],
+      "mobileclip": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.2946639358997345
+          },
+          {
+            "label": "egg whites",
+            "score": 0.2700885534286499
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.22059066593647003
+          },
+          {
+            "label": "rice cakes",
+            "score": 0.19069361686706543
+          },
+          {
+            "label": "stock cubes",
+            "score": 0.1824229210615158
+          }
+        ],
+        "background": 0.17634274065494537
+      },
+      "gemma_image_s": 0.23127074600051856,
+      "gemma": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.7689593533830255
+          },
+          {
+            "label": "egg whites",
+            "score": 0.7324946695806275
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.6911038392527336
+          },
+          {
+            "label": "cottage cheese",
+            "score": 0.6883891190035325
+          },
+          {
+            "label": "yogurt",
+            "score": 0.68701635208037
+          }
+        ],
+        "background": 0.6895435179289657
+      }
+    },
+    {
+      "region": "Grid 7",
+      "mobileclip_image_s": [
+        0.019477493995509576,
+        0.01788633700198261,
+        0.017819419997977093
+      ],
+      "mobileclip": {
+        "top5": [
+          {
+            "label": "frozen chicken",
+            "score": 0.23031216859817505
+          },
+          {
+            "label": "ice cream",
+            "score": 0.2232203632593155
+          },
+          {
+            "label": "frozen fish",
+            "score": 0.2146448940038681
+          },
+          {
+            "label": "tofu",
+            "score": 0.2111566662788391
+          },
+          {
+            "label": "stock cubes",
+            "score": 0.21086233854293823
+          }
+        ],
+        "background": 0.2217252403497696
+      },
+      "gemma_image_s": 0.23175179800455226,
+      "gemma": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.7152770021372796
+          },
+          {
+            "label": "breakfast cereal",
+            "score": 0.6997342565302429
+          },
+          {
+            "label": "egg whites",
+            "score": 0.6931299719735766
+          },
+          {
+            "label": "yogurt",
+            "score": 0.6927934098089579
+          },
+          {
+            "label": "baking soda",
+            "score": 0.6866598774165533
+          }
+        ],
+        "background": 0.7170321981294319
+      }
+    },
+    {
+      "region": "Grid 8",
+      "mobileclip_image_s": [
+        0.019262036003055982,
+        0.018604449003760237,
+        0.017894082004204392
+      ],
+      "mobileclip": {
+        "top5": [
+          {
+            "label": "frozen chicken",
+            "score": 0.23781146109104156
+          },
+          {
+            "label": "ice cream",
+            "score": 0.2179478406906128
+          },
+          {
+            "label": "frozen fish",
+            "score": 0.21758408844470978
+          },
+          {
+            "label": "yogurt",
+            "score": 0.21424716711044312
+          },
+          {
+            "label": "Greek yogurt",
+            "score": 0.21256178617477417
+          }
+        ],
+        "background": 0.22000081837177277
+      },
+      "gemma_image_s": 0.23514155399607262,
+      "gemma": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.7311203906051866
+          },
+          {
+            "label": "egg whites",
+            "score": 0.7186145234861243
+          },
+          {
+            "label": "breakfast cereal",
+            "score": 0.7062043296743904
+          },
+          {
+            "label": "corn flakes",
+            "score": 0.6986496350256417
+          },
+          {
+            "label": "baking soda",
+            "score": 0.695716663744352
+          }
+        ],
+        "background": 0.7183552704403091
+      }
+    },
+    {
+      "region": "Grid 9",
+      "mobileclip_image_s": [
+        0.01924242899985984,
+        0.018282238001120277,
+        0.01782049300527433
+      ],
+      "mobileclip": {
+        "top5": [
+          {
+            "label": "frozen chicken",
+            "score": 0.23933392763137817
+          },
+          {
+            "label": "tofu",
+            "score": 0.22808782756328583
+          },
+          {
+            "label": "ice cream",
+            "score": 0.22511792182922363
+          },
+          {
+            "label": "frozen fish",
+            "score": 0.21820136904716492
+          },
+          {
+            "label": "canned salmon",
+            "score": 0.21781814098358154
+          }
+        ],
+        "background": 0.20967712998390198
+      },
+      "gemma_image_s": 0.23241364199930103,
+      "gemma": {
+        "top5": [
+          {
+            "label": "eggs",
+            "score": 0.71023769151906
+          },
+          {
+            "label": "breakfast cereal",
+            "score": 0.7050881534480878
+          },
+          {
+            "label": "ready-made meals",
+            "score": 0.697306667074433
+          },
+          {
+            "label": "yogurt",
+            "score": 0.6864652903977955
+          },
+          {
+            "label": "egg noodles",
+            "score": 0.6855718244414475
+          }
+        ],
+        "background": 0.7209131817857042
+      }
+    }
+  ],
+  "gemma_cold_labels_s": 7.762656749997404,
+  "date": "2026-10-06",
+  "versions": {
+    "torch": "2.14.1+cpu",
+    "torchvision": "0.29.1+cpu",
+    "timm": "1.0.30",
+    "open_clip_torch": "3.3.0",
+    "litert_lm": "0.18.0"
+  }
+}

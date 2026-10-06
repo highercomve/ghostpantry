@@ -50,6 +50,9 @@ const Request = struct {
     labels: []const []const u8 = &.{},
     max_matches: u32 = 5,
     personalized: bool = false,
+    feedback_scope: []const u8 = "photo",
+    use_feedback: bool = true,
+    rotated: bool = false,
     detector: []const u8 = "efficientdet_lite0",
     scan_id: []const u8 = "",
     label: []const u8 = "",
@@ -106,4 +109,15 @@ pub fn clearFeedback(arena: std.mem.Allocator) !FeedbackStatus {
 pub fn detect(arena: std.mem.Allocator, image: []const u8, detector: []const u8) !DetectionResult {
     if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("Photo is too large.", .{});
     return request(DetectionResult, arena, .{ .operation = "detect", .image = image, .detector = detector });
+}
+
+pub const OcrResult = struct { text: []const u8, total_ms: u64, width: u32, height: u32, rotations: u32, pss_mb: f64 };
+pub fn ocr(arena: std.mem.Allocator, image: []const u8, rotated: bool) !OcrResult {
+    if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("OCR crop is too large. Use smaller regions.", .{});
+    return request(OcrResult, arena, .{ .operation = "ocr", .image = image, .rotated = rotated });
+}
+pub fn regionMatch(arena: std.mem.Allocator, image: []const u8, backend: []const u8, labels: []const []const u8, use_feedback: bool) !Result {
+    if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("Crop is too large.", .{});
+    if (labels.len < 2 or labels.len > 1024) return oriel.ipc.fail("Provide 2–1,024 food labels.", .{});
+    return request(Result, arena, .{ .operation = "match", .image = image, .backend = backend, .labels = labels, .max_matches = 10, .personalized = true, .feedback_scope = "crop", .use_feedback = use_feedback });
 }

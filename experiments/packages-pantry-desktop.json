@@ -1,0 +1,44 @@
+{
+  "model": "chistopat/sku110k-yolo11-object-detector",
+  "revision": "ee1b8ac34eb3b68969ffa8165e50c43457fe4e35",
+  "sha256": "5810269bf9687ca93b0d4e1bc91cb83ac4311cd48d91c4f6091777721ba083c5",
+  "usage": "research-only evaluation; not bundled in GhostPantry",
+  "model_bytes": 10604121,
+  "platform": "desktop CPU four threads; NOT phone timings",
+  "input_shape": [
+    1,
+    3,
+    640,
+    640
+  ],
+  "photo_size": [
+    1205,
+    1600
+  ],
+  "threshold": 0.25,
+  "nms_iou": 0.45,
+  "load_s": 0.032451038001454435,
+  "inference_s": [
+    0.02607790599722648,
+    0.023120339996239636,
+    0.01700458599952981,
+    0.01693112700013444
+  ],
+  "boxes": [
+    {
+      "x": 0.40684917655723224,
+      "y": 0.05231995582580566,
+      "width": 0.1412853066851984,
+      "height": 0.2195971965789795,
+      "score": 0.4750516414642334
+    },
+    {
+      "x": 0.839882371831237,
+      "y": 9.490847587585449e-05,
+      "width": 0.15968417725622408,
+      "height": 0.048291134834289554,
+      "score": 0.27663007378578186
+    }
+  ],
+  "date": "2026-10-06"
+}

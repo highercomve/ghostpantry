@@ -37,6 +37,7 @@ def detect(photo, name):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
+    parser.add_argument("--labels", default=str(ROOT / "experiments/food-labels-307.json"), help="JSON vocabulary; historical 307-label baseline by default")
     parser.add_argument("--photo", required=True)
     parser.add_argument("--crop", help="optional normalized left,top,right,bottom to extract photo from screenshot")
     parser.add_argument("--output", required=True)
@@ -46,7 +47,7 @@ def main():
         x,y,r,b = map(float,args.crop.split(","))
         photo = photo.crop((round(x*photo.width),round(y*photo.height),round(r*photo.width),round(b*photo.height)))
     photo.thumbnail((1600,1600))
-    labels = json.loads(re.search(r'pub const defaults = (".*");', (ROOT / "src/embedding_labels.zig").read_text()).group(1)).split("\n")
+    labels = json.loads(Path(args.labels).read_text())
     backgrounds = ["other food", "non-food objects", "empty shelf"]
     backend = litert_lm.Backend.CPU(thread_count=4)
     started = time.perf_counter()

@@ -50,6 +50,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
   }, []);
 
   const [location, setLocation] = useState<string>(defaultLocation);
+  const [sourcePhoto, setSourcePhoto] = useState<Blob | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -267,6 +268,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
       // Reset scan view
       setDetectedItems([]);
       setSelectedImage(null);
+      setSourcePhoto(null);
       onScanSuccess();
     } catch (err: any) {
       console.error("Failed to save scan results:", err);
@@ -490,7 +492,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
       <div className="scan-card">
         <CameraCapture
           selectedImage={selectedImage}
-          onImageSelected={(img) => {
+          onImageSelected={(img, source) => {
+            setSourcePhoto(source ?? null);
             setFeedbackMessage(null);
             setFeedbackError(null);
             setHasAnalyzed(false);
@@ -505,6 +508,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             setHasAnalyzed(false);
             setFastResult(null);
             setSelectedImage(null);
+            setSourcePhoto(null);
             setDetectedItems([]);
             setAnalysisError(null);
           }}
@@ -581,6 +585,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             <RegionExperiment
               key={selectedImage}
               image={selectedImage}
+              sourcePhoto={sourcePhoto}
               disabled={
                 isAnalyzing || isSaving || changingBackend || feedbackBusy
               }

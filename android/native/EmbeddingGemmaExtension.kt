@@ -51,10 +51,7 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
         @Volatile private var connection: HttpURLConnection? = null
         private var engine: EmbeddingEngine? = null
         private var engineBackend = ""
-        private var lastScanId = ""
-        private var lastImageVector: FloatArray? = null
-        private var lastFeedbackConfiguration = ""
-        private var lastFeedbackBackend = "cpu"
+        private val pendingScans = EmbeddingFeedbackSessions()
         private var cachedLabels = emptyList<String>()
         private var cachedVectors = emptyList<FloatArray>()
 
@@ -79,13 +76,15 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
                         "cancel" -> { cancelDownload.set(true); connection?.disconnect(); status() }
                         "prepare" -> { load(input.optString("backend", "cpu")); probe(); status() }
                         "detect" -> PantryDetector.detect(checkNotNull(context), input)
+                        "ocr" -> PantryOcr.read(input)
                         "match" -> try { match(input) } catch (failure: Exception) { release(); throw failure }
                         "feedback" -> feedback(input)
                         "clear_feedback" -> {
-                            for (backend in listOf("cpu", "gpu")) {
-                                val file = feedbackFile(backend)
+                            for (backend in listOf("cpu", "gpu")) for (scope in listOf("photo", "crop")) {
+                                val file = feedbackFile(backend, scope)
                                 check(!file.exists() || file.delete()) { "Cannot clear corrections" }
                             }
+                            pendingScans.clear()
                             JSONObject().put("count", 0)
                         }
                         "release" -> { release(); status() }
@@ -284,9 +283,11 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
             val imageVector = embed(InputData.Image(bytes))
             val imageMs = elapsed(imageStarted)
             val personalized = input.optBoolean("personalized", false)
-            val configuration = "$MODEL_SHA|litertlm-0.18|$engineBackend|fp32|256|128|70"
+            val scope = input.optString("feedback_scope", "photo")
+            require(scope in listOf("photo", "crop"))
+            val configuration = "$MODEL_SHA|litertlm-0.18|$engineBackend|fp32|256|128|70" + if (scope == "crop") "|crop-v1" else ""
             var feedbackWarning = ""
-            val examples = if (personalized) try { EmbeddingFeedback.read(feedbackFile(engineBackend), configuration) }
+            val examples = if (personalized && input.optBoolean("use_feedback", true)) try { EmbeddingFeedback.read(feedbackFile(engineBackend, scope), configuration) }
                 catch (failure: Exception) { feedbackWarning = failure.message ?: "Could not read corrections"; emptyList() }
                 else emptyList()
             val backgroundScore = labels.indices.filter { labels[it] in backgroundLabels }
@@ -308,10 +309,7 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
             ranked.forEach { matches.put(JSONObject().put("label", it.first).put("score", it.second).put("adjustment", it.third)) }
             val scanId = if (personalized) UUID.randomUUID().toString() else ""
             if (personalized) {
-                lastScanId = scanId
-                lastImageVector = imageVector.copyOf()
-                lastFeedbackConfiguration = configuration
-                lastFeedbackBackend = engineBackend
+                pendingScans.remember(scanId, imageVector, configuration, engineBackend, scope)
             }
             val memory = Debug.MemoryInfo().also { Debug.getMemoryInfo(it) }
             return JSONObject().put("matches", matches).put("device", device()).put("backend", engineBackend)
@@ -321,14 +319,13 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
                 .put("pss_mb", memory.totalPss / 1024.0).put("dimensions", 256).put("vision_tokens", 70).put("labels_cached", labelCache != "computed").put("label_cache", labelCache)
         }
 
-        private fun feedbackFile(backend: String) = File(folder(), "corrections-$backend.bin")
+        private fun feedbackFile(backend: String, scope: String = "photo") = File(folder(), if (scope == "crop") "crop-corrections-$backend.bin" else "corrections-$backend.bin")
 
         private fun feedback(input: JSONObject): JSONObject {
-            check(input.getString("scan_id") == lastScanId && lastScanId.isNotEmpty()) { "Scan this photo again before teaching a correction" }
-            val vector = checkNotNull(lastImageVector) { "Scan this photo again before teaching a correction" }
-            val examples = EmbeddingFeedback.read(feedbackFile(lastFeedbackBackend), lastFeedbackConfiguration)
-            val updated = EmbeddingFeedback.remember(examples, input.getString("label"), input.getBoolean("accepted"), vector)
-            EmbeddingFeedback.write(feedbackFile(lastFeedbackBackend), lastFeedbackConfiguration, updated)
+            val scan = pendingScans[input.getString("scan_id")] ?: error("Scan this region again before teaching a correction")
+            val examples = EmbeddingFeedback.read(feedbackFile(scan.backend, scan.scope), scan.configuration)
+            val updated = EmbeddingFeedback.remember(examples, input.getString("label"), input.getBoolean("accepted"), scan.vector)
+            EmbeddingFeedback.write(feedbackFile(scan.backend, scan.scope), scan.configuration, updated)
             return JSONObject().put("count", updated.size)
         }
 
