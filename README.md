@@ -293,3 +293,13 @@ Three background candidates (other food, non-food objects, empty shelf) can trig
 a review hint when they outrank all food suggestions. This comparison is also
 heuristic; it does not guarantee rejection of a wrong category. Review displays
 how many labels were compared, and never selects suggestions automatically.
+
+Fast local review and the image-matching experiment separate stronger suggestions
+from a collapsed **Weaker alternatives** list. A label must beat the background
+candidates and be within 0.04 of the best adjusted rank to appear in the stronger
+group. If none qualify, the UI says there is no clear food match. Alternatives
+remain available for manual confirmation; selecting one keeps it visible when
+collapsed. This score-gap rule reduces clutter (the egg-only example shows eggs
+instead of five equally presented foods), but is a presentation heuristic, not a
+calibrated food-presence detector. Crowded photos may have real foods in the weaker
+list. All items still require explicit selection before saving.

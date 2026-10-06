@@ -1,3 +1,4 @@
+import { splitSuggestions } from "../foodSuggestions";
 import React, { useEffect, useState } from "react";
 import { EmbeddingGemmaPanel } from "./EmbeddingGemmaPanel";
 import { CameraCapture } from "./CameraCapture";
@@ -16,6 +17,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
   defaultLocation = "fridge",
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showAlternatives, setShowAlternatives] = useState(false);
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
@@ -56,6 +58,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
       desired: number;
       similarity?: number;
       adjustment?: number;
+      stronger?: boolean;
     })[]
   >([]);
   const [scanSummary, setScanSummary] = useState<string>("");
@@ -66,6 +69,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
   const handleStartAnalysis = async () => {
     if (!selectedImage) return;
 
+    setShowAlternatives(false);
     setFeedbackMessage(null);
     setFeedbackError(null);
     setScanTiming(null);
@@ -88,6 +92,12 @@ export const ScanView: React.FC<ScanViewProps> = ({
         setScanSummary(
           "Select only the foods you can see. Rename labels and set package counts and fill levels before saving.",
         );
+        const strongerNames = new Set(
+          splitSuggestions(
+            result.matches,
+            result.background_score,
+          ).stronger.map((match) => match.label),
+        );
         setDetectedItems(
           result.matches.map((match) => ({
             name: match.label,
@@ -98,6 +108,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             unit: "package",
             similarity: match.score,
             adjustment: match.adjustment,
+            stronger: strongerNames.has(match.label),
             notes:
               "Confirmed from a fast local suggestion; quantity and fill level set during review.",
           })),
@@ -265,7 +276,13 @@ export const ScanView: React.FC<ScanViewProps> = ({
   const updateItemField = (index: number, field: string, value: any) => {
     setDetectedItems((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
+      next[index] = {
+        ...next[index],
+        [field]: value,
+        ...(field === "name"
+          ? { similarity: undefined, adjustment: undefined }
+          : {}),
+      };
       return next;
     });
   };
@@ -587,8 +604,12 @@ export const ScanView: React.FC<ScanViewProps> = ({
           <div className="review-card-head">
             <div>
               <h3>
-                {fastResult ? "Suggested foods" : "Detected Items"} (
-                {detectedItems.length})
+                {fastResult ? "Stronger suggestions" : "Detected Items"} (
+                {fastResult
+                  ? detectedItems.filter((item) => item.stronger !== false)
+                      .length
+                  : detectedItems.length}
+                )
               </h3>
               <p className="text-muted small">{scanSummary}</p>
               {fastResult && (
@@ -623,6 +644,12 @@ export const ScanView: React.FC<ScanViewProps> = ({
           {fastResult && (
             <div className="suggestion-intro">
               <strong>Which foods are actually here?</strong>
+              {detectedItems.every((item) => item.stronger === false) && (
+                <p>
+                  No clear food match from this list. Add the food you can see,
+                  or inspect the alternatives.
+                </p>
+              )}
               <p>
                 Compared {fastResult.labels_count} food labels from your saved
                 list. These are the closest food labels, not confirmed
@@ -663,8 +690,37 @@ export const ScanView: React.FC<ScanViewProps> = ({
               </button>
             </div>
           )}
+          {fastResult &&
+            detectedItems.some((item) => item.stronger === false) && (
+              <div className="suggestion-intro">
+                <button
+                  type="button"
+                  className="btn"
+                  aria-expanded={showAlternatives}
+                  onClick={() => setShowAlternatives((shown) => !shown)}
+                >
+                  {showAlternatives ? "Hide" : "Show"} weaker alternatives (
+                  {
+                    detectedItems.filter((item) => item.stronger === false)
+                      .length
+                  }
+                  )
+                </button>
+                <p>
+                  These are related labels, not additional detected foods. Open
+                  them if a food on your shelf is missing.
+                </p>
+              </div>
+            )}
           <div className="detected-items-list">
             {detectedItems.map((item, index) => {
+              if (
+                fastResult &&
+                item.stronger === false &&
+                !showAlternatives &&
+                !item.selected
+              )
+                return null;
               const fill = item.fill_percentage ?? 100;
 
               return (

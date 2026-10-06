@@ -1,3 +1,4 @@
+import { splitSuggestions } from "../foodSuggestions";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Commands, invoke } from "../oriel";
 
@@ -45,6 +46,9 @@ export function EmbeddingGemmaPanel({
         .filter(Boolean),
     ),
   ];
+  const suggestions = result
+    ? splitSuggestions(result.matches, result.background_score)
+    : null;
   const validLabels =
     candidates.length >= 2 &&
     candidates.length <= 1024 &&
@@ -299,20 +303,48 @@ export function EmbeddingGemmaPanel({
             ))}
         </>
       )}
-      {result && (
+      {result && suggestions && (
         <div className="embedding-results" role="status">
-          <h4>Closest food labels</h4>
+          <h4>Stronger food suggestions</h4>
+          {suggestions.stronger.length === 0 && (
+            <p>
+              No clear food match from this list. Try a closer photo or add the
+              missing label.
+            </p>
+          )}
           <ol>
-            {result.matches.map((match) => (
+            {suggestions.stronger.map((match) => (
               <li key={match.label}>
                 <span>{match.label}</span>
                 <strong>{match.score.toFixed(3)}</strong>
               </li>
             ))}
           </ol>
+          {suggestions.alternatives.length > 0 && (
+            <details>
+              <summary>
+                Weaker alternatives ({suggestions.alternatives.length})
+              </summary>
+              <p className="text-muted small">
+                Related labels, not additional detected foods.
+              </p>
+              <ol>
+                {suggestions.alternatives.map((match) => (
+                  <li key={match.label}>
+                    <span>{match.label}</span>
+                    <strong>{match.score.toFixed(3)}</strong>
+                  </li>
+                ))}
+              </ol>
+            </details>
+          )}
           <small className="text-muted">
-            Cosine similarity, not a probability. Only the labels above were
-            compared.
+            Compared{" "}
+            {result.labels_count ??
+              labels.split(/[\n,]/).filter((label) => label.trim()).length}{" "}
+            food labels. Cosine similarity, not a probability. Stronger
+            suggestions are grouped by relative score and still need your
+            confirmation.
           </small>
           <dl className="embedding-timings">
             <div>
