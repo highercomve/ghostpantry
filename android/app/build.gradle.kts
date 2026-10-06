@@ -55,7 +55,7 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
 }
 // oriel:dependencies begin
-apply(from = "oriel-dependencies.gradle.kts")
+apply(from = "oriel-dependencies.gradle")
 // oriel:dependencies end
 
 kotlin {

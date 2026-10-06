@@ -125,7 +125,7 @@ Declare pinned Maven coordinates in the same build configuration as the extensio
 },
 ```
 
-Every build writes `app/oriel-dependencies.gradle.kts` and maintains its
+Every build writes `app/oriel-dependencies.gradle` and maintains its
 `apply(from = ...)` line between `// oriel:dependencies` markers in
 `app/build.gradle.kts`. Manual Gradle dependencies and settings outside the
 markers are preserved. Removing a coordinate removes it from the generated
