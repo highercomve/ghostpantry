@@ -2,6 +2,8 @@
 
 - Application ID: `dev.ghostpantry.app`
 - Initial internal release: 0.1.0 (version code 100), published 2026-10-07.
+- GitHub preview: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.0
+- Closed Alpha: version 100 submitted for review on 2026-10-07; Chile, GhostPantry owner tester list.
 - Website: https://highercomve.github.io/ghostpantry/
 - Privacy: https://highercomve.github.io/ghostpantry/privacy/
 - Internal test opt-in: https://play.google.com/apps/internaltest/4701720946126812699
