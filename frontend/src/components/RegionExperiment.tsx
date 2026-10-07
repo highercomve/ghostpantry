@@ -3,7 +3,6 @@ import { invoke, type Commands } from "../oriel";
 import { recognizeFood, type Recognition } from "../foodRecognition";
 import {
   gridRegions,
-  mergeRegions,
   paddedRegion,
   drawnRegion,
   type Region,
@@ -531,96 +530,15 @@ export function RegionExperiment({
       )}
       {!busy && stage && <p role="status">{stage}</p>}
       {error && <p role="alert">{error}</p>}
-      {runs.length > 0 && (
-        <div className="embedding-results">
-          <h4>Results on this photo</h4>
-          <div className="region-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Method</th>
-                  <th>Total</th>
-                  <th>Regions</th>
-                  <th>Peak PSS*</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runs.map((result, index) => (
-                  <tr key={index}>
-                    <td>
-                      {MODES.find((x) => x.id === result.mode)?.label} ·{" "}
-                      {result.backend.toUpperCase()}
-                      {result.partial ? " (partial)" : ""}
-                      {" · visual matching"}
-                      {result.useMemory ? " · crop memory" : ""}
-                      {result.mode === "rfdetr_nano" || result.mode === "yoloe" ? ` · threshold ${result.threshold.toFixed(2)}` : ""}
-                    </td>
-                    <td data-label="Total">
-                      {(result.totalMs / 1000).toFixed(2)} s
-                    </td>
-                    <td data-label="Regions">{result.regions.length}</td>
-                    <td data-label="Sampled PSS">
-                      {Math.max(
-                        result.detectorPeak,
-                        ...result.regions.map((x) => x.result.pss_mb),
-                        0,
-                      ).toFixed(0)}{" "}
-                      MiB
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <small>
-            *Highest sampled app PSS, not continuous peak measurement. Detector
-            timing includes CPU inference; total includes initialization,
-            cropping and matching.
-          </small>
-        </div>
-      )}
       {latest && (
         <>
-          <p>
-            Latest run: {latest.labelCount} labels · detector load{" "}
-            {(latest.detectorLoadMs / 1000).toFixed(2)} s · detection{" "}
-            {(latest.detectorMs / 1000).toFixed(2)} s.
-          </p>
-          <details open>
-            <summary>Combined suggestions</summary>
-            <h4>Combined suggestions</h4>
-            <p>
-              Suggestions from all {latest.regions.length} scanned regions are
-              shown here, including regions marked Unknown. Labels are merged by
-              their best crop score. Tap a region to inspect it.
-            </p>
-            <ul>
-              {mergeRegions(latest.regions.map((x) => x.result)).map((food) => (
-                <li key={food.label}>
-                  {food.label} · {food.score.toFixed(3)}
-                  <div className="embedding-actions">
-                    {food.regions.map((index) => (
-                      <button
-                        type="button"
-                        className="btn"
-                        key={index}
-                        onClick={() => setActiveRegion(index)}
-                      >
-                        Region {index + 1}
-                      </button>
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </details>
           {
             <>
               <h4>Image review and corrections</h4>
               <p>
-                Confirm the category for each crop below. “Unknown” is kept when
-                evidence is weak; package quantities are never inferred from
-                overlapping crops.
+                Review all detected foods here, including clear suggestions and
+                uncertain crops. Confirm the category and quantity before adding
+                inventory. “Unknown” is kept when evidence is weak.
               </p>
               <p role="status">{feedbackMessage}</p>
             </>
@@ -827,6 +745,62 @@ export function RegionExperiment({
             ))}
           </details>
         </>
+      )}
+      {runs.length > 0 && (
+        <details className="embedding-results">
+          <summary>Scan details</summary>
+          <h4>Results on this photo</h4>
+          <div className="region-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Method</th>
+                  <th>Total</th>
+                  <th>Regions</th>
+                  <th>Peak PSS*</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runs.map((result, index) => (
+                  <tr key={index}>
+                    <td>
+                      {MODES.find((x) => x.id === result.mode)?.label} ·{" "}
+                      {result.backend.toUpperCase()}
+                      {result.partial ? " (partial)" : ""}
+                      {" · visual matching"}
+                      {result.useMemory ? " · crop memory" : ""}
+                      {result.mode === "rfdetr_nano" || result.mode === "yoloe" ? ` · threshold ${result.threshold.toFixed(2)}` : ""}
+                    </td>
+                    <td data-label="Total">
+                      {(result.totalMs / 1000).toFixed(2)} s
+                    </td>
+                    <td data-label="Regions">{result.regions.length}</td>
+                    <td data-label="Sampled PSS">
+                      {Math.max(
+                        result.detectorPeak,
+                        ...result.regions.map((x) => x.result.pss_mb),
+                        0,
+                      ).toFixed(0)}{" "}
+                      MiB
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <small>
+            *Highest sampled app PSS, not continuous peak measurement. Detector
+            timing includes CPU inference; total includes initialization,
+            cropping and matching.
+          </small>
+          {latest && (
+          <p>
+            Latest run: {latest.labelCount} labels · detector load{" "}
+            {(latest.detectorLoadMs / 1000).toFixed(2)} s · detection{" "}
+            {(latest.detectorMs / 1000).toFixed(2)} s.
+          </p>
+          )}
+        </details>
       )}
     </section>
   );
