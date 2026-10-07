@@ -221,3 +221,36 @@ recommended training and Android evaluation path. YOLOE-26n with food-package
 prompts returned eight raw boxes, including duplicates and partial boxes;
 FastSAM returned many package fragments. These are exploratory localization
 results, not confirmed inventory items or measured package recall.
+
+## RF-DETR Nano phone experiment
+
+The app now includes **RF-DETR Nano · CPU** alongside Lite0/Lite2 and manual
+marking. It uses the official pretrained sparse-ID COCO checkpoint, exported
+with RF-DETR 1.11.2 to float32 ONNX opset 17 at 384 × 384, and ONNX Runtime
+Android 1.30.0 with four CPU threads. No GPU/NNAPI provider is registered.
+The source/export checksums and class map are recorded in the detector assets;
+Apache-2.0 licensing is bundled. The 99.8 MB gzip asset is extracted to a
+hash-named cache file with integrity verification on first use. Each detector
+session closes before crop classification, avoiding keeping both models loaded.
+
+The UI offers thresholds 0.10, 0.25 (default) and 0.50. All above-threshold
+queries are sorted and capped at 12; one COCO category per query is retained,
+with no additional NMS, food-category filtering, or correction-memory filtering.
+Normalized center/size boxes are clipped to the original photo before the usual
+crop padding and review. Detector category names do not determine food identity.
+
+On the supplied 594 × 739 pantry JPEG, desktop ONNX CPU returned **zero boxes
+at 0.25**, with a highest score of about 0.234 for dining table. At 0.10 it has
+weak and overlapping background/fragment proposals; lowering the threshold is
+an inspection aid, not improved package accuracy. The official PyTorch predictor
+produced matching top classes/scores (about 1e-6 differences). Warm desktop
+inference was about 65 ms, excluding preprocessing and load. This is **not a
+Pixel benchmark**. Data: [rfdetr-pantry-desktop.json](rfdetr-pantry-desktop.json).
+The pretrained model still needs package-domain training for reliable scanning.
+
+Checks cover RGB/ImageNet NCHW normalization, sparse class IDs including the
+last foreground slot, sigmoid confidence, clipping, invalid outputs and the
+12-query cap. Browser verification with mocked native calls checked RF-DETR
+selection, threshold 0.10, four returned regions going through crop matching,
+and inventory review. No physical Android device was available for this check.
+Reproduce the export with [export_rfdetr_nano.py](export_rfdetr_nano.py).

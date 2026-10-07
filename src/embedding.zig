@@ -53,6 +53,7 @@ const Request = struct {
     feedback_scope: []const u8 = "photo",
     use_feedback: bool = true,
     detector: []const u8 = "efficientdet_lite0",
+    threshold: f64 = 0.25,
     scan_id: []const u8 = "",
     label: []const u8 = "",
     accepted: bool = false,
@@ -105,9 +106,10 @@ pub fn clearFeedback(arena: std.mem.Allocator) !FeedbackStatus {
     return request(FeedbackStatus, arena, .{ .operation = "clear_feedback" });
 }
 
-pub fn detect(arena: std.mem.Allocator, image: []const u8, detector: []const u8) !DetectionResult {
+pub fn detect(arena: std.mem.Allocator, image: []const u8, detector: []const u8, threshold: f64) !DetectionResult {
     if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("Photo is too large.", .{});
-    return request(DetectionResult, arena, .{ .operation = "detect", .image = image, .detector = detector });
+    if (!(threshold >= 0.1 and threshold <= 0.9)) return oriel.ipc.fail("Invalid detector threshold.", .{});
+    return request(DetectionResult, arena, .{ .operation = "detect", .image = image, .detector = detector, .threshold = threshold });
 }
 
 pub fn regionMatch(arena: std.mem.Allocator, image: []const u8, backend: []const u8, labels: []const []const u8, use_feedback: bool) !Result {

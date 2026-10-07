@@ -15,7 +15,9 @@ import org.json.JSONObject
 object PantryDetector {
     fun detect(context: Context, input: JSONObject): JSONObject {
         val model = input.getString("detector")
-        require(model in listOf("efficientdet_lite0", "efficientdet_lite2"))
+        require(model in listOf("efficientdet_lite0", "efficientdet_lite2", "rfdetr_nano"))
+        val threshold = input.optDouble("threshold", 0.25).toFloat()
+        require(threshold.isFinite() && threshold in .1f.. .9f)
         val image = input.getString("image")
         require(image.startsWith("data:image/") && image.contains(";base64,"))
         val bytes = Base64.decode(image.substringAfter(";base64,"), Base64.DEFAULT)
@@ -25,9 +27,10 @@ object PantryDetector {
         val bitmap = requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size)) { "Cannot decode photo" }
         val started = System.nanoTime()
         try {
+            if (model == "rfdetr_nano") return RfDetrDetector.detect(context, bitmap, started, threshold)
             val options = ObjectDetector.ObjectDetectorOptions.builder()
                 .setBaseOptions(BaseOptions.builder().setModelAssetPath("detectors/$model.tflite").build())
-                .setRunningMode(RunningMode.IMAGE).setMaxResults(12).setScoreThreshold(0.25f).build()
+                .setRunningMode(RunningMode.IMAGE).setMaxResults(12).setScoreThreshold(threshold).build()
             ObjectDetector.createFromOptions(context, options).use { detector ->
                 val loadMs = (System.nanoTime() - started) / 1_000_000
                 val detecting = System.nanoTime()

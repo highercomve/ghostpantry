@@ -15,7 +15,8 @@ type Mode =
   | "grid"
   | "manual"
   | "efficientdet_lite0"
-  | "efficientdet_lite2";
+  | "efficientdet_lite2"
+  | "rfdetr_nano";
 type CropResult = {
   region: Region;
   image: string;
@@ -33,6 +34,7 @@ type Run = {
   partial: boolean;
   labelCount: number;
   useMemory: boolean;
+  threshold: number;
 };
 const MODES: { id: Mode; label: string }[] = [
   { id: "manual", label: "Mark packages" },
@@ -40,6 +42,7 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "grid", label: "Overlapping grid" },
   { id: "efficientdet_lite0", label: "Lite0 detector" },
   { id: "efficientdet_lite2", label: "Lite2 detector" },
+  { id: "rfdetr_nano", label: "RF-DETR Nano · CPU" },
 ];
 
 async function decodePhoto(image: string): Promise<HTMLImageElement> {
@@ -96,6 +99,7 @@ export function RegionExperiment({
   onReviewItem: (label: string) => void;
 }) {
   const [mode, setMode] = useState<Mode>("efficientdet_lite2");
+  const [rfThreshold, setRfThreshold] = useState(0.25);
   const [busy, setBusy] = useState(false);
   const [useMemory, setUseMemory] = useState(true);
   const [teaching, setTeaching] = useState(false);
@@ -151,6 +155,7 @@ export function RegionExperiment({
     setProgress({ done: 0, total: 0 });
     setStage("Reading saved food labels…");
     const started = performance.now();
+    const threshold = mode === "rfdetr_nano" ? rfThreshold : 0.25;
     const complete: CropResult[] = [];
     try {
       const settings = await invoke("get_settings");
@@ -180,6 +185,7 @@ export function RegionExperiment({
         const detection = await invoke("detect_regions", {
           image,
           detector: mode,
+          threshold,
         });
         detectorMs = detection.detect_ms;
         detectorLoadMs = detection.load_ms;
@@ -221,7 +227,7 @@ export function RegionExperiment({
             ? "Stopped after the current region. Partial results below."
             : regions.length
               ? "Comparison ready."
-              : "Detector found no regions above its 0.25 threshold.",
+              : `Detector found no regions above its ${threshold.toFixed(2)} threshold.`,
         );
         setRuns((previous) => [
           ...previous.slice(-3),
@@ -236,6 +242,7 @@ export function RegionExperiment({
             partial: cancelled.current,
             labelCount: labels.length,
             useMemory,
+            threshold,
           },
         ]);
       }
@@ -332,6 +339,25 @@ export function RegionExperiment({
           </button>
         ))}
       </div>
+      {mode === "rfdetr_nano" && (
+        <div className="region-options">
+          <p>
+            RF-DETR Nano runs on CPU with pretrained object categories. Compare
+            its boxes with Lite2; it has not been trained for pantry packages yet.
+            First use also prepares the detector model on this phone.
+          </p>
+          <label>
+            Minimum detector score
+            <select value={rfThreshold} disabled={busy || teaching || disabled}
+              onChange={(event) => setRfThreshold(Number(event.target.value))}>
+              <option value={0.1}>0.10 · inspect weaker proposals</option>
+              <option value={0.25}>0.25 · comparison baseline</option>
+              <option value={0.5}>0.50 · stronger proposals</option>
+            </select>
+          </label>
+          <small>Lower scores can include package fragments and background objects.</small>
+        </div>
+      )}
       {mode === "manual" && (
         <div className="package-editor">
           <p>
@@ -494,6 +520,7 @@ export function RegionExperiment({
                       {result.partial ? " (partial)" : ""}
                       {" · visual matching"}
                       {result.useMemory ? " · crop memory" : ""}
+                      {result.mode === "rfdetr_nano" ? ` · threshold ${result.threshold.toFixed(2)}` : ""}
                     </td>
                     <td data-label="Total">
                       {(result.totalMs / 1000).toFixed(2)} s

@@ -263,8 +263,8 @@ pub const Commands = struct {
         return embedding.match(arena, args.image, args.backend, args.labels);
     }
 
-    pub fn detect_regions(arena: std.mem.Allocator, args: struct { image: []const u8, detector: []const u8 }) !embedding.DetectionResult {
-        return embedding.detect(arena, args.image, args.detector);
+    pub fn detect_regions(arena: std.mem.Allocator, args: struct { image: []const u8, detector: []const u8, threshold: f64 = 0.25 }) !embedding.DetectionResult {
+        return embedding.detect(arena, args.image, args.detector, args.threshold);
     }
 
     pub fn embedding_region_match(arena: std.mem.Allocator, args: struct { image: []const u8, backend: []const u8, labels: []const []const u8, use_feedback: bool }) !embedding.Result {

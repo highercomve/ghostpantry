@@ -16,6 +16,9 @@ android {
         targetSdk = 35
         versionCode = 100
         versionName = "0.1.0"
+        // These are the two ABIs with a built liboriel.so. Exclude unused
+        // dependency ABIs, particularly the large ONNX Runtime libraries.
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
     signingConfigs {

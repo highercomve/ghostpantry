@@ -315,7 +315,8 @@ the same correction and inventory review controls. **Undo last box** and
 change Lite2 automatic detection.
 
 You can also run **Whole photo**,
-**Overlapping grid**, **Lite0 detector**, and **Lite2 detector** on the same photo
+**Overlapping grid**, **Lite0 detector**, **Lite2 detector**, and
+**RF-DETR Nano · CPU** on the same photo
 with the same saved food list and embedding backend. Repeat each method after its
 first run to compare warm timings. Set the full 710-label list in Settings if an
 older installation still has the small list.
@@ -326,6 +327,15 @@ threshold; each box gets 5% padding and EmbeddingGemma classification. Their
 original COCO labels remain visible for diagnosis. Zero boxes remains a zero-box
 result; it does not silently fall back to the grid. Both models are bundled in
 the APK, while the existing EmbeddingGemma download is reused.
+
+RF-DETR Nano is a separate CPU-only ONNX Runtime experiment with its pretrained
+COCO weights bundled in the APK. Choose a minimum score of 0.10, 0.25 (default),
+or 0.50; lowering it exposes weaker proposals and can include fragments or
+background. Its boxes use the same corrections and inventory review flow. First
+use extracts and verifies the model; it has not been trained for pantry packages
+yet. The supplied crowded pantry photo yielded no boxes at 0.25 in the desktop
+test, so this option measures the pretrained baseline rather than guaranteeing
+better package recall. See [the RF-DETR experiment](experiments/README.md#rf-detr-nano-phone-experiment).
 
 Stage text, elapsed time, region progress, and **Stop after current region** keep
 the operation reviewable. Cancellation waits for the current native inference;
