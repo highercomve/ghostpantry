@@ -254,3 +254,79 @@ last foreground slot, sigmoid confidence, clipping, invalid outputs and the
 selection, threshold 0.10, four returned regions going through crop matching,
 and inventory review. No physical Android device was available for this check.
 Reproduce the export with [export_rfdetr_nano.py](export_rfdetr_nano.py).
+
+## GTK package tuning on the supplied pantry photo
+
+The Linux GTK/WebKit GhostPantry application builds with
+`zig build -Doptimize=ReleaseSafe` and launches from `zig-out/bin/ghostpantry`.
+Its fast Gemma matcher and native detectors remain Android-only. A separate
+GTK4 workbench, [gtk_package_lab.py](gtk_package_lab.py), displays actual CPU
+proposal sweeps on the same photo, with selectable configurations and reference
+overlays. It does not simulate Gemma matching or modify inventory.
+
+[tune_packages.py](tune_packages.py) compares 60 configurations: RF-DETR Nano
+whole-photo, 2×2 and 3×3 overlapping crops, optional 90° orientation, thresholds;
+YOLOE-26 Nano/Small at 640/1024 pixels with package/material prompts; and unions
+of whole-photo and cropped predictions. Cross-crop unions use class-independent
+NMS and a 12-box limit. They retain proposals even when the detector's category
+is incorrect; food recognition must run separately on each selected crop.
+
+Nine **approximate visible-package reference boxes** were manually marked in
+[pantry-reference-boxes.json](pantry-reference-boxes.json). These cover selected
+clear packages, not every partly visible item in the shelf. One-to-one matching
+at IoU ≥ 0.50 prevents duplicate proposals from inflating coverage. Reference
+boxes and settings were made on this same image; this is tuning, **not held-out
+accuracy**, and package extents under occlusion remain subjective.
+
+Results in [pantry-tuning-desktop.json](pantry-tuning-desktop.json):
+
+| Configuration | Reference packages covered | Proposals |
+| --- | ---: | ---: |
+| RF-DETR whole photo, 0.10 | 1/9 | 12 |
+| Best RF-DETR crop/rotation setting | 2/9 | 9–12 |
+| YOLOE Nano, specific prompts, whole photo, 640, 0.10 | 7/9 | 10 |
+| YOLOE Nano, whole-specific + tiled-materials, NMS 0.30 | 8/9 | 10 |
+| YOLOE Small whole-specific + Nano tiled-materials, NMS 0.50 | 9/9 | 11 |
+
+The specific prompt set is `bag of pasta`, `bag of rice`, `packet of instant
+noodles`, `box of pasta`. Material prompts are `plastic food bag`, `cardboard
+food box`, `food pouch`. Four overlapping tiles each cover 65% of the source
+width/height. Whole-photo proposals preserve package extents; material prompts
+on crops recover the left clear bag and the top right box. Nano-only still
+fragments the front noodle packet. The Small/Nano union keeps its full extent
+but also retains two unmatched fragments. Most category names are incorrect.
+
+In this run the prediction times sum to 0.085 s for Nano-only and 0.105 s for
+Small/Nano, on a four-thread desktop CPU. These sums exclude model loading,
+prompt switching and final union work; they are **not end-to-end or phone
+timings**. RF-DETR's Pillow downsampling differs from Android Bitmap scaling:
+the whole-photo highest score crosses 0.25 in this sweep. The prior Android
+and desktop results used different resize implementations, so counts near
+thresholds need not match exactly.
+
+Reproduce using the existing research environment (Ultralytics 8.4.174,
+PyTorch 2.14.1+cpu, ONNX Runtime 1.30.0, Pillow, NumPy, and the previously
+downloaded CLIP text encoder). The report pins detector hashes and versions.
+The reference file is specific to the 594×739 JPEG; pass another reference
+file when using a different photo. Photos and weights stay outside Git.
+
+```bash
+python experiments/tune_packages.py /path/to/1000193268.jpg \
+  --rfdetr /path/to/rfdetr-nano.onnx \
+  --models-dir /path/to/yoloe-weights-and-text-encoder \
+  --output-dir /tmp/ghostpantry-tuning
+# System Python with PyGObject GTK4 and cairo; independent of the ML venv:
+python3 experiments/gtk_package_lab.py /tmp/ghostpantry-tuning/results.json
+# Inspect the portable committed report:
+python3 experiments/gtk_package_lab.py experiments/pantry-tuning-desktop.json \
+  --photo /path/to/1000193268.jpg
+```
+
+GTK verification displayed the real photo, refreshed all 60 completed runs,
+selected the best combination and showed predicted/reference boxes. Geometry
+checks covered IoU, duplicate matching, empty results and tile bounds. No new
+detector was added to Android in this tuning task. Next, evaluate the Nano-only
+candidate on other shelf photos, then export its fixed prompts for a phone test.
+YOLOE supports baking prompt embeddings into exported weights; see its
+[official documentation](https://docs.ultralytics.com/models/yoloe/).
+Existing YOLOE research license notes above still apply.
