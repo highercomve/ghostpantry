@@ -6,7 +6,8 @@ import { CameraCapture } from "./CameraCapture";
 import { Commands, invoke } from "../oriel";
 import { useSystemAi } from "../hooks/useSystemAi";
 import { SystemAiStatusPanel } from "./SystemAiStatusPanel";
-import { InventoryItem, VisionDetectedItem, VisionResult } from "../types";
+import { reviewCrop, type InventoryReviewItem } from "../cropInventory";
+import { InventoryItem, VisionResult } from "../types";
 
 interface ScanViewProps {
   onScanSuccess: () => void;
@@ -56,15 +57,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   // Results to review before persisting to SQLite
-  const [detectedItems, setDetectedItems] = useState<
-    (VisionDetectedItem & {
-      selected: boolean;
-      desired: number;
-      similarity?: number;
-      adjustment?: number;
-      stronger?: boolean;
-    })[]
-  >([]);
+  const [detectedItems, setDetectedItems] = useState<InventoryReviewItem[]>([]);
   const [scanSummary, setScanSummary] = useState<string>("");
   const [scanTiming, setScanTiming] = useState<VisionResult["timing"]>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -568,39 +561,16 @@ export const ScanView: React.FC<ScanViewProps> = ({
                 isAnalyzing || isSaving || changingBackend || feedbackBusy
               }
               onBusyChange={setEmbeddingBusy}
-              onReviewItem={(label) => {
+              onReviewItem={(label, cropId) => {
                 if (!label.trim()) return;
                 setFastResult(null);
                 setHasAnalyzed(true);
                 setScanTiming(null);
                 setSaveSuccessMsg(null);
                 setScanSummary(
-                  "Foods chosen from image regions. Set quantity and fill before saving; overlapping regions do not determine package counts.",
+                  "Each crop you confirm adds one unit. Crops with the same product name are combined. Check quantity and fill before saving.",
                 );
-                setDetectedItems((items) => {
-                  const existing = items.findIndex(
-                    (item) =>
-                      item.name.trim().toLowerCase() ===
-                      label.trim().toLowerCase(),
-                  );
-                  if (existing >= 0)
-                    return items.map((item, index) =>
-                      index === existing ? { ...item, selected: true } : item,
-                    );
-                  return [
-                    ...items,
-                    {
-                      name: label.trim(),
-                      selected: true,
-                      desired: 1,
-                      quantity: 1,
-                      fill_percentage: 100,
-                      unit: "unit",
-                      notes:
-                        "Chosen from a visual crop; quantity and fill set during review.",
-                    },
-                  ];
-                });
+                setDetectedItems((items) => reviewCrop(items, label, cropId));
                 requestAnimationFrame(() =>
                   document
                     .getElementById("inventory-review")

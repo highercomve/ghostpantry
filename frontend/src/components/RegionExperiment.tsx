@@ -101,7 +101,7 @@ export function RegionExperiment({
   primaryFlow?: boolean;
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
-  onReviewItem: (label: string) => void;
+  onReviewItem: (label: string, cropId: string) => void;
 }) {
   const [mode, setMode] = useState<Mode>("yoloe");
   const [rfThreshold, setRfThreshold] = useState(0.25);
@@ -537,8 +537,9 @@ export function RegionExperiment({
               <h4>Image review and corrections</h4>
               <p>
                 Review all detected foods here, including clear suggestions and
-                uncertain crops. Confirm the category and quantity before adding
-                inventory. “Unknown” is kept when evidence is weak.
+                uncertain crops. Each crop you choose for inventory adds one unit;
+                matching product names are combined. Check quantities for
+                overlapping crops. “Unknown” is kept when evidence is weak.
               </p>
               <p role="status">{feedbackMessage}</p>
             </>
@@ -651,6 +652,7 @@ export function RegionExperiment({
                               result.recognition?.label ??
                               ""
                             ).trim(),
+                            [result.region.x, result.region.y, result.region.width, result.region.height].join(":"),
                           )
                         }
                       >
