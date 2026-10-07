@@ -15,7 +15,7 @@ import org.json.JSONObject
 object PantryDetector {
     fun detect(context: Context, input: JSONObject): JSONObject {
         val model = input.getString("detector")
-        require(model in listOf("efficientdet_lite0", "efficientdet_lite2", "rfdetr_nano"))
+        require(model in listOf("efficientdet_lite0", "efficientdet_lite2", "rfdetr_nano", "yoloe_packages"))
         val threshold = input.optDouble("threshold", 0.25).toFloat()
         require(threshold.isFinite() && threshold in .1f.. .9f)
         val image = input.getString("image")
@@ -28,6 +28,7 @@ object PantryDetector {
         val started = System.nanoTime()
         try {
             if (model == "rfdetr_nano") return RfDetrDetector.detect(context, bitmap, started, threshold)
+            if (model == "yoloe_packages") return YoloePackageDetector.detect(context, bitmap, started, threshold)
             val options = ObjectDetector.ObjectDetectorOptions.builder()
                 .setBaseOptions(BaseOptions.builder().setModelAssetPath("detectors/$model.tflite").build())
                 .setRunningMode(RunningMode.IMAGE).setMaxResults(12).setScoreThreshold(threshold).build()

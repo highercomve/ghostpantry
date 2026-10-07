@@ -414,3 +414,19 @@ varieties are alternatives, not independent evidence that food is present; exact
 variety and presence still require confirmation. Rice noodles and rice flour do
 not belong to the rice-grain family. The review also displays background similarity
 for inspecting uncertain visual matches.
+
+### YOLOE package detector phone test
+
+The multi-item experiment now starts with **YOLOE Nano · packages**, a CPU-only
+proposal detector using fixed package prompts. It combines one whole-photo pass
+with four overlapping material-prompt crops, merges duplicate boxes, and sends
+up to 12 regions through the existing food matching, corrections and inventory
+review. Start with minimum package score **0.10**. Models are bundled; no text
+encoder or OCR runs on the phone. Detector category names are not confirmed foods.
+
+The exported ONNX candidate reproduced 10 proposals covering 8 of 9 approximate
+reference boxes on the supplied pantry JPEG on desktop. This is one-photo tuning,
+not phone accuracy or general validation. Native resize/postprocessing tests and
+export comparison are documented in [experiments](experiments/README.md).
+The two YOLOE model assets carry their upstream AGPL-3.0 license, included beside
+the weights as `YOLOE-LICENSE`; they were exported with Ultralytics 8.4.174.

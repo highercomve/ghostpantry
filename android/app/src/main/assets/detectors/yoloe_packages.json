@@ -1,0 +1,76 @@
+{
+  "input_size": 640,
+  "stride": 32,
+  "dynamic_shape": true,
+  "tile_fraction": 0.65,
+  "nms_iou": 0.3,
+  "default_threshold": 0.1,
+  "source_sha256": "1741c1f8da3cea47e2c01829c334a50dc0b9bbd05e685b90a3ce84fae32c8c1b",
+  "ultralytics": "8.4.174",
+  "torch": "2.14.1+cpu",
+  "opset": 17,
+  "license": "AGPL-3.0",
+  "profiles": [
+    {
+      "name": "yoloe_packages_whole",
+      "prompts": [
+        "bag of pasta",
+        "bag of rice",
+        "packet of instant noodles",
+        "box of pasta"
+      ],
+      "input": "images",
+      "output": "output0",
+      "output_format": "cxcywh_class_probabilities_masks",
+      "head": "one-to-many",
+      "outputs": {
+        "output0": [
+          "batch",
+          "Concatoutput0_dim_1",
+          "anchors"
+        ],
+        "output1": [
+          "batch",
+          32,
+          "mask_height",
+          "mask_width"
+        ]
+      },
+      "onnx_sha256": "36f79b1e1a4ce1be04a24bb4fc762f75918cd62049f38ae416b8c59701d00639",
+      "onnx_bytes": 10950559,
+      "file": "yoloe_packages_whole.onnx.bin",
+      "bytes": 9679484,
+      "sha256": "67394de1ca7aec254ebcafc2198b7ae3fa2e9fdc616f54e54029a05cbccfabd4"
+    },
+    {
+      "name": "yoloe_packages_tiles",
+      "prompts": [
+        "plastic food bag",
+        "cardboard food box",
+        "food pouch"
+      ],
+      "input": "images",
+      "output": "output0",
+      "output_format": "cxcywh_class_probabilities_masks",
+      "head": "one-to-many",
+      "outputs": {
+        "output0": [
+          "batch",
+          "Concatoutput0_dim_1",
+          "anchors"
+        ],
+        "output1": [
+          "batch",
+          32,
+          "mask_height",
+          "mask_width"
+        ]
+      },
+      "onnx_sha256": "bc42caf794a4e1b117406669ece1309a4b1f410cb6896a9a712ffcc3fd548442",
+      "onnx_bytes": 10947516,
+      "file": "yoloe_packages_tiles.onnx.bin",
+      "bytes": 9676988,
+      "sha256": "ce3bd656a4d4d05fb2703900a888db6b899f3bde19fc40954f87d0377dd39719"
+    }
+  ]
+}

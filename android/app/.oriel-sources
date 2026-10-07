@@ -8,3 +8,5 @@ app/src/main/java/dev/ghostpantry/EmbeddingFeedback.kt
 app/src/main/java/dev/ghostpantry/PantryDetector.kt
 app/src/main/java/dev/ghostpantry/RfDetrDetector.kt
 app/src/main/java/dev/ghostpantry/PackageDetectionMath.kt
+app/src/main/java/dev/ghostpantry/YoloePackageMath.kt
+app/src/main/java/dev/ghostpantry/YoloePackageDetector.kt

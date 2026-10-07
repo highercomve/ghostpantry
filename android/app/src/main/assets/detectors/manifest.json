@@ -21,5 +21,25 @@
     "license": "Apache-2.0",
     "export": "RF-DETR 1.11.2 / Torch 2.14.1+cpu, ONNX opset 17, 384x384, float32; gzip mtime=0 level=6",
     "compression": "gzip"
+  },
+  {
+    "name": "yoloe_packages_whole",
+    "file": "yoloe_packages_whole.onnx.bin",
+    "bytes": 9679484,
+    "sha256": "67394de1ca7aec254ebcafc2198b7ae3fa2e9fdc616f54e54029a05cbccfabd4",
+    "source_sha256": "1741c1f8da3cea47e2c01829c334a50dc0b9bbd05e685b90a3ce84fae32c8c1b",
+    "license": "AGPL-3.0",
+    "compression": "gzip",
+    "export": "YOLOE-26 Nano / Ultralytics 8.4.174, ONNX opset17, float32, fixed prompts, dynamic stride32 padding, one-to-many head"
+  },
+  {
+    "name": "yoloe_packages_tiles",
+    "file": "yoloe_packages_tiles.onnx.bin",
+    "bytes": 9676988,
+    "sha256": "ce3bd656a4d4d05fb2703900a888db6b899f3bde19fc40954f87d0377dd39719",
+    "source_sha256": "1741c1f8da3cea47e2c01829c334a50dc0b9bbd05e685b90a3ce84fae32c8c1b",
+    "license": "AGPL-3.0",
+    "compression": "gzip",
+    "export": "YOLOE-26 Nano / Ultralytics 8.4.174, ONNX opset17, float32, fixed prompts, dynamic stride32 padding, one-to-many head"
   }
 ]

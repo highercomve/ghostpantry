@@ -1,0 +1,125 @@
+{
+  "model": "YOLOE Nano fixed-prompt ONNX",
+  "threshold": 0.1,
+  "boxes": [
+    {
+      "box": [
+        211.52604308128358,
+        464.236598110199,
+        434.7703248500824,
+        705.0343992233277
+      ],
+      "score": 0.5648468732833862,
+      "label": "bag of pasta"
+    },
+    {
+      "box": [
+        125.65138434171676,
+        495.04171404838564,
+        236.08682376146317,
+        739
+      ],
+      "score": 0.5418746471405029,
+      "label": "bag of pasta"
+    },
+    {
+      "box": [
+        339.803258895874,
+        0.044345855712890625,
+        499.9943027496338,
+        136.58758163452148
+      ],
+      "score": 0.4569924771785736,
+      "label": "cardboard food box"
+    },
+    {
+      "box": [
+        434.3252831697464,
+        198.4466206550598,
+        580.8005005598068,
+        669.963092136383
+      ],
+      "score": 0.42590343952178955,
+      "label": "bag of pasta"
+    },
+    {
+      "box": [
+        159.2602417230606,
+        280.46833620071413,
+        398.5151353597641,
+        473.42962741851807
+      ],
+      "score": 0.3091108798980713,
+      "label": "bag of pasta"
+    },
+    {
+      "box": [
+        70.62174887657166,
+        0,
+        260.0175971031189,
+        251.4151082754135
+      ],
+      "score": 0.29476267099380493,
+      "label": "bag of pasta"
+    },
+    {
+      "box": [
+        185.66122632026674,
+        10.14689393043518,
+        337.91143169403074,
+        352.81380009651184
+      ],
+      "score": 0.21583935618400574,
+      "label": "bag of pasta"
+    },
+    {
+      "box": [
+        27.81418001651764,
+        372.7271203994751,
+        194.332253575325,
+        650.0399403572083
+      ],
+      "score": 0.19386810064315796,
+      "label": "bag of pasta"
+    },
+    {
+      "box": [
+        339.12914657592773,
+        0,
+        385.9116554260254,
+        175.14788818359375
+      ],
+      "score": 0.1674458086490631,
+      "label": "cardboard food box"
+    },
+    {
+      "box": [
+        486.7465362548828,
+        0,
+        593.5313110351562,
+        134.77887725830078
+      ],
+      "score": 0.12685978412628174,
+      "label": "cardboard food box"
+    }
+  ],
+  "matched_at_iou_50": 8,
+  "reference_count": 9,
+  "unmatched_proposals": 2,
+  "best_iou_by_reference": {
+    "left long pasta bag": 0.664,
+    "capellini bag": 0.904,
+    "top beige package": 0.654,
+    "top right red box": 0.62,
+    "middle red pasta bag": 0.842,
+    "left clear pasta bag": 0.791,
+    "front noodle packet": 0.446,
+    "back noodle packet": 0.851,
+    "right rice bag": 0.717
+  },
+  "prediction_s": [
+    0.03487568299169652,
+    0.13098005099163856
+  ],
+  "timing_note": "Desktop CPU four threads including preprocessing; excludes session load; not phone timings"
+}

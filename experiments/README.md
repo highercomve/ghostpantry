@@ -330,3 +330,49 @@ candidate on other shelf photos, then export its fixed prompts for a phone test.
 YOLOE supports baking prompt embeddings into exported weights; see its
 [official documentation](https://docs.ultralytics.com/models/yoloe/).
 Existing YOLOE research license notes above still apply.
+
+## Android YOLOE Nano candidate
+
+The phone test now bundles two ~9.68 MB compressed CPU ONNX models, exported by
+[export_yoloe_packages.py](export_yoloe_packages.py) with fixed prompts. The text
+encoder is used during export only. The native detector uses one whole-photo
+specific-prompt pass, four material-prompt crops covering 65% of each source
+dimension, score 0.10 by default, per-profile class-independent NMS 0.50/cap12,
+then cross-profile NMS 0.30/cap12. Each session closes before loading the next
+profile, and both close before Gemma matching starts. The model's category names
+are proposal diagnostics only. Crop corrections do not select detector boxes.
+
+Two export details materially affect parity: dynamic spatial input keeps the
+aspect ratio with minimal stride-32 letterbox padding, and **`nms=None` preserves
+the checkpoint's one-to-many detection head**. In Ultralytics 8.4.174, exporting
+with `nms=False` switches a YOLO26 model to its one-to-one head and changes its
+predictions. The native parser handles `[1, 4 + classes + 32, anchors]`: pixel
+center/size boxes and class probabilities, ignoring mask coefficients. It chooses
+one class per anchor, undoes padding, maps crop coordinates back to the source,
+clips empty boxes and merges duplicates without a food-category filter.
+
+[benchmark_yoloe_export.py](benchmark_yoloe_export.py) runs the phone's ONNX
+contract on the same JPEG with RGB /255 input, rectangular stride-32 padding
+and both suppression stages. It reproduced **10 proposals, 8/9 draft reference
+overlaps**. Saved output: [yoloe-packages-onnx-desktop.json](yoloe-packages-onnx-desktop.json).
+Android uses Bitmap bilinear resizing; small score differences from OpenCV are
+still possible. This has not been measured on a physical phone by the developer.
+
+Native geometry tests cover minimal padding, tile bounds, RGB plane order,
+channel-major probabilities, ignoring mask coefficients, invalid/empty boxes,
+source-photo mapping, cross-category duplicate suppression and the 12-box cap.
+The Android model cache checks the expanded byte count and SHA-256. Packaged
+assets use `.onnx.bin` to retain gzip compression through Android's asset merger.
+Their source/export hashes and profile details are pinned in `yoloe_packages.json`
+and checked by `scripts/verify-detectors.py`. Upstream AGPL-3.0 is bundled in
+`android/app/src/main/assets/detectors/YOLOE-LICENSE`.
+
+```bash
+python experiments/export_yoloe_packages.py \
+  --models-dir /path/to/yoloe-weights-and-text-encoder \
+  --output-dir /tmp/ghostpantry-yoloe
+python experiments/benchmark_yoloe_export.py /path/to/1000193268.jpg \
+  --models-dir /tmp/ghostpantry-yoloe \
+  --output /tmp/ghostpantry-yoloe/benchmark.json \
+  --overlay /tmp/ghostpantry-yoloe/benchmark.png
+```
