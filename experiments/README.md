@@ -194,3 +194,21 @@ one selected review row at quantity 1, no inventory write or feedback happens
 until the corresponding explicit action, and saving sends the chosen Pantry
 location and reviewed item to the existing `apply_scan_results` command. Native
 calls were mocked for this UI check; it is not a phone recognition benchmark.
+
+## Overlapping Lite2 detection and marked packages
+
+On 2026-10-06, the user's newly supplied 594 × 739 pantry JPEG was tested
+with the bundled Lite2 model (MediaPipe desktop CPU, threshold 0.25, max 12
+results per pass). Full-photo detection reproduced the phone's two boxes:
+“bottle” (0.410) and “sandwich” (0.309). Full photo plus nine overlapping
+half-size sections returned 17 raw proposals before deduplication. Inspection
+showed oversized multi-package boxes, repeated rice fragments, and food pictures
+or logos labeled bowl/cup. More proposals did not produce reliable package
+segmentation, so this tiled approach was not added as an inventory detector.
+
+The app now offers **Mark packages**: the user draws up to 12 normalized boxes,
+which go directly to the existing visual crop matcher, correction memory, and
+inventory review. This is a manual fallback, not an improved automatic detector.
+Browser checks with mocked native matching scanned four marked boxes, showed
+four review controls, and verified inventory handoff, undo, cancellation, and
+clear. Actual recognition quality still requires phone testing.

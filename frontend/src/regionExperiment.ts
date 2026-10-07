@@ -7,6 +7,20 @@ export interface Region {
   label: string;
   score?: number;
 }
+export function drawnRegion(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  label: string,
+): Region | null {
+  if (![start.x, start.y, end.x, end.y].every(Number.isFinite)) return null;
+  const clamp = (value: number) => Math.max(0, Math.min(1, value));
+  const x = clamp(Math.min(start.x, end.x));
+  const y = clamp(Math.min(start.y, end.y));
+  const width = clamp(Math.max(start.x, end.x)) - x;
+  const height = clamp(Math.max(start.y, end.y)) - y;
+  if (width < 0.02 || height < 0.02) return null;
+  return { x, y, width, height, label };
+}
 export function gridRegions(): Region[] {
   const regions: Region[] = [
     { x: 0, y: 0, width: 1, height: 1, label: "Whole photo" },

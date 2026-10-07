@@ -4,7 +4,26 @@ import {
   gridRegions,
   paddedRegion,
   mergeRegions,
+  drawnRegion,
 } from "../src/regionExperiment.ts";
+
+test("drawn packages support reverse dragging and clip to the photo", () => {
+  assert.deepEqual(
+    drawnRegion({ x: 0.8, y: 1.2 }, { x: -0.1, y: 0.3 }, "Package 1"),
+    {
+      x: 0,
+      y: 0.3,
+      width: 0.8,
+      height: 0.7,
+      label: "Package 1",
+    },
+  );
+  assert.equal(
+    drawnRegion({ x: 0.1, y: 0.1 }, { x: 0.11, y: 0.8 }, "tap"),
+    null,
+  );
+  assert.equal(drawnRegion({ x: NaN, y: 0 }, { x: 1, y: 1 }, "invalid"), null);
+});
 
 test("grid covers the complete photo and overlaps adjacent crops", () => {
   const regions = gridRegions();

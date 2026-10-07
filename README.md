@@ -307,7 +307,14 @@ list. All items still require explicit selection before saving.
 
 ### Experiment: multi-item regions
 
-After choosing a photo, tap **Compare multi-item scanning**. Run **Whole photo**,
+After choosing a photo, tap **Compare multi-item scanning**. If detection misses
+packages, choose **Mark packages**, drag one box around each package (up to 12),
+and tap **Run comparison**. Every marked box goes through visual matching and
+the same correction and inventory review controls. **Undo last box** and
+**Clear boxes** let you replace selections. Marking is manual; it does not
+change Lite2 automatic detection.
+
+You can also run **Whole photo**,
 **Overlapping grid**, **Lite0 detector**, and **Lite2 detector** on the same photo
 with the same saved food list and embedding backend. Repeat each method after its
 first run to compare warm timings. Set the full 710-label list in Settings if an

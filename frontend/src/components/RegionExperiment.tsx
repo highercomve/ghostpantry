@@ -1,15 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { invoke, type Commands } from "../oriel";
 import { recognizeFood, type Recognition } from "../foodRecognition";
 import {
   gridRegions,
   mergeRegions,
   paddedRegion,
+  drawnRegion,
   type Region,
 } from "../regionExperiment";
 
 type MatchResult = Commands["embedding_match"]["result"];
-type Mode = "whole" | "grid" | "efficientdet_lite0" | "efficientdet_lite2";
+type Mode =
+  | "whole"
+  | "grid"
+  | "manual"
+  | "efficientdet_lite0"
+  | "efficientdet_lite2";
 type CropResult = {
   region: Region;
   image: string;
@@ -29,6 +35,7 @@ type Run = {
   useMemory: boolean;
 };
 const MODES: { id: Mode; label: string }[] = [
+  { id: "manual", label: "Mark packages" },
   { id: "whole", label: "Whole photo" },
   { id: "grid", label: "Overlapping grid" },
   { id: "efficientdet_lite0", label: "Lite0 detector" },
@@ -100,6 +107,16 @@ export function RegionExperiment({
   const [error, setError] = useState<string | null>(null);
   const [activeRegion, setActiveRegion] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [manualRegions, setManualRegions] = useState<Region[]>([]);
+  const [draft, setDraft] = useState<Region | null>(null);
+  const drag = useRef<{ x: number; y: number; pointer: number } | null>(null);
+  const point = (event: PointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return {
+      x: (event.clientX - bounds.left) / bounds.width,
+      y: (event.clientY - bounds.top) / bounds.height,
+    };
+  };
   const cancelled = useRef(false),
     mounted = useRef(true),
     pending = useRef(false);
@@ -121,6 +138,7 @@ export function RegionExperiment({
   }, [busy]);
   const run = async () => {
     if (pending.current || disabled || teaching) return;
+    if (mode === "manual" && manualRegions.length === 0) return;
     pending.current = true;
     cancelled.current = false;
     setBusy(true);
@@ -156,6 +174,7 @@ export function RegionExperiment({
         detectorPeak = 0;
       if (mode === "whole") regions = [gridRegions()[0]];
       else if (mode === "grid") regions = gridRegions();
+      else if (mode === "manual") regions = manualRegions;
       else {
         setStage("Finding object regions on CPU…");
         const detection = await invoke("detect_regions", {
@@ -313,10 +332,117 @@ export function RegionExperiment({
           </button>
         ))}
       </div>
+      {mode === "manual" && (
+        <div className="package-editor">
+          <p>
+            Drag a box around each package you want to scan. Include its label
+            and keep nearby packages outside the box. Mark up to 12 packages.
+          </p>
+          <div
+            className="region-photo package-editor-photo"
+            aria-label="Photo for marking packages"
+            onPointerDown={(event) => {
+              if (
+                busy ||
+                teaching ||
+                disabled ||
+                manualRegions.length >= 12 ||
+                !event.isPrimary ||
+                event.button !== 0
+              )
+                return;
+              drag.current = { ...point(event), pointer: event.pointerId };
+              event.currentTarget.setPointerCapture(event.pointerId);
+              setDraft(null);
+            }}
+            onPointerMove={(event) => {
+              if (!drag.current || drag.current.pointer !== event.pointerId)
+                return;
+              setDraft(drawnRegion(drag.current, point(event), "New package"));
+            }}
+            onPointerUp={(event) => {
+              if (!drag.current || drag.current.pointer !== event.pointerId)
+                return;
+              const region = drawnRegion(
+                drag.current,
+                point(event),
+                `Package ${manualRegions.length + 1}`,
+              );
+              drag.current = null;
+              setDraft(null);
+              if (region)
+                setManualRegions((previous) =>
+                  [...previous, region].slice(0, 12),
+                );
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }}
+            onPointerCancel={() => {
+              drag.current = null;
+              setDraft(null);
+            }}
+            onLostPointerCapture={() => {
+              drag.current = null;
+              setDraft(null);
+            }}
+          >
+            <img
+              src={image}
+              alt="Mark each pantry package with a box"
+              draggable={false}
+            />
+            {[...manualRegions, ...(draft ? [draft] : [])].map(
+              (region, index) => (
+                <div
+                  key={index}
+                  className="region-outline package-outline"
+                  style={{
+                    left: `${region.x * 100}%`,
+                    top: `${region.y * 100}%`,
+                    width: `${region.width * 100}%`,
+                    height: `${region.height * 100}%`,
+                  }}
+                >
+                  <span>{index + 1}</span>
+                </div>
+              ),
+            )}
+          </div>
+          <p role="status">{manualRegions.length} packages marked</p>
+          <div className="embedding-actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={
+                busy || teaching || disabled || manualRegions.length === 0
+              }
+              onClick={() =>
+                setManualRegions((previous) => previous.slice(0, -1))
+              }
+            >
+              Undo last box
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={
+                busy || teaching || disabled || manualRegions.length === 0
+              }
+              onClick={() => setManualRegions([])}
+            >
+              Clear boxes
+            </button>
+          </div>
+        </div>
+      )}
       <button
         type="button"
         className="btn primary"
-        disabled={busy || teaching || disabled}
+        disabled={
+          busy ||
+          teaching ||
+          disabled ||
+          (mode === "manual" && manualRegions.length === 0)
+        }
         onClick={() => void run()}
       >
         Run comparison
@@ -405,8 +531,8 @@ export function RegionExperiment({
             <h4>Combined suggestions</h4>
             <p>
               Suggestions from all {latest.regions.length} scanned regions are
-              shown here, including regions marked Unknown. Labels are merged
-              by their best crop score. Tap a region to inspect it.
+              shown here, including regions marked Unknown. Labels are merged by
+              their best crop score. Tap a region to inspect it.
             </p>
             <ul>
               {mergeRegions(latest.regions.map((x) => x.result)).map((food) => (
