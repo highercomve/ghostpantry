@@ -7,6 +7,10 @@ import kotlin.math.roundToInt
 
 /** Fixed-prompt YOLOE one-to-many output: pixel cxcywh, class probabilities, masks. */
 object YoloePackageMath {
+    fun isModelAsset(asset: String): Boolean = asset in setOf(
+        "yoloe_packages_whole.onnx.bin", "yoloe_packages_tiles.onnx.bin", "yoloe_produce.onnx.bin",
+    )
+
     data class Tile(val x: Int, val y: Int, val width: Int, val height: Int)
     data class Resize(val scale: Float, val width: Int, val height: Int, val left: Int, val top: Int,
                       val inputWidth: Int, val inputHeight: Int)

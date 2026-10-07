@@ -99,7 +99,8 @@ object YoloePackageDetector {
     private fun unpack(context: Context, profile: JSONObject): File {
         val hash = profile.getString("onnx_sha256")
         val asset = profile.getString("file")
-        require(hash.matches(Regex("[0-9a-f]{64}")) && asset.matches(Regex("yoloe_packages_(whole|tiles)\\.onnx\\.bin")))
+        require(hash.matches(Regex("[0-9a-f]{64}"))) { "Invalid YOLOE model checksum" }
+        require(YoloePackageMath.isModelAsset(asset)) { "Unsupported YOLOE model asset: $asset" }
         val directory = File(context.cacheDir,"yoloe").apply { mkdirs() }
         val target = File(directory,"$hash.onnx")
         if (target.isFile && target.length() == profile.getLong("onnx_bytes")) return target
