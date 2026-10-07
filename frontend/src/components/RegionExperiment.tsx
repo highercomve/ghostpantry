@@ -400,6 +400,34 @@ export function RegionExperiment({
             {(latest.detectorLoadMs / 1000).toFixed(2)} s · detection{" "}
             {(latest.detectorMs / 1000).toFixed(2)} s.
           </p>
+          <details open>
+            <summary>Combined suggestions</summary>
+            <h4>Combined suggestions</h4>
+            <p>
+              Suggestions from all {latest.regions.length} scanned regions are
+              shown here, including regions marked Unknown. Labels are merged
+              by their best crop score. Tap a region to inspect it.
+            </p>
+            <ul>
+              {mergeRegions(latest.regions.map((x) => x.result)).map((food) => (
+                <li key={food.label}>
+                  {food.label} · {food.score.toFixed(3)}
+                  <div className="embedding-actions">
+                    {food.regions.map((index) => (
+                      <button
+                        type="button"
+                        className="btn"
+                        key={index}
+                        onClick={() => setActiveRegion(index)}
+                      >
+                        Region {index + 1}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </details>
           {
             <>
               <h4>Image review and corrections</h4>
@@ -427,33 +455,6 @@ export function RegionExperiment({
               ))}
             </ul>
           }
-          <details>
-            <summary>Combined suggestions</summary>
-            <h4>Combined suggestions</h4>
-            <p>
-              Labels are merged by their best crop score. Matching regions are
-              evidence, not package counts. Tap a region to inspect it.
-            </p>
-            <ul>
-              {mergeRegions(latest.regions.map((x) => x.result)).map((food) => (
-                <li key={food.label}>
-                  {food.label} · {food.score.toFixed(3)}
-                  <div className="embedding-actions">
-                    {food.regions.map((index) => (
-                      <button
-                        type="button"
-                        className="btn"
-                        key={index}
-                        onClick={() => setActiveRegion(index)}
-                      >
-                        Region {index + 1}
-                      </button>
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </details>
           {latest.regions.length === 0 && (
             <p>
               No regions were classified. Try the overlapping grid; no fallback
