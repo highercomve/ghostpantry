@@ -19,7 +19,7 @@ def main():
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--overlay',type=Path,required=True)
     p.add_argument('--no-reference',action='store_true',help='Skip reference metrics for a different photo')
-    p.add_argument('--profile',choices=['packages','produce'],default='packages')
+    p.add_argument('--profile',choices=['packages','produce','combined'],default='packages')
     p.add_argument('--threshold',type=float,default=.1)
     a = p.parse_args()
     photo = ImageOps.exif_transpose(Image.open(a.photo)).convert('RGB')
@@ -31,15 +31,16 @@ def main():
     options.inter_op_num_threads = 1
     all_boxes = []
     times = []
+    produce_boxes = []
     for index,profile in enumerate(contract['profiles']):
-        if (profile['name']=='yoloe_produce') != (a.profile=='produce'):
+        if a.profile!='combined' and (profile['name']=='yoloe_produce') != (a.profile=='produce'):
             continue
         session = ort.InferenceSession(str(a.models_dir/(profile['name']+'.onnx')),sess_options=options,providers=['CPUExecutionProvider'])
         assert session.get_inputs()[0].shape == ['batch',3,'height','width']
         started = time.perf_counter()
         candidates = []
         layout = tiles(*photo.size,'whole' if index==0 else '2x2')
-        if a.profile=='produce':
+        if profile['name']=='yoloe_produce':
             layout = tiles(*photo.size,'whole')+tiles(*photo.size,'2x2')
         for tile in layout:
             image = np.asarray(photo.crop(tile))
@@ -58,17 +59,17 @@ def main():
                 category = int(np.argmax(row[4:4+len(profile['prompts'])]))
                 score = float(row[4+category])
                 x,y,r,b = cx-wbox/2,cy-hbox/2,cx+wbox/2,cy+hbox/2
-                if score < a.threshold:
+                if score < (max(a.threshold,.15) if index==2 else a.threshold):
                     continue
                 assert 0 <= category < len(profile['prompts']) and category == int(category)
                 box = [tile[0]+max(0,(x-left)/scale),tile[1]+max(0,(y-top)/scale),
                        tile[0]+min(w,(r-left)/scale),tile[1]+min(h,(b-top)/scale)]
                 if box[2]>box[0] and box[3]>box[1]:
                     candidates.append({'box':box,'score':score,'label':profile['prompts'][int(category)]})
-        all_boxes.extend(suppress(candidates,.5))
+        (produce_boxes if index==2 else all_boxes).extend(suppress(candidates,.5))
         times.append(time.perf_counter()-started)
         del session
-    boxes = suppress(all_boxes,.3)
+    boxes = suppress(suppress(all_boxes,.3)+suppress(produce_boxes,.3),.3,24 if a.profile=="combined" else 12)
     result = {'model':'YOLOE Nano fixed-prompt ONNX','profile':a.profile,'threshold':a.threshold,'boxes':boxes,
               **(evaluate(boxes,references) if references else {}),'prediction_s':times,
               'timing_note':'Desktop CPU four threads including preprocessing; excludes session load; not phone timings'}

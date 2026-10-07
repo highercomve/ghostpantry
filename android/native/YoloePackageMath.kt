@@ -84,13 +84,18 @@ object YoloePackageMath {
         return if (union > 0f) intersection/union else 0f
     }
 
-    fun suppress(boxes: List<PackageDetectionMath.Box>, threshold: Float = .3f): List<PackageDetectionMath.Box> {
-        require(threshold in 0f..1f)
+    fun suppress(boxes: List<PackageDetectionMath.Box>, threshold: Float = .3f, limit: Int = 12): List<PackageDetectionMath.Box> {
+        require(threshold in 0f..1f && limit in 1..24)
         val result = mutableListOf<PackageDetectionMath.Box>()
         for (box in boxes.sortedByDescending { it.score }.take(512)) {
             if (result.all { iou(box, it) < threshold }) result.add(box)
-            if (result.size == 12) break
+            if (result.size == limit) break
         }
         return result
     }
+    fun mergePhases(packages: List<PackageDetectionMath.Box>, produce: List<PackageDetectionMath.Box>, threshold: Float = .3f): List<PackageDetectionMath.Box> {
+        // Each phase gets its own proposal budget before cross-phase deduplication.
+        return suppress(suppress(packages,threshold) + suppress(produce,threshold),threshold,24)
+    }
+
 }

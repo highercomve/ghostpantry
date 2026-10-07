@@ -16,21 +16,22 @@ import java.nio.ByteOrder
 import java.security.MessageDigest
 import java.util.zip.GZIPInputStream
 
-/** CPU package proposals, whole-photo specific prompts + four material-prompt tiles. */
+/** Sequential CPU package and produce passes, merged before food matching. */
 object YoloePackageDetector {
     private val environment by lazy { OrtEnvironment.getEnvironment() }
 
     @Synchronized
-    fun detect(context: Context, bitmap: Bitmap, started: Long, threshold: Float, produce: Boolean = false): JSONObject {
+    fun detect(context: Context, bitmap: Bitmap, started: Long, threshold: Float): JSONObject {
         val contract = context.assets.open("detectors/yoloe_packages.json").bufferedReader().use { JSONObject(it.readText()) }
         require(contract.getInt("input_size") == 640 && contract.getInt("stride") == 32 && contract.getBoolean("dynamic_shape") && contract.getDouble("tile_fraction") == .65)
         val candidates = mutableListOf<PackageDetectionMath.Box>()
+        val produceCandidates = mutableListOf<PackageDetectionMath.Box>()
         var loadMs = 0L
         var detectMs = 0L
         var peakPss = 0.0
         val profiles = contract.getJSONArray("profiles")
         require(profiles.length() == 3)
-        for (index in if (produce) 2..2 else 0..1) {
+        for (index in 0..2) {
             val loading = System.nanoTime()
             val profile = profiles.getJSONObject(index)
             require(profile.getString("name") == when (index) { 0 -> "yoloe_packages_whole"; 1 -> "yoloe_packages_tiles"; else -> "yoloe_produce" })
@@ -66,7 +67,7 @@ object YoloePackageDetector {
                                         @Suppress("UNCHECKED_CAST")
                                         val channels = result.get("output0").orElseThrow { IllegalStateException("YOLOE output missing") }.value as Array<Array<FloatArray>>
                                         require(channels.size == 1)
-                                        proposals.addAll(YoloePackageMath.decodeChannels(channels[0],labels,tile,bitmap.width,bitmap.height,threshold))
+                                        proposals.addAll(YoloePackageMath.decodeChannels(channels[0],labels,tile,bitmap.width,bitmap.height,if (index == 2) maxOf(threshold,.15f) else threshold))
                                     }
                                 }
                             } finally {
@@ -76,7 +77,7 @@ object YoloePackageDetector {
                         } finally { if (crop !== bitmap) crop.recycle() }
                     }
                     // Same two-stage suppression and cap as the desktop candidate.
-                    candidates.addAll(YoloePackageMath.suppress(proposals,.5f))
+                    (if (index == 2) produceCandidates else candidates).addAll(YoloePackageMath.suppress(proposals,.5f))
                     detectMs += (System.nanoTime()-detecting)/1_000_000
                     val memory = Debug.MemoryInfo().also { Debug.getMemoryInfo(it) }
                     peakPss = maxOf(peakPss,memory.totalPss/1024.0)
@@ -84,13 +85,13 @@ object YoloePackageDetector {
             }
         }
         val merging = System.nanoTime()
-        val boxes = YoloePackageMath.suppress(candidates,contract.getDouble("nms_iou").toFloat())
+        val boxes = YoloePackageMath.mergePhases(candidates,produceCandidates,contract.getDouble("nms_iou").toFloat())
         detectMs += (System.nanoTime()-merging)/1_000_000
         val json = JSONArray()
         for (box in boxes) json.put(JSONObject().put("x",box.x.toDouble()).put("y",box.y.toDouble())
             .put("width",box.width.toDouble()).put("height",box.height.toDouble())
             .put("label",box.label).put("score",box.score.toDouble()))
-        return JSONObject().put("boxes",json).put("detector",if (produce) "yoloe_produce" else "yoloe_packages")
+        return JSONObject().put("boxes",json).put("detector","yoloe")
             .put("load_ms",loadMs).put("detect_ms",detectMs)
             .put("total_ms",(System.nanoTime()-started)/1_000_000).put("pss_mb",peakPss)
     }

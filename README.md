@@ -417,21 +417,27 @@ for inspecting uncertain visual matches.
 
 ### YOLOE package detector phone test
 
-The multi-item experiment now starts with **YOLOE Nano · packages**, a CPU-only
-proposal detector using fixed package prompts. It combines one whole-photo pass
-with four overlapping material-prompt crops, merges duplicate boxes, and sends
-up to 12 regions through the existing food matching, corrections and inventory
-review. Start with minimum package score **0.10**. Models are bundled; no text
+The multi-item experiment now starts with **YOLOE Nano**, a CPU-only
+proposal detector using fixed package and produce prompts. Package detection runs
+first, followed by loose-produce detection, using the whole photo and overlapping
+crops. Duplicate boxes are merged before up to 24 regions go through food
+matching, corrections and inventory review. Start with detection score **0.10**;
+produce uses at least **0.15**. Models are bundled; no text
 encoder or OCR runs on the phone. Detector category names are not confirmed foods.
 
 The exported ONNX candidate reproduced 10 proposals covering 8 of 9 approximate
 reference boxes on the supplied pantry JPEG on desktop. This is one-photo tuning,
 not phone accuracy or general validation. Native resize/postprocessing tests and
 export comparison are documented in [experiments](experiments/README.md).
-The two YOLOE model assets carry their upstream AGPL-3.0 license, included beside
+The three YOLOE model assets carry their upstream AGPL-3.0 license, included beside
 the weights as `YOLOE-LICENSE`; they were exported with Ultralytics 8.4.174.
 
 The main photo action now opens and runs fast multi-item detection for local
 and embedding providers, and whenever selected system AI is not ready. Server
 providers keep their LLM analysis path; available system AI also keeps its
 existing path. Crops are reviewed before items are saved to inventory.
+
+YOLOE Nano now has one option: it runs package detection, then loose-produce
+detection, and merges overlapping proposals before matching foods. Each phase
+keeps up to 12 boxes; the merged review can contain up to 24 regions. Package
+score starts at 0.10; produce uses at least 0.15. All items still require review.

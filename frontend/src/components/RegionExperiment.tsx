@@ -17,8 +17,7 @@ type Mode =
   | "efficientdet_lite0"
   | "efficientdet_lite2"
   | "rfdetr_nano"
-  | "yoloe_packages"
-  | "yoloe_produce";
+  | "yoloe";
 type CropResult = {
   region: Region;
   image: string;
@@ -45,8 +44,7 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "efficientdet_lite0", label: "Lite0 detector" },
   { id: "efficientdet_lite2", label: "Lite2 detector" },
   { id: "rfdetr_nano", label: "RF-DETR Nano · CPU" },
-  { id: "yoloe_packages", label: "YOLOE Nano · packages" },
-  { id: "yoloe_produce", label: "YOLOE Nano · loose produce" },
+  { id: "yoloe", label: "YOLOE Nano" },
 ];
 
 async function decodePhoto(image: string): Promise<HTMLImageElement> {
@@ -106,10 +104,9 @@ export function RegionExperiment({
   onBusyChange: (busy: boolean) => void;
   onReviewItem: (label: string) => void;
 }) {
-  const [mode, setMode] = useState<Mode>("yoloe_packages");
+  const [mode, setMode] = useState<Mode>("yoloe");
   const [rfThreshold, setRfThreshold] = useState(0.25);
   const [packageThreshold, setPackageThreshold] = useState(0.1);
-  const [produceThreshold, setProduceThreshold] = useState(0.15);
   const [busy, setBusy] = useState(false);
   const [useMemory, setUseMemory] = useState(true);
   const [teaching, setTeaching] = useState(false);
@@ -167,7 +164,7 @@ export function RegionExperiment({
     setProgress({ done: 0, total: 0 });
     setStage("Reading saved food labels…");
     const started = performance.now();
-    const threshold = mode === "rfdetr_nano" ? rfThreshold : mode === "yoloe_packages" ? packageThreshold : mode === "yoloe_produce" ? produceThreshold : 0.25;
+    const threshold = mode === "rfdetr_nano" ? rfThreshold : mode === "yoloe" ? packageThreshold : 0.25;
     const complete: CropResult[] = [];
     try {
       const settings = await invoke("get_settings");
@@ -202,7 +199,7 @@ export function RegionExperiment({
         detectorMs = detection.detect_ms;
         detectorLoadMs = detection.load_ms;
         detectorPeak = detection.pss_mb;
-        regions = detection.boxes.slice(0, 12).map(paddedRegion);
+        regions = detection.boxes.slice(0, mode === "yoloe" ? 24 : 12).map(paddedRegion);
       }
       setProgress({ done: 0, total: regions.length });
       for (let index = 0; index < regions.length; index++) {
@@ -321,7 +318,7 @@ export function RegionExperiment({
       <h3>{primaryFlow ? "Find foods to add" : "Multi-item scan experiment"}</h3>
       <p>
         Compare the same photo and saved food list. The grid checks 10
-        overlapping regions; detectors propose up to 12 regions. Generic COCO
+        overlapping regions; YOLOE combines up to 12 package and 12 produce regions. Generic COCO
         boxes can miss pantry packages. Review a crop label to add it to
         inventory, with quantity and fill set by you. Only explicit
         confirmations and rejections teach corrections.
@@ -375,35 +372,23 @@ export function RegionExperiment({
           <small>Lower scores can include package fragments and background objects.</small>
         </div>
       )}
-      {mode === "yoloe_produce" && (
-        <div className="stack">
-          <p>Finds loose fruit, vegetables, avocados and mushrooms using the whole photo and four overlapping crops on CPU. Detector labels are proposals; review the food matches below.</p>
-          <label>Minimum produce score
-            <select disabled={busy || disabled} value={produceThreshold} onChange={(event) => setProduceThreshold(Number(event.target.value))}>
-              <option value={0.1}>0.10 · more weak proposals</option>
-              <option value={0.15}>0.15 · produce setting</option>
-              <option value={0.25}>0.25 · stronger proposals</option>
-            </select>
-          </label>
-          <p>Partly hidden foods may have incomplete boxes. Confirm foods and quantities before adding them.</p>
-        </div>
-      )}
-      {mode === "yoloe_packages" && (
+      {mode === "yoloe" && (
         <div className="region-options">
           <p>
-            Finds packages using the whole photo and four overlapping crops on
-            CPU. Each package is then matched to food labels for your review.
+            Scans packages first, then loose fruit and vegetables on CPU. Both
+            phases use the whole photo and overlapping crops. Their boxes are
+            merged before foods are matched for your review.
           </p>
           <label>
-            Minimum package score
+            Minimum detection score
             <select value={packageThreshold} disabled={busy || teaching || disabled}
               onChange={(event) => setPackageThreshold(Number(event.target.value))}>
-              <option value={0.1}>0.10 · tuned package setting</option>
+              <option value={0.1}>0.10 · tuned setting</option>
               <option value={0.15}>0.15 · fewer weak proposals</option>
               <option value={0.25}>0.25 · stronger proposals</option>
             </select>
           </label>
-          <small>Boxes can overlap or miss packages. Confirm foods and quantities before adding them.</small>
+          <small>Loose produce uses a minimum score of 0.15. Overlapping boxes are merged; confirm foods and quantities before adding them.</small>
         </div>
       )}
       {mode === "manual" && (
@@ -568,7 +553,7 @@ export function RegionExperiment({
                       {result.partial ? " (partial)" : ""}
                       {" · visual matching"}
                       {result.useMemory ? " · crop memory" : ""}
-                      {result.mode === "rfdetr_nano" || result.mode === "yoloe_packages" || result.mode === "yoloe_produce" ? ` · threshold ${result.threshold.toFixed(2)}` : ""}
+                      {result.mode === "rfdetr_nano" || result.mode === "yoloe" ? ` · threshold ${result.threshold.toFixed(2)}` : ""}
                     </td>
                     <td data-label="Total">
                       {(result.totalMs / 1000).toFixed(2)} s

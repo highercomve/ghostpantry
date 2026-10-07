@@ -338,7 +338,8 @@ The phone test now bundles two ~9.68 MB compressed CPU ONNX models, exported by
 encoder is used during export only. The native detector uses one whole-photo
 specific-prompt pass, four material-prompt crops covering 65% of each source
 dimension, score 0.10 by default, per-profile class-independent NMS 0.50/cap12,
-then cross-profile NMS 0.30/cap12. Each session closes before loading the next
+then package-phase NMS 0.30/cap12. Produce adds its own 12-box budget
+and cross-phase NMS 0.30/cap24. Each session closes before loading the next
 profile, and both close before Gemma matching starts. The model's category names
 are proposal diagnostics only. Crop corrections do not select detector boxes.
 
@@ -379,10 +380,11 @@ python experiments/benchmark_yoloe_export.py /path/to/1000193268.jpg \
 
 ### Loose produce pass
 
-The phone has a separate YOLOE Nano loose-produce mode using fixed prompts
+The single YOLOE Nano option runs a second loose-produce phase using fixed prompts
 `fruit`, `vegetable`, `avocado`, `mushroom`, a default score of 0.15, and the whole
 photo plus four overlapping crops. It uses the same CPU ONNX contract and cap
-of 12 proposals, independently of package detection. This avoids package
+of 12 proposals per phase. Packages run first, then produce; cross-phase
+NMS removes duplicates and returns up to 24 merged crops. This avoids package
 proposals consuming the produce budget. Detector classes are proposal hints;
 food matching and explicit inventory review remain separate.
 
