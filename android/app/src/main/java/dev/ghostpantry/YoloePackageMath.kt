@@ -62,7 +62,7 @@ object YoloePackageMath {
 
     fun decodeChannels(channels: Array<FloatArray>, labels: List<String>, tile: Tile,
                        photoWidth: Int, photoHeight: Int, threshold: Float): List<PackageDetectionMath.Box> {
-        require(labels.size in 1..4 && channels.size == 4+labels.size+32)
+        require(labels.size in 1..8 && channels.size == 4+labels.size+32)
         val count = channels[0].size
         require(count in 1..8400 && channels.all { it.size == count })
         val rows = mutableListOf<FloatArray>()

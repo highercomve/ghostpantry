@@ -394,3 +394,17 @@ partial boxes, and broad fruit/vegetable labels can be wrong. These photo checks
 are not general accuracy measurements. Use `benchmark_yoloe_export.py` with
 `--profile produce --threshold .15 --no-reference` for a different photo; it
 limits the source image to 1600 pixels as the Android detector does.
+
+### Jar and bottle coverage
+
+The package profiles now also include `glass jar`, `plastic bottle`, and
+`milk carton` in both the whole-photo and tiled passes. On the supplied fridge-door
+photo, the same exported ONNX pipeline increased from two to six proposals,
+including all three visible jars, the milk carton, the squeeze bottle and a pouch.
+The squeeze bottle is labeled as a jar by the detector; these labels remain region
+proposals, and food identification still uses the separate crop matcher. The top
+shelf pouch is still missed. The earlier pantry photo retained 10 proposals and
+8/9 approximate reference matches; the produce drawer retained 12 proposals,
+including both avocados. These are desktop checks on three photos, not general
+accuracy or phone timing measurements. Results are recorded in
+[jar-detection-desktop.json](jar-detection-desktop.json).

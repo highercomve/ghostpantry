@@ -17,7 +17,10 @@
         "bag of pasta",
         "bag of rice",
         "packet of instant noodles",
-        "box of pasta"
+        "box of pasta",
+        "glass jar",
+        "plastic bottle",
+        "milk carton"
       ],
       "input": "images",
       "output": "output0",
@@ -36,18 +39,21 @@
           "mask_width"
         ]
       },
-      "onnx_sha256": "36f79b1e1a4ce1be04a24bb4fc762f75918cd62049f38ae416b8c59701d00639",
-      "onnx_bytes": 10950559,
+      "onnx_sha256": "830a3f41e9c3e00da10fc3fd907765fd6202a91b6886635e786d901c28943d6b",
+      "onnx_bytes": 10959676,
       "file": "yoloe_packages_whole.onnx.bin",
-      "bytes": 9679484,
-      "sha256": "67394de1ca7aec254ebcafc2198b7ae3fa2e9fdc616f54e54029a05cbccfabd4"
+      "bytes": 9689427,
+      "sha256": "8f31a75becd878b9a58bc2c763f5127fef63a06aa2152c05b2cc22a685373615"
     },
     {
       "name": "yoloe_packages_tiles",
       "prompts": [
         "plastic food bag",
         "cardboard food box",
-        "food pouch"
+        "food pouch",
+        "glass jar",
+        "plastic bottle",
+        "milk carton"
       ],
       "input": "images",
       "output": "output0",
@@ -66,11 +72,11 @@
           "mask_width"
         ]
       },
-      "onnx_sha256": "bc42caf794a4e1b117406669ece1309a4b1f410cb6896a9a712ffcc3fd548442",
-      "onnx_bytes": 10947516,
+      "onnx_sha256": "78961d4bef7440197c99011bf03167d57580e34fca7145f598af7fe328ca3d78",
+      "onnx_bytes": 10956632,
       "file": "yoloe_packages_tiles.onnx.bin",
-      "bytes": 9676988,
-      "sha256": "ce3bd656a4d4d05fb2703900a888db6b899f3bde19fc40954f87d0377dd39719"
+      "bytes": 9686591,
+      "sha256": "4d3b66af301bfa1c895947d67a364ce15bcd876cfaa3e50525a90a528c20e0af"
     },
     {
       "name": "yoloe_produce",
@@ -97,11 +103,11 @@
           "mask_width"
         ]
       },
-      "onnx_sha256": "f56434498b6632421be2693663332c826eecb40f4dbf602812dc73fda6b24e68",
+      "onnx_sha256": "3d37e2553c02fc8e54c177d4aea2ff9f1ebb6227ac1f076ff1959627da3281a7",
       "onnx_bytes": 10950528,
       "file": "yoloe_produce.onnx.bin",
-      "bytes": 9679461,
-      "sha256": "51dbb7e6a9c4332ef97dd903e19e884db39afd853a1fdc44c1c46d6bc13d4db1"
+      "bytes": 9679462,
+      "sha256": "fb654d293d82fe25cda3c8852feeaccee93892725dc2a29ddd9986dafece6d7b"
     }
   ]
 }

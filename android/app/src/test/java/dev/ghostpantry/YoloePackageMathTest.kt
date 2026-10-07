@@ -98,6 +98,21 @@ class YoloePackageMathTest {
         assertEquals(1f,boxes[0].width,1e-6f)
         assertEquals(1f,boxes[0].height,1e-6f)
     }
+    @Test fun decodesExpandedPackagePromptsIncludingJarsAndCartons() {
+        val labels = listOf("bag of pasta", "bag of rice", "packet of instant noodles", "box of pasta", "glass jar", "plastic bottle", "milk carton")
+        for (category in 4..6) {
+            val channels = Array(4 + labels.size + 32) { FloatArray(1) }
+            channels[0][0] = 320f
+            channels[1][0] = 320f
+            channels[2][0] = 640f
+            channels[3][0] = 640f
+            channels[4 + category][0] = .8f
+            val boxes = YoloePackageMath.decodeChannels(channels, labels,
+                YoloePackageMath.Tile(0,0,100,100),100,100,.1f)
+            assertEquals(labels[category], boxes.single().label)
+        }
+    }
+
     @Test fun mergedPhasesKeepBothBudgetsAndRemoveSharedObjects() {
         val packages = (0..7).map { PackageDetectionMath.Box(it*.1f,0f,.05f,.05f,"package",.7f) }
         val produce = (0..7).map { PackageDetectionMath.Box(it*.1f,.5f,.05f,.05f,"avocado",.8f) }

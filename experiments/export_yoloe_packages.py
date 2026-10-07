@@ -13,8 +13,8 @@ import os
 from pathlib import Path
 
 PROFILES = {
-    'yoloe_packages_whole':['bag of pasta','bag of rice','packet of instant noodles','box of pasta'],
-    'yoloe_packages_tiles':['plastic food bag','cardboard food box','food pouch'],
+    'yoloe_packages_whole':['bag of pasta','bag of rice','packet of instant noodles','box of pasta','glass jar','plastic bottle','milk carton'],
+    'yoloe_packages_tiles':['plastic food bag','cardboard food box','food pouch','glass jar','plastic bottle','milk carton'],
     'yoloe_produce':['fruit','vegetable','avocado','mushroom'],
 }
 
