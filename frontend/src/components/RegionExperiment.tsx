@@ -93,6 +93,7 @@ export function RegionExperiment({
   disabled,
   onBusyChange,
   onReviewItem,
+  savedCrops = {},
   runRequest = 0,
   primaryFlow = false,
 }: {
@@ -101,7 +102,8 @@ export function RegionExperiment({
   primaryFlow?: boolean;
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
-  onReviewItem: (label: string, cropId: string) => void;
+  onReviewItem: (label: string, cropId: string) => Promise<void>;
+  savedCrops?: Record<string, string>;
 }) {
   const [mode, setMode] = useState<Mode>("yoloe");
   const [rfThreshold, setRfThreshold] = useState(0.25);
@@ -110,6 +112,8 @@ export function RegionExperiment({
   const [useMemory, setUseMemory] = useState(true);
   const [teaching, setTeaching] = useState(false);
   const [corrections, setCorrections] = useState<Record<number, string>>({});
+  const [addingCrop, setAddingCrop] = useState<string | null>(null);
+  const [cropErrors, setCropErrors] = useState<Record<string, string>>({});
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [stage, setStage] = useState("");
   const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -308,6 +312,23 @@ export function RegionExperiment({
       }
     }
   };
+  const cropKey = (region: Region) => [region.x, region.y, region.width, region.height].join(":");
+  const addCrop = async (index: number) => {
+    const result = runs.at(-1)?.regions[index];
+    const label = corrections[index]?.trim();
+    if (!result || !label || addingCrop !== null) return;
+    const key = cropKey(result.region);
+    if (savedCrops[key]) return;
+    setAddingCrop(key);
+    setCropErrors((previous) => ({ ...previous, [key]: "" }));
+    try {
+      await onReviewItem(label, key);
+    } catch (failure) {
+      setCropErrors((previous) => ({ ...previous, [key]: failure instanceof Error ? failure.message : String(failure) }));
+    } finally {
+      if (mounted.current) setAddingCrop(null);
+    }
+  };
   const latest = runs.at(-1);
   const selected =
     latest && activeRegion !== null ? latest.regions[activeRegion] : null;
@@ -319,7 +340,7 @@ export function RegionExperiment({
         Compare the same photo and saved food list. The grid checks 10
         overlapping regions; YOLOE combines up to 12 package and 12 produce regions. Generic COCO
         boxes can miss pantry packages. Review a crop label to add it to
-        inventory, with quantity and fill set by you. Only explicit
+        inventory after choosing its product. Only explicit
         confirmations and rejections teach corrections.
       </p>
       <div className="region-options">
@@ -536,10 +557,9 @@ export function RegionExperiment({
             <>
               <h4>Image review and corrections</h4>
               <p>
-                Review all detected foods here, including clear suggestions and
-                uncertain crops. Each crop you choose for inventory adds one unit;
-                matching product names are combined. Check quantities for
-                overlapping crops. “Unknown” is kept when evidence is weak.
+                Choose a suggestion or type the product for each crop, then add it
+                to inventory. Each confirmed crop adds one unit; matching products
+                share one inventory entry. “Unknown” is kept when evidence is weak.
               </p>
               <p role="status">{feedbackMessage}</p>
             </>
@@ -614,15 +634,15 @@ export function RegionExperiment({
                     </strong>
                     <p>{result.recognition.reason}</p>
                     <label>
-                      Confirmed category for this crop
+                      Product for this crop
                       <input
                         type="text"
                         maxLength={120}
                         placeholder="Type the actual food category"
                         value={
-                          corrections[index] ?? result.recognition.label ?? ""
+                          savedCrops[cropKey(result.region)] ?? corrections[index] ?? ""
                         }
-                        disabled={busy || teaching || disabled}
+                        disabled={busy || teaching || disabled || !!savedCrops[cropKey(result.region)]}
                         onChange={(e) =>
                           setCorrections((previous) => ({
                             ...previous,
@@ -635,28 +655,10 @@ export function RegionExperiment({
                       <button
                         type="button"
                         className="btn primary"
-                        disabled={
-                          busy ||
-                          teaching ||
-                          disabled ||
-                          !(
-                            corrections[index] ??
-                            result.recognition.label ??
-                            ""
-                          ).trim()
-                        }
-                        onClick={() =>
-                          onReviewItem(
-                            (
-                              corrections[index] ??
-                              result.recognition?.label ??
-                              ""
-                            ).trim(),
-                            [result.region.x, result.region.y, result.region.width, result.region.height].join(":"),
-                          )
-                        }
+                        disabled={busy || teaching || disabled || addingCrop !== null || !!savedCrops[cropKey(result.region)] || !corrections[index]?.trim()}
+                        onClick={() => void addCrop(index)}
                       >
-                        Review for inventory
+                        {savedCrops[cropKey(result.region)] ? "Added to inventory" : addingCrop === cropKey(result.region) ? "Adding…" : "Add to inventory"}
                       </button>
                       <button
                         type="button"
@@ -693,13 +695,15 @@ export function RegionExperiment({
                         Wrong category for this crop
                       </button>
                     </div>
+                    {savedCrops[cropKey(result.region)] && <p role="status">Added one {savedCrops[cropKey(result.region)]}. Continue with the next crop.</p>}
+                    {cropErrors[cropKey(result.region)] && <p role="alert">{cropErrors[cropKey(result.region)]}</p>}
                     <ul>
                       {result.recognition.suggestions.map((suggestion) => (
                         <li key={suggestion.label}>
                           <button
                             type="button"
                             className="btn"
-                            disabled={busy || teaching || disabled}
+                            disabled={busy || teaching || disabled || !!savedCrops[cropKey(result.region)]}
                             onClick={() =>
                               setCorrections((previous) => ({
                                 ...previous,

@@ -1,12 +1,12 @@
 import { NumberInput } from "./NumberInput";
 import { RegionExperiment } from "./RegionExperiment";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { EmbeddingGemmaPanel } from "./EmbeddingGemmaPanel";
 import { CameraCapture } from "./CameraCapture";
 import { Commands, invoke } from "../oriel";
 import { useSystemAi } from "../hooks/useSystemAi";
 import { SystemAiStatusPanel } from "./SystemAiStatusPanel";
-import { reviewCrop, type InventoryReviewItem } from "../cropInventory";
+import { inventoryItemForCrop, type InventoryReviewItem } from "../cropInventory";
 import { InventoryItem, VisionResult } from "../types";
 
 interface ScanViewProps {
@@ -29,6 +29,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
   const [showEmbedding, setShowEmbedding] = useState(false);
   const [provider, setProvider] = useState<string | null>(null);
   const [regionRunRequest, setRegionRunRequest] = useState(0);
+  const [savedCrops, setSavedCrops] = useState<Record<string, Record<string, string>>>({});
+  const savedCropKeys = useRef(new Set<string>());
+  const cropSavePending = useRef(false);
   const isSystem = provider === "system";
   const [fastBackend, setFastBackend] = useState<"cpu" | "gpu">("cpu");
   const [fastResult, setFastResult] = useState<
@@ -238,6 +241,33 @@ export const ScanView: React.FC<ScanViewProps> = ({
       console.error("Failed to save scan results:", err);
       alert("Error saving items: " + (err?.message || err));
     } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const addCropToInventory = async (label: string, cropId: string) => {
+    if (!label.trim()) throw new Error("Choose a product for this crop first.");
+    const key = `${location}:${cropId}`;
+    if (savedCropKeys.current.has(key)) return;
+    if (cropSavePending.current) throw new Error("Wait for the current crop to finish saving.");
+    cropSavePending.current = true;
+    setIsSaving(true);
+    try {
+      const items = await invoke("get_items", { category: location });
+      const item = inventoryItemForCrop(items, label, location);
+      await invoke("apply_scan_results", {
+        location,
+        summary: `Added one ${item.name} from a confirmed crop`,
+        items: [item],
+      });
+      savedCropKeys.current.add(key);
+      setSavedCrops((previous) => ({
+        ...previous,
+        [location]: { ...previous[location], [cropId]: item.name },
+      }));
+      // Keep the photo and current review position so the next crop can be confirmed.
+    } finally {
+      cropSavePending.current = false;
       setIsSaving(false);
     }
   };
@@ -463,6 +493,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
             setFastResult(null);
             setShowRegions(false);
             setRegionRunRequest(0);
+            savedCropKeys.current.clear();
+            setSavedCrops({});
             setSelectedImage(img);
             setDetectedItems([]);
             setAnalysisError(null);
@@ -474,6 +506,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
             setFastResult(null);
             setShowRegions(false);
             setRegionRunRequest(0);
+            savedCropKeys.current.clear();
+            setSavedCrops({});
             setSelectedImage(null);
             setDetectedItems([]);
             setAnalysisError(null);
@@ -561,22 +595,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
                 isAnalyzing || isSaving || changingBackend || feedbackBusy
               }
               onBusyChange={setEmbeddingBusy}
-              onReviewItem={(label, cropId) => {
-                if (!label.trim()) return;
-                setFastResult(null);
-                setHasAnalyzed(true);
-                setScanTiming(null);
-                setSaveSuccessMsg(null);
-                setScanSummary(
-                  "Each crop you confirm adds one unit. Crops with the same product name are combined. Check quantity and fill before saving.",
-                );
-                setDetectedItems((items) => reviewCrop(items, label, cropId));
-                requestAnimationFrame(() =>
-                  document
-                    .getElementById("inventory-review")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-                );
-              }}
+              savedCrops={savedCrops[location] ?? {}}
+              onReviewItem={addCropToInventory}
             />
           )}
         </div>
