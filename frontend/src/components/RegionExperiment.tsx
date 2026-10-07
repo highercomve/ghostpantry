@@ -17,7 +17,8 @@ type Mode =
   | "efficientdet_lite0"
   | "efficientdet_lite2"
   | "rfdetr_nano"
-  | "yoloe_packages";
+  | "yoloe_packages"
+  | "yoloe_produce";
 type CropResult = {
   region: Region;
   image: string;
@@ -45,6 +46,7 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "efficientdet_lite2", label: "Lite2 detector" },
   { id: "rfdetr_nano", label: "RF-DETR Nano · CPU" },
   { id: "yoloe_packages", label: "YOLOE Nano · packages" },
+  { id: "yoloe_produce", label: "YOLOE Nano · loose produce" },
 ];
 
 async function decodePhoto(image: string): Promise<HTMLImageElement> {
@@ -103,6 +105,7 @@ export function RegionExperiment({
   const [mode, setMode] = useState<Mode>("yoloe_packages");
   const [rfThreshold, setRfThreshold] = useState(0.25);
   const [packageThreshold, setPackageThreshold] = useState(0.1);
+  const [produceThreshold, setProduceThreshold] = useState(0.15);
   const [busy, setBusy] = useState(false);
   const [useMemory, setUseMemory] = useState(true);
   const [teaching, setTeaching] = useState(false);
@@ -158,7 +161,7 @@ export function RegionExperiment({
     setProgress({ done: 0, total: 0 });
     setStage("Reading saved food labels…");
     const started = performance.now();
-    const threshold = mode === "rfdetr_nano" ? rfThreshold : mode === "yoloe_packages" ? packageThreshold : 0.25;
+    const threshold = mode === "rfdetr_nano" ? rfThreshold : mode === "yoloe_packages" ? packageThreshold : mode === "yoloe_produce" ? produceThreshold : 0.25;
     const complete: CropResult[] = [];
     try {
       const settings = await invoke("get_settings");
@@ -361,6 +364,19 @@ export function RegionExperiment({
           <small>Lower scores can include package fragments and background objects.</small>
         </div>
       )}
+      {mode === "yoloe_produce" && (
+        <div className="stack">
+          <p>Finds loose fruit, vegetables, avocados and mushrooms using the whole photo and four overlapping crops on CPU. Detector labels are proposals; review the food matches below.</p>
+          <label>Minimum produce score
+            <select disabled={busy || disabled} value={produceThreshold} onChange={(event) => setProduceThreshold(Number(event.target.value))}>
+              <option value={0.1}>0.10 · more weak proposals</option>
+              <option value={0.15}>0.15 · produce setting</option>
+              <option value={0.25}>0.25 · stronger proposals</option>
+            </select>
+          </label>
+          <p>Partly hidden foods may have incomplete boxes. Confirm foods and quantities before adding them.</p>
+        </div>
+      )}
       {mode === "yoloe_packages" && (
         <div className="region-options">
           <p>
@@ -541,7 +557,7 @@ export function RegionExperiment({
                       {result.partial ? " (partial)" : ""}
                       {" · visual matching"}
                       {result.useMemory ? " · crop memory" : ""}
-                      {result.mode === "rfdetr_nano" || result.mode === "yoloe_packages" ? ` · threshold ${result.threshold.toFixed(2)}` : ""}
+                      {result.mode === "rfdetr_nano" || result.mode === "yoloe_packages" || result.mode === "yoloe_produce" ? ` · threshold ${result.threshold.toFixed(2)}` : ""}
                     </td>
                     <td data-label="Total">
                       {(result.totalMs / 1000).toFixed(2)} s

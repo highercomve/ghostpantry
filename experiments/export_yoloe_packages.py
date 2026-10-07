@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export two CPU ONNX models with the package-tuning prompts baked in.
+"""Export CPU ONNX models with the package-tuning prompts baked in.
 
 Requires the tuning environment: ultralytics 8.4.174, torch 2.14.1+cpu,
 onnx 1.23.2. Text encoder lives in --models-dir; it is not shipped to phones.
@@ -15,6 +15,7 @@ from pathlib import Path
 PROFILES = {
     'yoloe_packages_whole':['bag of pasta','bag of rice','packet of instant noodles','box of pasta'],
     'yoloe_packages_tiles':['plastic food bag','cardboard food box','food pouch'],
+    'yoloe_produce':['fruit','vegetable','avocado','mushroom'],
 }
 
 

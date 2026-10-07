@@ -41,5 +41,15 @@
     "license": "AGPL-3.0",
     "compression": "gzip",
     "export": "YOLOE-26 Nano / Ultralytics 8.4.174, ONNX opset17, float32, fixed prompts, dynamic stride32 padding, one-to-many head"
+  },
+  {
+    "name": "yoloe_produce",
+    "file": "yoloe_produce.onnx.bin",
+    "bytes": 9679461,
+    "sha256": "51dbb7e6a9c4332ef97dd903e19e884db39afd853a1fdc44c1c46d6bc13d4db1",
+    "source_sha256": "1741c1f8da3cea47e2c01829c334a50dc0b9bbd05e685b90a3ce84fae32c8c1b",
+    "license": "AGPL-3.0",
+    "compression": "gzip",
+    "export": "YOLOE-26 Nano / Ultralytics 8.4.174, ONNX opset17, float32, fixed prompts, dynamic stride32 padding, one-to-many head"
   }
 ]

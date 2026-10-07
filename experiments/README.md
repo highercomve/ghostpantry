@@ -376,3 +376,19 @@ python experiments/benchmark_yoloe_export.py /path/to/1000193268.jpg \
   --output /tmp/ghostpantry-yoloe/benchmark.json \
   --overlay /tmp/ghostpantry-yoloe/benchmark.png
 ```
+
+### Loose produce pass
+
+The phone has a separate YOLOE Nano loose-produce mode using fixed prompts
+`fruit`, `vegetable`, `avocado`, `mushroom`, a default score of 0.15, and the whole
+photo plus four overlapping crops. It uses the same CPU ONNX contract and cap
+of 12 proposals, independently of package detection. This avoids package
+proposals consuming the produce budget. Detector classes are proposal hints;
+food matching and explicit inventory review remain separate.
+
+On the two supplied fridge-drawer photos, the exported model recovers both
+visible avocados and several loose produce regions. Occluded items can have
+partial boxes, and broad fruit/vegetable labels can be wrong. These photo checks
+are not general accuracy measurements. Use `benchmark_yoloe_export.py` with
+`--profile produce --threshold .15 --no-reference` for a different photo; it
+limits the source image to 1600 pixels as the Android detector does.

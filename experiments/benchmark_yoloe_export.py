@@ -19,8 +19,11 @@ def main():
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--overlay',type=Path,required=True)
     p.add_argument('--no-reference',action='store_true',help='Skip reference metrics for a different photo')
+    p.add_argument('--profile',choices=['packages','produce'],default='packages')
+    p.add_argument('--threshold',type=float,default=.1)
     a = p.parse_args()
     photo = ImageOps.exif_transpose(Image.open(a.photo)).convert('RGB')
+    photo.thumbnail((1600,1600))
     contract = json.loads((a.models_dir/'yoloe_packages.json').read_text())
     references = [] if a.no_reference else json.loads(Path(__file__).with_name('pantry-reference-boxes.json').read_text())['boxes']
     options = ort.SessionOptions()
@@ -29,11 +32,16 @@ def main():
     all_boxes = []
     times = []
     for index,profile in enumerate(contract['profiles']):
+        if (profile['name']=='yoloe_produce') != (a.profile=='produce'):
+            continue
         session = ort.InferenceSession(str(a.models_dir/(profile['name']+'.onnx')),sess_options=options,providers=['CPUExecutionProvider'])
         assert session.get_inputs()[0].shape == ['batch',3,'height','width']
         started = time.perf_counter()
         candidates = []
-        for tile in tiles(*photo.size,'whole' if index==0 else '2x2'):
+        layout = tiles(*photo.size,'whole' if index==0 else '2x2')
+        if a.profile=='produce':
+            layout = tiles(*photo.size,'whole')+tiles(*photo.size,'2x2')
+        for tile in layout:
             image = np.asarray(photo.crop(tile))
             h,w = image.shape[:2]
             scale = min(640/w,640/h)
@@ -50,7 +58,7 @@ def main():
                 category = int(np.argmax(row[4:4+len(profile['prompts'])]))
                 score = float(row[4+category])
                 x,y,r,b = cx-wbox/2,cy-hbox/2,cx+wbox/2,cy+hbox/2
-                if score < .1:
+                if score < a.threshold:
                     continue
                 assert 0 <= category < len(profile['prompts']) and category == int(category)
                 box = [tile[0]+max(0,(x-left)/scale),tile[1]+max(0,(y-top)/scale),
@@ -61,7 +69,7 @@ def main():
         times.append(time.perf_counter()-started)
         del session
     boxes = suppress(all_boxes,.3)
-    result = {'model':'YOLOE Nano fixed-prompt ONNX','threshold':.1,'boxes':boxes,
+    result = {'model':'YOLOE Nano fixed-prompt ONNX','profile':a.profile,'threshold':a.threshold,'boxes':boxes,
               **(evaluate(boxes,references) if references else {}),'prediction_s':times,
               'timing_note':'Desktop CPU four threads including preprocessing; excludes session load; not phone timings'}
     a.output.write_text(json.dumps(result,indent=2)+'\n')

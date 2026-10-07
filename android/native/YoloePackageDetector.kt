@@ -21,7 +21,7 @@ object YoloePackageDetector {
     private val environment by lazy { OrtEnvironment.getEnvironment() }
 
     @Synchronized
-    fun detect(context: Context, bitmap: Bitmap, started: Long, threshold: Float): JSONObject {
+    fun detect(context: Context, bitmap: Bitmap, started: Long, threshold: Float, produce: Boolean = false): JSONObject {
         val contract = context.assets.open("detectors/yoloe_packages.json").bufferedReader().use { JSONObject(it.readText()) }
         require(contract.getInt("input_size") == 640 && contract.getInt("stride") == 32 && contract.getBoolean("dynamic_shape") && contract.getDouble("tile_fraction") == .65)
         val candidates = mutableListOf<PackageDetectionMath.Box>()
@@ -29,11 +29,11 @@ object YoloePackageDetector {
         var detectMs = 0L
         var peakPss = 0.0
         val profiles = contract.getJSONArray("profiles")
-        require(profiles.length() == 2)
-        for (index in 0..1) {
+        require(profiles.length() == 3)
+        for (index in if (produce) 2..2 else 0..1) {
             val loading = System.nanoTime()
             val profile = profiles.getJSONObject(index)
-            require(profile.getString("name") == if (index == 0) "yoloe_packages_whole" else "yoloe_packages_tiles")
+            require(profile.getString("name") == when (index) { 0 -> "yoloe_packages_whole"; 1 -> "yoloe_packages_tiles"; else -> "yoloe_produce" })
             val promptsJson = profile.getJSONArray("prompts")
             val labels = (0 until promptsJson.length()).map { promptsJson.getString(it) }
             val model = unpack(context, profile)
@@ -45,8 +45,8 @@ object YoloePackageDetector {
                     require(session.inputNames == setOf("images") && session.outputNames.contains("output0"))
                     loadMs += (System.nanoTime()-loading)/1_000_000
                     val detecting = System.nanoTime()
-                    val tiles = if (index == 0) listOf(YoloePackageMath.Tile(0,0,bitmap.width,bitmap.height))
-                        else YoloePackageMath.tiles(bitmap.width,bitmap.height)
+                    val whole = listOf(YoloePackageMath.Tile(0,0,bitmap.width,bitmap.height))
+                    val tiles = when (index) { 0 -> whole; 1 -> YoloePackageMath.tiles(bitmap.width,bitmap.height); else -> whole + YoloePackageMath.tiles(bitmap.width,bitmap.height) }
                     val proposals = mutableListOf<PackageDetectionMath.Box>()
                     for (tile in tiles) {
                         val crop = Bitmap.createBitmap(bitmap,tile.x,tile.y,tile.width,tile.height)
@@ -90,7 +90,7 @@ object YoloePackageDetector {
         for (box in boxes) json.put(JSONObject().put("x",box.x.toDouble()).put("y",box.y.toDouble())
             .put("width",box.width.toDouble()).put("height",box.height.toDouble())
             .put("label",box.label).put("score",box.score.toDouble()))
-        return JSONObject().put("boxes",json).put("detector","yoloe_packages")
+        return JSONObject().put("boxes",json).put("detector",if (produce) "yoloe_produce" else "yoloe_packages")
             .put("load_ms",loadMs).put("detect_ms",detectMs)
             .put("total_ms",(System.nanoTime()-started)/1_000_000).put("pss_mb",peakPss)
     }

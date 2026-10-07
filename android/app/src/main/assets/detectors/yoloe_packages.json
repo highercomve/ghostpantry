@@ -71,6 +71,37 @@
       "file": "yoloe_packages_tiles.onnx.bin",
       "bytes": 9676988,
       "sha256": "ce3bd656a4d4d05fb2703900a888db6b899f3bde19fc40954f87d0377dd39719"
+    },
+    {
+      "name": "yoloe_produce",
+      "prompts": [
+        "fruit",
+        "vegetable",
+        "avocado",
+        "mushroom"
+      ],
+      "input": "images",
+      "output": "output0",
+      "output_format": "cxcywh_class_probabilities_masks",
+      "head": "one-to-many",
+      "outputs": {
+        "output0": [
+          "batch",
+          "Concatoutput0_dim_1",
+          "anchors"
+        ],
+        "output1": [
+          "batch",
+          32,
+          "mask_height",
+          "mask_width"
+        ]
+      },
+      "onnx_sha256": "f56434498b6632421be2693663332c826eecb40f4dbf602812dc73fda6b24e68",
+      "onnx_bytes": 10950528,
+      "file": "yoloe_produce.onnx.bin",
+      "bytes": 9679461,
+      "sha256": "51dbb7e6a9c4332ef97dd903e19e884db39afd853a1fdc44c1c46d6bc13d4db1"
     }
   ]
 }
