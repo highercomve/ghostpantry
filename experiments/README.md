@@ -212,3 +212,12 @@ inventory review. This is a manual fallback, not an improved automatic detector.
 Browser checks with mocked native matching scanned four marked boxes, showed
 four review controls, and verified inventory handoff, undo, cancellation, and
 clear. Actual recognition quality still requires phone testing.
+
+## Automatic package detector research
+
+See [the 2026-10-07 investigation](package-detection-research.md) for primary
+sources, new FastSAM/YOLOE proposal tests on the supplied pantry photo, and the
+recommended training and Android evaluation path. YOLOE-26n with food-package
+prompts returned eight raw boxes, including duplicates and partial boxes;
+FastSAM returned many package fragments. These are exploratory localization
+results, not confirmed inventory items or measured package recall.
