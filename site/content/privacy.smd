@@ -1,0 +1,59 @@
+---
+.title = "Privacy policy",
+.description = "What stays on your device, and what happens when you choose a server.",
+.date = .date("2026-10-07T00:00:00"),
+.layout = "page.shtml",
+---
+Effective date: October 7, 2026. GhostPantry is developed by Sergio A Marin.
+
+
+
+
+# Your pantry stays on your device
+
+GhostPantry stores your inventory, quantities, fill levels, notes, shopping preferences, settings and confirmed scan corrections locally. No GhostPantry account is required. We do not operate an inventory server, sell personal data, show advertising or include analytics.
+
+
+
+
+# Photos and on-device scanning
+
+The camera and system photo picker are used only when you choose to scan a photo. Fast scanning processes the selected image on your device with local detection and embedding models. Supported system AI and downloaded local language models also process images on the device. The app may create temporary files in its private cache. Confirmed crop examples store local labels and numerical embeddings to improve similar matches.
+
+
+
+
+# Optional server scanning
+
+If you select Server mode, GhostPantry sends the photo you choose, the storage location hint and the scan prompt to the endpoint you configure. That provider processes the request under its own privacy and retention policies. Your configured API key is included when needed and stored locally. Use a provider you trust. HTTPS encrypts traffic; an HTTP endpoint, including a local network server, does not provide transport encryption. Server scanning is optional.
+
+
+
+
+# Model downloads
+
+On-device models may be downloaded from Hugging Face or model providers when you request them. Download hosts receive ordinary connection information such as your IP address. These downloads do not send pantry photos or inventory. System AI availability and model management depend on your device and its system services.
+
+
+
+
+# Permissions, retention and deletion
+
+Camera access supports taking a scan photo. Photo selection uses Android's system picker. Internet access supports model downloads and optional server requests. Local data remains until you clear it in the app, clear the app's storage or uninstall it. You can clear learned corrections and remove downloaded models in Settings. Operating-system backups, when enabled, are controlled by your device settings. Data sent to a server is subject to that provider's deletion process.
+
+
+
+
+# Children and changes
+
+GhostPantry is intended for adults managing household groceries. It does not knowingly collect children's personal information. Updates to this policy will appear on this page with a revised effective date.
+
+
+
+
+# Contact
+
+For privacy questions or support, contact [sergio.alejandro.mz@gmail.com](mailto:sergio.alejandro.mz@gmail.com).
+
+
+

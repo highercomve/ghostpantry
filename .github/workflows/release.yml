@@ -170,7 +170,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libwayland-dev wayland-protocols
-          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
       - run: npm ci --prefix frontend
       - name: Native libraries and regenerated Android extensions
         run: |

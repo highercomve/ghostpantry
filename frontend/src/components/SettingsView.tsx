@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { AppSettings } from "../types";
-import { invoke, listen } from "../oriel";
+import { invoke, listen, openExternal } from "../oriel";
 import { useSystemAi } from "../hooks/useSystemAi";
 import { EmbeddingGemmaPanel } from "./EmbeddingGemmaPanel";
 import { SystemAiStatusPanel } from "./SystemAiStatusPanel";
@@ -1187,6 +1187,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
       </form>
+
+      <p className="text-muted small"><button type="button" className="btn"
+        onClick={() => void openExternal("https://highercomve.github.io/ghostpantry/privacy/")}>
+        Privacy policy
+      </button></p>
 
       {appInfo && (
         <div className="app-info-footer">

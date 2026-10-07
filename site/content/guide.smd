@@ -1,0 +1,35 @@
+---
+.title = "A small guide to your pantry",
+.description = "Scan, choose your products and review the details before saving.",
+.date = .date("2026-10-07T00:00:00"),
+.layout = "page.shtml",
+---
+# Start with what you have
+
+Add foods manually or open **Scan a shelf**. Choose a storage location and take or select a photo. Clear views help; partly hidden foods can be missed.
+
+# Choose your scanning method
+
+**Fast on-device scanning** uses local detection and image matching. Download its embedding model in Settings first. No photo is sent to a server.
+
+**System AI** is available only on supported devices. If it is unavailable, use fast scanning.
+
+**Local LLM** uses a separately downloaded vision model on compatible devices with enough memory. Speed depends on your hardware.
+
+**Server** connects to your own OpenAI-compatible endpoint. Configure its address, model and optional API key in Settings. This sends your selected photo to that provider. Use HTTPS for encrypted connections.
+
+# Review one crop at a time
+
+Select a suggestion or type the actual product. Add the crop to your final review and continue with the next crop. Confirmed examples can be remembered locally to help match very similar photos.
+
+# Finish with the details
+
+At the end, review product names, quantities and fill levels. Repeated selected products are grouped into one entry. Overlapping crops do not prove that there are multiple physical items: correct quantities before saving.
+
+# Keep your shopping list useful
+
+Update quantities and fill levels as you use foods. Set desired amounts to plan what you need to buy.
+
+# Need a hand?
+
+Contact [sergio.alejandro.mz@gmail.com](mailto:sergio.alejandro.mz@gmail.com) or report an issue on [GitHub](https://github.com/highercomve/ghostpantry/issues).
