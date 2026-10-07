@@ -1,59 +1,31 @@
-import { splitSuggestions } from "../foodSuggestions";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Commands, invoke } from "../oriel";
 
 type Status = Commands["embedding_status"]["result"];
-type Result = Commands["embedding_match"]["result"];
 type Action = "download" | "cancel" | "prepare" | "release" | "delete";
-const INITIAL_LABELS =
-  "apple\nbanana\ntomato\npotato\nbroccoli\ncarrot\nbread\npasta\nrice\noats\ncereal\nmilk\ncheese\nyogurt\neggs\ncanned beans\ncoffee\nchocolate";
-const seconds = (ms: number) => `${(ms / 1000).toFixed(2)} s`;
 
 export function EmbeddingGemmaPanel({
-  image,
   disabled = false,
   onBusyChange,
-  setupOnly = false,
   selectedBackend,
   onBackendChange,
 }: {
-  image?: string | null;
   disabled?: boolean;
   onBusyChange?: (busy: boolean) => void;
-  setupOnly?: boolean;
   selectedBackend?: "cpu" | "gpu";
   onBackendChange?: (backend: "cpu" | "gpu") => void;
 }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [backendChoice, setBackendChoice] = useState<"cpu" | "gpu">("cpu");
   const backend = selectedBackend || backendChoice;
-  const [labels, setLabels] = useState(INITIAL_LABELS);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<Result | null>(null);
   const pending = useRef(false);
-  const labelId = useId();
   const downloading =
     status?.state === "downloading" || status?.state === "verifying";
   const downloaded =
     status?.state === "downloaded" || status?.state === "ready";
   const blocked = disabled || busy !== null;
-  const candidates = [
-    ...new Set(
-      labels
-        .split(/\n|,/)
-        .map((s) => s.trim())
-        .filter(Boolean),
-    ),
-  ];
-  const suggestions = result
-    ? splitSuggestions(result.matches, result.background_score)
-    : null;
-  const validLabels =
-    candidates.length >= 2 &&
-    candidates.length <= 1024 &&
-    candidates.every((s) => s.length <= 120);
-
   const check = useCallback(async () => {
     if (pending.current) return;
     pending.current = true;
@@ -79,24 +51,12 @@ export function EmbeddingGemmaPanel({
     return () => onBusyChange?.(false);
   }, [busy, onBusyChange]);
 
-  const run = async (action: Action | "match") => {
+  const run = async (action: Action) => {
     if (pending.current || blocked) return;
     pending.current = true;
     setBusy(action);
     setError(null);
-    setResult(null);
     try {
-      if (action === "match") {
-        if (!image || !validLabels) return;
-        setResult(
-          await invoke("embedding_match", {
-            image,
-            backend,
-            labels: candidates,
-          }),
-        );
-        setStatus(await invoke("embedding_status"));
-      } else {
         const next =
           action === "prepare"
             ? await invoke("embedding_prepare", { backend })
@@ -108,7 +68,6 @@ export function EmbeddingGemmaPanel({
                   ? await invoke("embedding_release")
                   : await invoke("embedding_delete");
         setStatus(next);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       try {
@@ -125,25 +84,20 @@ export function EmbeddingGemmaPanel({
   return (
     <section
       className="settings-section embedding-panel"
-      aria-label={
-        setupOnly ? "Fast local model setup" : "EmbeddingGemma experiment"
-      }
+      aria-label="Fast local model setup"
     >
       <span className="eyebrow">
-        {setupOnly ? "FAST & OFFLINE" : "ON-DEVICE EXPERIMENT"}
+        FAST & OFFLINE
       </span>
-      <h3>{setupOnly ? "Fast local scan" : "EmbeddingGemma 2"}</h3>
+      <h3>Fast local scan</h3>
       <p className="text-muted">
-        {setupOnly
-          ? "EmbeddingGemma 2 suggests foods from your saved labels. Confirm what is visible and set quantities before saving. Download the model once to scan offline."
-          : "Compare a photo with food labels, entirely on your phone. Try one item or package at a time. This ranks labels; it does not count items or add them to your pantry."}
+        YOLOE finds packages and loose produce; EmbeddingGemma 2 matches them
+        to your food list. Download the matching model once to scan offline.
       </p>
       <div className="embedding-status" role="status" aria-live="polite">
         <strong>
           {busy === "prepare"
             ? `Testing ${backend.toUpperCase()}…`
-            : busy === "match"
-              ? "Matching photo…"
               : status?.state === "ready"
                 ? "Ready to match"
                 : "Model status"}
@@ -223,8 +177,7 @@ export function EmbeddingGemmaPanel({
                   onClick={() => {
                     setBackendChoice(option);
                     onBackendChange?.(option);
-                    setResult(null);
-                  }}
+                                  }}
                 >
                   {option.toUpperCase()}
                 </button>
@@ -260,125 +213,10 @@ export function EmbeddingGemmaPanel({
               disabled={blocked}
               onClick={() => void run("delete")}
             >
-              {setupOnly
-                ? "Delete downloaded model"
-                : "Delete experiment model"}
+              Delete downloaded model
             </button>
           </div>
-          {!setupOnly &&
-            (image ? (
-              <>
-                <div className="form-group">
-                  <label htmlFor={labelId}>Food labels to compare</label>
-                  <textarea
-                    id={labelId}
-                    rows={6}
-                    value={labels}
-                    disabled={blocked}
-                    onChange={(e) => {
-                      setLabels(e.target.value);
-                      setResult(null);
-                    }}
-                  />
-                  <small className="text-muted">
-                    2–1,024 labels, one per line or separated by commas. Up to
-                    120 characters each.
-                  </small>
-                </div>
-                <button
-                  type="button"
-                  className="btn primary w-full"
-                  disabled={blocked || !validLabels}
-                  onClick={() => void run("match")}
-                >
-                  {busy === "match"
-                    ? "Matching photo…"
-                    : `Match photo on ${backend.toUpperCase()}`}
-                </button>
-              </>
-            ) : (
-              <p className="text-muted">
-                Select a photo in Scan a shelf, then open “Try image matching”.
-              </p>
-            ))}
         </>
-      )}
-      {result && suggestions && (
-        <div className="embedding-results" role="status">
-          <h4>Stronger food suggestions</h4>
-          {suggestions.stronger.length === 0 && (
-            <p>
-              No clear food match from this list. Try a closer photo or add the
-              missing label.
-            </p>
-          )}
-          <ol>
-            {suggestions.stronger.map((match) => (
-              <li key={match.label}>
-                <span>{match.label}</span>
-                <strong>{match.score.toFixed(3)}</strong>
-              </li>
-            ))}
-          </ol>
-          {suggestions.alternatives.length > 0 && (
-            <details>
-              <summary>
-                Weaker alternatives ({suggestions.alternatives.length})
-              </summary>
-              <p className="text-muted small">
-                Related labels, not additional detected foods.
-              </p>
-              <ol>
-                {suggestions.alternatives.map((match) => (
-                  <li key={match.label}>
-                    <span>{match.label}</span>
-                    <strong>{match.score.toFixed(3)}</strong>
-                  </li>
-                ))}
-              </ol>
-            </details>
-          )}
-          <small className="text-muted">
-            Compared{" "}
-            {result.labels_count ??
-              labels.split(/[\n,]/).filter((label) => label.trim()).length}{" "}
-            food labels. Cosine similarity, not a probability. Stronger
-            suggestions are grouped by relative score and still need your
-            confirmation.
-          </small>
-          <dl className="embedding-timings">
-            <div>
-              <dt>Total · {result.backend.toUpperCase()}</dt>
-              <dd>{seconds(result.total_ms)}</dd>
-            </div>
-            <div>
-              <dt>Model load</dt>
-              <dd>{seconds(result.load_ms)}</dd>
-            </div>
-            <div>
-              <dt>
-                Food labels
-                {result.labels_cached
-                  ? ` · ${result.label_cache || "cached"}`
-                  : ""}
-              </dt>
-              <dd>{seconds(result.labels_ms)}</dd>
-            </div>
-            <div>
-              <dt>Photo</dt>
-              <dd>{seconds(result.image_ms)}</dd>
-            </div>
-            <div>
-              <dt>App memory · PSS</dt>
-              <dd>{result.pss_mb.toFixed(0)} MiB</dd>
-            </div>
-          </dl>
-          <p className="text-muted small">
-            {result.device} · {result.vision_tokens} image tokens ·{" "}
-            {result.dimensions} dimensions. Repeat with the same photo and
-            labels to compare a warm run. Release memory to test loading again.
-          </p>
-        </div>
       )}
     </section>
   );

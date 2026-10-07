@@ -24,8 +24,8 @@ object YoloePackageDetector {
     fun detect(context: Context, bitmap: Bitmap, started: Long, threshold: Float): JSONObject {
         val contract = context.assets.open("detectors/yoloe_packages.json").bufferedReader().use { JSONObject(it.readText()) }
         require(contract.getInt("input_size") == 640 && contract.getInt("stride") == 32 && contract.getBoolean("dynamic_shape") && contract.getDouble("tile_fraction") == .65)
-        val candidates = mutableListOf<PackageDetectionMath.Box>()
-        val produceCandidates = mutableListOf<PackageDetectionMath.Box>()
+        val candidates = mutableListOf<YoloePackageMath.Box>()
+        val produceCandidates = mutableListOf<YoloePackageMath.Box>()
         var loadMs = 0L
         var detectMs = 0L
         var peakPss = 0.0
@@ -48,7 +48,7 @@ object YoloePackageDetector {
                     val detecting = System.nanoTime()
                     val whole = listOf(YoloePackageMath.Tile(0,0,bitmap.width,bitmap.height))
                     val tiles = when (index) { 0 -> whole; 1 -> YoloePackageMath.tiles(bitmap.width,bitmap.height); else -> whole + YoloePackageMath.tiles(bitmap.width,bitmap.height) }
-                    val proposals = mutableListOf<PackageDetectionMath.Box>()
+                    val proposals = mutableListOf<YoloePackageMath.Box>()
                     for (tile in tiles) {
                         val crop = Bitmap.createBitmap(bitmap,tile.x,tile.y,tile.width,tile.height)
                         try {

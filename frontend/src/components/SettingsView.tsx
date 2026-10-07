@@ -54,7 +54,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onResetData,
 }) => {
   const [settings, setSettings] = useState<AppSettings>({
-    provider: "local",
+    provider: "embedding",
     baseUrl: "https://api.openai.com/v1",
     apiKey: "",
     model: "qwen2.5-vl-3b",
@@ -578,7 +578,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {isFast ? (
           <>
             <EmbeddingGemmaPanel
-              setupOnly
               selectedBackend={
                 settings.embeddingBackend === "gpu" ? "gpu" : "cpu"
               }
@@ -1188,13 +1187,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
       </form>
-
-      {!isFast && (
-        <EmbeddingGemmaPanel
-          disabled={testing || localBusy !== null || systemBusy !== null}
-          onBusyChange={setEmbeddingBusy}
-        />
-      )}
 
       {appInfo && (
         <div className="app-info-footer">

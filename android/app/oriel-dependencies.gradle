@@ -3,6 +3,5 @@ dependencies {
     add("implementation", "com.google.mlkit:genai-prompt:1.0.0-beta4")
     add("implementation", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     add("implementation", "com.google.ai.edge.litertlm:litertlm-android:0.18.0")
-    add("implementation", "com.google.mediapipe:tasks-vision:0.10.32")
     add("implementation", "com.microsoft.onnxruntime:onnxruntime-android:1.30.0")
 }

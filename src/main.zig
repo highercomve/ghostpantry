@@ -62,7 +62,7 @@ fn getDb(_: std.mem.Allocator) !db_mod.Db {
 }
 
 pub const AppSettings = struct {
-    provider: []const u8 = "local",
+    provider: []const u8 = "embedding",
     baseUrl: []const u8 = "https://api.openai.com/v1",
     apiKey: []const u8 = "",
     model: []const u8 = "qwen2.5-vl-3b",
@@ -99,10 +99,8 @@ pub const Commands = struct {
         "embedding_download",
         "embedding_cancel",
         "embedding_prepare",
-        "embedding_match",
         "detect_regions",
         "embedding_region_match",
-        "fast_scan",
         "embedding_feedback",
         "embedding_clear_feedback",
         "embedding_release",
@@ -258,24 +256,13 @@ pub const Commands = struct {
         return embedding.manage(arena, "prepare", args.backend);
     }
 
-    pub fn embedding_match(arena: std.mem.Allocator, args: struct { image: []const u8, backend: []const u8, labels: []const []const u8 }) !embedding.Result {
-        local_mod.unload();
-        return embedding.match(arena, args.image, args.backend, args.labels);
-    }
-
     pub fn detect_regions(arena: std.mem.Allocator, args: struct { image: []const u8, detector: []const u8, threshold: f64 = 0.25 }) !embedding.DetectionResult {
         return embedding.detect(arena, args.image, args.detector, args.threshold);
     }
 
     pub fn embedding_region_match(arena: std.mem.Allocator, args: struct { image: []const u8, backend: []const u8, labels: []const []const u8, use_feedback: bool }) !embedding.Result {
-        return embedding.regionMatch(arena, args.image, args.backend, args.labels, args.use_feedback);
-    }
-
-    pub fn fast_scan(arena: std.mem.Allocator, args: struct { image: []const u8 }) !embedding.Result {
-        const d = try getDb(arena);
-        const settings = readSettings(arena, d);
         local_mod.unload();
-        return embedding.scan(arena, args.image, settings.embeddingBackend, settings.matchingLabels);
+        return embedding.regionMatch(arena, args.image, args.backend, args.labels, args.use_feedback);
     }
 
     pub fn embedding_feedback(arena: std.mem.Allocator, args: struct { scan_id: []const u8, label: []const u8, accepted: bool }) !embedding.FeedbackStatus {

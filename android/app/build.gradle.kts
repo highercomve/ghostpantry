@@ -16,9 +16,17 @@ android {
         targetSdk = 35
         versionCode = 100
         versionName = "0.1.0"
-        // These are the two ABIs with a built liboriel.so. Exclude unused
-        // dependency ABIs, particularly the large ONNX Runtime libraries.
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+
+    }
+
+    // Phones and Intel Chromebooks each download only their own native runtime.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "x86_64")
+            isUniversalApk = false
+        }
     }
 
     signingConfigs {
@@ -45,7 +53,10 @@ android {
     packaging {
         // Zig strips nothing Gradle should strip again; keep the libraries as built.
         jniLibs.keepDebugSymbols += "**/*.so"
-        jniLibs.useLegacyPackaging = false
+        // Match the two liboriel builds, including when producing an app bundle.
+        jniLibs.excludes += setOf("**/armeabi-v7a/**", "**/x86/**")
+        // Compress native libraries in the download; Android extracts them at install.
+        jniLibs.useLegacyPackaging = true
     }
 
     compileOptions {

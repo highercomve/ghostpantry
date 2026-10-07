@@ -95,58 +95,25 @@ Select **System AI** in Settings. GhostPantry asks Android’s ML Kit Prompt API
 
 A failed support check is shown separately from an unavailable model and can be retried. The app never silently sends a system-AI photo to a cloud provider. See [Google’s setup and capability API](https://developers.google.com/ml-kit/genai/prompt/android/get-started).
 
-### Fast local scan (EmbeddingGemma 2)
+### Fast local scan (YOLOE + EmbeddingGemma 2)
 
-Choose **Fast local** in Settings, download or reuse the EmbeddingGemma 2 model,
-and save your settings. CPU is the starting backend; GPU is a separate device
-support test. The provider selector uses two columns on phones so all four scan
-options remain visible.
+**Fast local** is the default provider. YOLOE scans packages, jars and cartons,
+then loose fruit and vegetables. It merges overlapping boxes before
+EmbeddingGemma 2 matches each crop against your saved food labels. The three
+fixed-prompt YOLOE profiles are bundled; the 388 MB matching model downloads once
+and works offline. Gemma 4 is a separate optional local LLM, not the fast matcher.
 
-**Food labels for fast scans** persists an editable vocabulary of 2–1,024 food
-names. The initial catalog contains 710 common food labels; **Use pasta and rice
-labels** replaces it with pasta, rice noodles (rice-based pasta), baby pasta, ramen noodles, and
-risotto rice. Save the labels before scanning. A scan ranks up to ten food
-labels against the selected photo and opens the usual pantry review screen.
-Suggestions start unchecked. Confirm only visible foods, rename them, set
-package counts and fill levels, or use **Add a missing food**. Saving writes
-only the foods you selected. Quantity defaults to one package and fill to
-100% as editable starting values, not model measurements.
+Choose each crop's product and **Add to final review**. Matching products are
+grouped: three distinct avocado crops become one row with quantity three.
+Repeatedly selecting the same crop does not increase the count. Continue reviewing
+crops without navigation, then choose **Review quantities and fill** to edit counts,
+fill levels and names. Only the final save writes to inventory. Detector boxes
+and visual suggestions can be wrong; all products need confirmation.
 
-Text embeddings are cached in memory and in a small, checksummed file for each
-backend. Restarting or releasing the model can reuse the disk cache. Cache keys
-include the exact model, SDK/configuration, backend, caption format, dimensions,
-and label order. Changing labels invalidates the previous vocabulary cache;
-corrupt or incomplete files are recomputed. Deleting the model deletes these
-caches. The scan reports photo time and whether labels came from disk, memory,
-or fresh computation. Neither photos nor scan results leave the phone.
-
-A user-reported Pixel 8 CPU run of the initial experiment took **3.24 seconds
-total**, including **1.10 seconds for the photo**, **1.57 seconds for food
-labels**, and **0.23 seconds for loading**, with **890 MiB app PSS**. These are
-one run, not a general benchmark. The new persistent cache has unit tests;
-its latency on the phone remains to be measured.
-
-Whole-photo matching does not locate individual packages or establish counts.
-Tests with the original unmarked pantry photo favored pasta; manually cropped
-rice regions favored rice, but small-pasta and ramen regions still confused
-some labels. The annotated image is a reference for evaluating the unmarked
-photo, not an inference input. Package localization and calibrated
-presence checks would need further evaluation before automatic counting.
-
-### Experiment: EmbeddingGemma 2 image matching
-
-Try the same experiment on **Pixel 8 and Pixel 10**:
-
-1. In **Settings → EmbeddingGemma 2**, download the 388 MB text-and-image model. Keep the app open; **Pause download** retains progress for resuming. The app checks the exact size and SHA-256 before installing it.
-2. Start with **CPU** and **Test CPU support**. This initializes the model and verifies both text and image embeddings on the actual device. Select **GPU** and test separately; an unsupported backend reports its error and lets you choose CPU.
-3. In **Scan a shelf**, select a clear photo of one item or package, then open **Try image matching**. Edit the candidate food labels and tap **Match photo on CPU** (or GPU).
-4. Repeat with the same photo and labels for a warm run. Compare total time, model loading, label embedding, photo embedding, and app PSS memory across both phones. **Release model memory** clears the engine and label cache for another cold run. PSS includes the app and does not capture all GPU allocations.
-
-The benchmark panel is a whole-photo similarity experiment. Its top labels and cosine scores are **not probabilities, quantities, object detections, or complete inventory scans**. It compares only the supplied 2–1,024 labels and does not save matches to the pantry. A crowded shelf needs a different detection/extraction step. Ordinary scans release this experiment's model memory before loading another provider.
-
-Inference runs offline after the model download. This app-owned LiteRT model is independent of Android's shared AICore model, so it does not require System AI support. The app checks Android/ABI eligibility first and verifies backend execution when tested; Pixel models are not hardcoded. CPU and GPU are explicit choices, with no automatic cloud fallback or NPU acceleration claim. A Pixel 8 CPU result is reported above; Pixel 10 timings and broader accuracy evaluation remain pending. A desktop CPU smoke test with this exact model and 70-token/256-dimension configuration produced finite unit vectors for text and a photo, ranking pasta first for a pasta-heavy pantry image. This validates the basic matching path, not phone performance or shelf-detection accuracy.
-
-The experiment uses [LiteRT-LM's embedding API](https://developers.google.com/edge/litert-lm/embedding_models), Android SDK `com.google.ai.edge.litertlm:litertlm-android:0.18.0`, 70 image tokens, and 256-dimensional normalized embeddings. Food-label embeddings are cached in memory and on disk. The [Apache-2.0 text/vision model](https://huggingface.co/litert-community/embeddinggemma-2-text-vision-440m-litert-lm) is pinned to revision `e301f74d5551b0c2641bd5cb4652a76239d5c5f8`, file `embeddinggemma-2-text-vision-440m.litertlm` (387,710,976 bytes), SHA-256 `92dcbea108899e5d6e30d919b0744f90d9967e80c67a4ab5503ac16d54f62eb0`. See Google's [EmbeddingGemma 2 model card](https://ai.google.dev/gemma/docs/embeddinggemma/model_card_2) for intended uses and limitations.
+**Mark missed foods** lets you draw boxes around visible items the detector missed.
+Saved crop corrections and food-label vectors stay on the device. CPU is the
+starting matching backend; GPU is available where the device supports it.
+The full editable preset contains 710 labels, with a limit of 1,024 custom labels.
 
 ### Option B: On this device (downloaded models, offline)
 Download a vision model once from the model catalog (Qwen3.5 0.8B/2B, Qwen2.5-VL 3B, Gemma 3/4 — smallest first; phones are offered the small ones), and scans then run entirely on the device with llama.cpp: no server, no API key, works offline. The model stays loaded between scans and is freed again when Android reports memory pressure.
@@ -264,180 +231,28 @@ with the released Oriel URL and hash using `zig fetch --save=oriel`.
 
 ### Learning from corrections
 
-Fast local scan review offers **Remember this label** and **Wrong suggestion**.
-Rename a suggestion before remembering it, or add a missing food and remember that
-name. These explicit choices save the photo's embedding and label locally; the
-photo itself is not saved in correction memory. Pantry selection and quantity
-edits do not teach the matcher. An unchecked suggestion is not a rejection.
+Use **Confirm and remember crop** or **Wrong category for this crop** to teach
+explicit corrections. Up to 128 positive/negative vectors per processor and scope
+are persisted, without storing photos or changing model weights. Similar future
+crops receive bounded ranking adjustments, including custom food names. Adding to
+final review does not teach the model. **Clear learned corrections** resets memory
+without deleting inventory or the matching model.
 
-For future photos with image-embedding cosine similarity above 0.94, the closest
-example for each label adds or subtracts up to 0.12 from its ranking. The displayed
-similarity remains the original image/text cosine, with an indication when your
-corrections adjusted the order. Up to 16 remembered positive labels outside your
-current vocabulary can be considered for a similar photo. This is conservative
-personalization of similar scenes, not retraining, reliable object detection, or
-a guarantee of accuracy; the threshold and adjustment still need field testing.
-For package-specific learning, use a close photo of one package.
+### Android package size and retained providers
 
-Correction memory holds the latest 128 examples per processor and survives app
-restarts. CPU and GPU memories are separate and tied to the model/runtime settings.
-**Clear learned corrections** resets both memories without deleting pantry items
-or the model. A newer correction replaces the same label for effectively the same
-photo. Damaged memory is reported and ignored during scans; clear it to recover.
+Android produces separate **arm64-v8a** (phones and ARM Chromebooks) and **x86_64**
+(Intel Chromebooks) APKs, with compressed native libraries. Each APK contains only
+its own processor's libraries. System AI, downloaded local vision LLMs, fast local
+YOLOE/EmbeddingGemma scanning, and configured server/API scanning remain supported.
+Selecting Local LLM uses that model; unavailable system AI uses fast local scanning.
+Gemma/Qwen LLM weights and EmbeddingGemma weights are downloaded separately,
+so catalog entries do not add their model sizes to the APK.
 
-The full food preset contains 710 labels, including eggs, pasta variants, produce,
-dairy, meat, seafood, frozen foods, snacks, drinks, condiments, and baking supplies.
-Existing saved vocabularies are preserved: choose **Use full food list (710)** and
-save Settings to replace a narrow preset. Custom lists support up to 1,024 labels.
-Three background candidates (other food, non-food objects, empty shelf) can trigger
-a review hint when they outrank all food suggestions. This comparison is also
-heuristic; it does not guarantee rejection of a wrong category. Review displays
-how many labels were compared, and never selects suggestions automatically.
+RF-DETR, EfficientDet Lite0/Lite2, MediaPipe vision, whole-photo/grid comparison
+screens and old experiment reports have been removed. The YOLOE profiles retain
+their bundled AGPL-3.0 license and pinned hashes in `yoloe_packages.json`.
 
-Fast local review and the image-matching experiment separate stronger suggestions
-from a collapsed **Weaker alternatives** list. A label must beat the background
-candidates and be within 0.04 of the best adjusted rank to appear in the stronger
-group. If none qualify, the UI says there is no clear food match. Alternatives
-remain available for manual confirmation; selecting one keeps it visible when
-collapsed. This score-gap rule reduces clutter (the egg-only example shows eggs
-instead of five equally presented foods), but is a presentation heuristic, not a
-calibrated food-presence detector. Crowded photos may have real foods in the weaker
-list. All items still require explicit selection before saving.
-
-
-### Experiment: multi-item regions
-
-After choosing a photo, tap **Compare multi-item scanning**. If detection misses
-packages, choose **Mark packages**, drag one box around each package (up to 12),
-and tap **Run comparison**. Every marked box goes through visual matching and
-the same correction and inventory review controls. **Undo last box** and
-**Clear boxes** let you replace selections. Marking is manual; it does not
-change Lite2 automatic detection.
-
-You can also run **Whole photo**,
-**Overlapping grid**, **Lite0 detector**, **Lite2 detector**, and
-**RF-DETR Nano · CPU** on the same photo
-with the same saved food list and embedding backend. Repeat each method after its
-first run to compare warm timings. Set the full 710-label list in Settings if an
-older installation still has the small list.
-
-The grid checks the whole photo plus nine overlapping half-size crops. The
-CPU-only EfficientDet detectors propose up to 12 boxes at a 0.25 detector-score
-threshold; each box gets 5% padding and EmbeddingGemma classification. Their
-original COCO labels remain visible for diagnosis. Zero boxes remains a zero-box
-result; it does not silently fall back to the grid. Both models are bundled in
-the APK, while the existing EmbeddingGemma download is reused.
-
-RF-DETR Nano is a separate CPU-only ONNX Runtime experiment with its pretrained
-COCO weights bundled in the APK. Choose a minimum score of 0.10, 0.25 (default),
-or 0.50; lowering it exposes weaker proposals and can include fragments or
-background. Its boxes use the same corrections and inventory review flow. First
-use extracts and verifies the model; it has not been trained for pantry packages
-yet. The supplied crowded pantry photo yielded no boxes at 0.25 in the desktop
-test, so this option measures the pretrained baseline rather than guaranteeing
-better package recall. See [the RF-DETR experiment](experiments/README.md#rf-detr-nano-phone-experiment).
-
-Stage text, elapsed time, region progress, and **Stop after current region** keep
-the operation reviewable. Cancellation waits for the current native inference;
-completed regions are retained. The comparison table keeps the last four runs
-and the highest sampled app PSS, rather than claiming continuous peak memory.
-First-use label-cache preparation can exceed 20 seconds. No fixed runtime limit
-is enforced; warm timing on actual phones remains to be measured.
-
-Combined labels use the best crop score and record supporting regions. Scores
-are similarities, not presence probabilities. Overlapping regions do not imply
-multiple packages or quantities. These experimental runs do not change inventory
-automatically. Review each crop, including its weaker matches, before
-deciding whether the approach improves your photos.
-
-The first desktop test found generic COCO detectors unsuitable for these pantry
-photos: Lite0 proposed a whole-pantry “bed” and Lite2 found no pantry regions.
-Grid crops recovered rice-related matches but introduced false labels. See
-[the experiment report](experiments/README.md) for reproducible results and the
-remaining phone checks. This is a comparison baseline, not a validated inventory
-detector.
-
-
-### Visual crop corrections and inventory review
-
-**Scan a shelf → Compare multi-item scanning** starts with **Lite2 detector**.
-Detection classes such as “bottle” and “sandwich” describe the proposal model,
-not the food category. EmbeddingGemma matches each crop against the saved labels.
-OCR has been removed from the app and its Android dependency is no longer bundled.
-**Use my confirmed crop examples** is enabled by default and can be switched off
-for an unpersonalized comparison. Weak visual evidence stays **Unknown**.
-
-Choose or type the actual food label and select **Review for inventory** to send it
-to the existing inventory review screen. Quantity starts at one and fill at 100%;
-set both before saving. Repeated selections of the same label reuse the review row
-without increasing quantity. This action does not teach corrections or save inventory
-until **Add items to pantry** is pressed. Remembering a crop is a separate action.
-
-Type the actual category in each crop and choose **Confirm and remember crop** or
-**Wrong category for this crop**. Only these explicit actions teach crop memory;
-comparison runs never save inventory automatically. Up to 128 positive/negative vector examples
-are persisted separately for each CPU/GPU backend and for photo/crop scopes. No
-photos are stored in this memory and model weights are unchanged. Similar future
-crops receive bounded ranking adjustments; custom confirmed categories can join
-visual candidates even when absent from the saved list. The last 64 scan identities
-are retained so teaching an earlier region uses that region's vector; expired
-regions must be scanned again. **Use remembered crop examples** can be switched off
-for a baseline. **Clear learned corrections** in Settings clears photo and crop
-memory on both backends.
-
-The [research comparison](experiments/README.md) includes actual desktop runs of
-MobileCLIP-S0 and a SKU110K-trained detector. Neither new model is bundled: the
-faster image encoder was less reliable on this pantry sample, and the package
-checkpoint missed most items and has research-use constraints. End-to-end performance and recognition still need broader Pixel photo testing;
-browser checks use mock native responses.
-
-
-The comprehensive preset now has **710 unique labels**, merging the supplied
-pantry/fridge/freezer lists with the original catalog. The editable source is
-[src/food_labels.txt](src/food_labels.txt); Zig embeds it automatically. Existing
-saved lists remain unchanged until **Use full food list (710)** is selected and
-Settings saved. All 710 labels are compared per crop; only the best candidates are presented,
-and matching does not imply that those foods are present. The hard limit remains
-1,024, leaving room for custom labels. Similar variants can still compete, so
-confirm visual suggestions before using them for inventory. Larger catalogs
-have a slower initial label-cache preparation, then reuse cached vectors.
-
-Historical desktop comparison reports use the committed
-[307-label baseline](experiments/food-labels-307.json). Benchmark scripts default to
-that vocabulary so expanding the app preset does not silently change those results.
-
-
-Crop review groups nearby rice-grain and wheat-pasta varieties (and a few other
-explicit food families) into a broad **review suggestion** when at least three
-nearby top candidates agree on that family and beat the background. Related
-varieties are alternatives, not independent evidence that food is present; exact
-variety and presence still require confirmation. Rice noodles and rice flour do
-not belong to the rice-grain family. The review also displays background similarity
-for inspecting uncertain visual matches.
-
-### YOLOE package detector phone test
-
-The multi-item experiment now starts with **YOLOE Nano**, a CPU-only
-proposal detector using fixed package and produce prompts. Package detection runs
-first, followed by loose-produce detection, using the whole photo and overlapping
-crops. Duplicate boxes are merged before up to 24 regions go through food
-matching, corrections and inventory review. Start with detection score **0.10**;
-produce uses at least **0.15**. Models are bundled; no text
-encoder or OCR runs on the phone. Detector category names are not confirmed foods.
-
-The exported ONNX candidate reproduced 10 proposals covering 8 of 9 approximate
-reference boxes on the supplied pantry JPEG on desktop. This is one-photo tuning,
-not phone accuracy or general validation. Native resize/postprocessing tests and
-export comparison are documented in [experiments](experiments/README.md).
-The three YOLOE model assets carry their upstream AGPL-3.0 license, included beside
-the weights as `YOLOE-LICENSE`; they were exported with Ultralytics 8.4.174.
-
-The main photo action now opens and runs fast multi-item detection for local
-and embedding providers, and whenever selected system AI is not ready. Server
-providers keep their LLM analysis path; available system AI also keeps its
-existing path. Crops are reviewed before items are saved to inventory.
-
-YOLOE Nano now has one option: it runs package detection, then loose-produce
-detection, and merges overlapping proposals before matching foods. Each phase
-keeps up to 12 boxes; the merged review can contain up to 24 regions. Package
-score starts at 0.10; produce uses at least 0.15. All items still require review.
+Rebuild the fixed-prompt models with [export_yoloe_packages.py](scripts/export_yoloe_packages.py).
+Use [benchmark_yoloe_export.py](scripts/benchmark_yoloe_export.py) to validate exports
+against photos on desktop, and `python3 scripts/verify-detectors.py` to check bundled
+compressed and decompressed hashes. Desktop results do not establish phone accuracy.

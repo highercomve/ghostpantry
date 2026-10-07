@@ -197,7 +197,9 @@ jobs:
           cd android
           ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:bundleRelease
           if [ "$SIGN_ANDROID" = true ]; then
-            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify app/build/outputs/apk/release/app-release.apk
+            for apk in app/build/outputs/apk/release/app-*-release.apk; do
+              "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$apk"
+            done
           fi
       - run: python3 scripts/collect-release.py android
       - uses: actions/upload-artifact@v4

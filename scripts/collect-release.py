@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Collect Oriel packages with platform-specific names and SHA-256 checksums."""
 import hashlib
+import json
 from pathlib import Path
 import shutil
 import sys
@@ -14,6 +15,13 @@ roots = [Path("zig-out/package")] if platform != "android" else [
 collected = []
 for root in roots:
     for path in sorted(root.rglob("*")):
+        if platform == "android" and path.suffix.lower() == ".apk":
+            metadata = path.parent / "output-metadata.json"
+            if not metadata.exists():
+                continue
+            current = {element["outputFile"] for element in json.loads(metadata.read_text())["elements"]}
+            if path.name not in current:
+                continue
         if path.is_file() and path.suffix.lower() in {".deb", ".rpm", ".appimage", ".dmg", ".exe", ".apk", ".aab"}:
             destination = output / f"ghostpantry-{platform}-{path.name}"
             shutil.copy2(path, destination)

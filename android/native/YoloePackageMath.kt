@@ -7,6 +7,7 @@ import kotlin.math.roundToInt
 
 /** Fixed-prompt YOLOE one-to-many output: pixel cxcywh, class probabilities, masks. */
 object YoloePackageMath {
+    data class Box(val x: Float, val y: Float, val width: Float, val height: Float, val label: String, val score: Float)
     fun isModelAsset(asset: String): Boolean = asset in setOf(
         "yoloe_packages_whole.onnx.bin", "yoloe_packages_tiles.onnx.bin", "yoloe_produce.onnx.bin",
     )
@@ -42,7 +43,7 @@ object YoloePackageMath {
     }
 
     fun decode(rows: Array<FloatArray>, labels: List<String>, tile: Tile, photoWidth: Int,
-               photoHeight: Int, threshold: Float): List<PackageDetectionMath.Box> {
+               photoHeight: Int, threshold: Float): List<YoloePackageMath.Box> {
         require(photoWidth > 0 && photoHeight > 0 && threshold in 0f..1f)
         val resize = resize(tile.width, tile.height)
         return rows.mapNotNull { row ->
@@ -55,13 +56,13 @@ object YoloePackageMath {
             val right = ((row[2]-resize.left)/resize.scale).coerceIn(0f, tile.width.toFloat())
             val bottom = ((row[3]-resize.top)/resize.scale).coerceIn(0f, tile.height.toFloat())
             if (right <= left || bottom <= top) return@mapNotNull null
-            PackageDetectionMath.Box((tile.x+left)/photoWidth, (tile.y+top)/photoHeight,
+            YoloePackageMath.Box((tile.x+left)/photoWidth, (tile.y+top)/photoHeight,
                 (right-left)/photoWidth, (bottom-top)/photoHeight, labels[category], score)
         }
     }
 
     fun decodeChannels(channels: Array<FloatArray>, labels: List<String>, tile: Tile,
-                       photoWidth: Int, photoHeight: Int, threshold: Float): List<PackageDetectionMath.Box> {
+                       photoWidth: Int, photoHeight: Int, threshold: Float): List<YoloePackageMath.Box> {
         require(labels.size in 1..8 && channels.size == 4+labels.size+32)
         val count = channels[0].size
         require(count in 1..8400 && channels.all { it.size == count })
@@ -81,23 +82,23 @@ object YoloePackageMath {
         return decode(rows.toTypedArray(),labels,tile,photoWidth,photoHeight,threshold)
     }
 
-    fun iou(a: PackageDetectionMath.Box, b: PackageDetectionMath.Box): Float {
+    fun iou(a: YoloePackageMath.Box, b: YoloePackageMath.Box): Float {
         val intersection = max(0f, min(a.x+a.width, b.x+b.width)-max(a.x,b.x)) *
             max(0f, min(a.y+a.height,b.y+b.height)-max(a.y,b.y))
         val union = a.width*a.height+b.width*b.height-intersection
         return if (union > 0f) intersection/union else 0f
     }
 
-    fun suppress(boxes: List<PackageDetectionMath.Box>, threshold: Float = .3f, limit: Int = 12): List<PackageDetectionMath.Box> {
+    fun suppress(boxes: List<YoloePackageMath.Box>, threshold: Float = .3f, limit: Int = 12): List<YoloePackageMath.Box> {
         require(threshold in 0f..1f && limit in 1..24)
-        val result = mutableListOf<PackageDetectionMath.Box>()
+        val result = mutableListOf<YoloePackageMath.Box>()
         for (box in boxes.sortedByDescending { it.score }.take(512)) {
             if (result.all { iou(box, it) < threshold }) result.add(box)
             if (result.size == limit) break
         }
         return result
     }
-    fun mergePhases(packages: List<PackageDetectionMath.Box>, produce: List<PackageDetectionMath.Box>, threshold: Float = .3f): List<PackageDetectionMath.Box> {
+    fun mergePhases(packages: List<YoloePackageMath.Box>, produce: List<YoloePackageMath.Box>, threshold: Float = .3f): List<YoloePackageMath.Box> {
         // Each phase gets its own proposal budget before cross-phase deduplication.
         return suppress(suppress(packages,threshold) + suppress(produce,threshold),threshold,24)
     }

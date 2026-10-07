@@ -63,7 +63,7 @@ class YoloePackageMathTest {
     }
 
     @Test fun suppressesDuplicatesAcrossPromptClassesAndCapsTwelve() {
-        val box = PackageDetectionMath.Box(0f,0f,.1f,.1f,"bag",.9f)
+        val box = YoloePackageMath.Box(0f,0f,.1f,.1f,"bag",.9f)
         val duplicate = box.copy(label="box",score=.8f)
         val separated = (1..15).map { box.copy(x=it*.2f,score=.7f) }
         val boxes = YoloePackageMath.suppress(listOf(box,duplicate)+separated,.3f)
@@ -114,8 +114,8 @@ class YoloePackageMathTest {
     }
 
     @Test fun mergedPhasesKeepBothBudgetsAndRemoveSharedObjects() {
-        val packages = (0..7).map { PackageDetectionMath.Box(it*.1f,0f,.05f,.05f,"package",.7f) }
-        val produce = (0..7).map { PackageDetectionMath.Box(it*.1f,.5f,.05f,.05f,"avocado",.8f) }
+        val packages = (0..7).map { YoloePackageMath.Box(it*.1f,0f,.05f,.05f,"package",.7f) }
+        val produce = (0..7).map { YoloePackageMath.Box(it*.1f,.5f,.05f,.05f,"avocado",.8f) }
         val merged = YoloePackageMath.mergePhases(packages,produce)
         assertEquals(16,merged.size)
         assertEquals(8,merged.count { it.label=="package" })
