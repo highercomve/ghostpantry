@@ -4,5 +4,4 @@ dependencies {
     add("implementation", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     add("implementation", "com.google.ai.edge.litertlm:litertlm-android:0.18.0")
     add("implementation", "com.google.mediapipe:tasks-vision:0.10.32")
-    add("implementation", "com.google.mlkit:text-recognition:16.0.1")
 }

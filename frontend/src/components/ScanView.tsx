@@ -50,7 +50,6 @@ export const ScanView: React.FC<ScanViewProps> = ({
   }, []);
 
   const [location, setLocation] = useState<string>(defaultLocation);
-  const [sourcePhoto, setSourcePhoto] = useState<Blob | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -268,7 +267,6 @@ export const ScanView: React.FC<ScanViewProps> = ({
       // Reset scan view
       setDetectedItems([]);
       setSelectedImage(null);
-      setSourcePhoto(null);
       onScanSuccess();
     } catch (err: any) {
       console.error("Failed to save scan results:", err);
@@ -492,8 +490,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
       <div className="scan-card">
         <CameraCapture
           selectedImage={selectedImage}
-          onImageSelected={(img, source) => {
-            setSourcePhoto(source ?? null);
+          onImageSelected={(img) => {
             setFeedbackMessage(null);
             setFeedbackError(null);
             setHasAnalyzed(false);
@@ -508,7 +505,6 @@ export const ScanView: React.FC<ScanViewProps> = ({
             setHasAnalyzed(false);
             setFastResult(null);
             setSelectedImage(null);
-            setSourcePhoto(null);
             setDetectedItems([]);
             setAnalysisError(null);
           }}
@@ -585,11 +581,49 @@ export const ScanView: React.FC<ScanViewProps> = ({
             <RegionExperiment
               key={selectedImage}
               image={selectedImage}
-              sourcePhoto={sourcePhoto}
               disabled={
                 isAnalyzing || isSaving || changingBackend || feedbackBusy
               }
               onBusyChange={setEmbeddingBusy}
+              onReviewItem={(label) => {
+                if (!label.trim()) return;
+                setFastResult(null);
+                setHasAnalyzed(true);
+                setScanTiming(null);
+                setSaveSuccessMsg(null);
+                setScanSummary(
+                  "Foods chosen from image regions. Set quantity and fill before saving; overlapping regions do not determine package counts.",
+                );
+                setDetectedItems((items) => {
+                  const existing = items.findIndex(
+                    (item) =>
+                      item.name.trim().toLowerCase() ===
+                      label.trim().toLowerCase(),
+                  );
+                  if (existing >= 0)
+                    return items.map((item, index) =>
+                      index === existing ? { ...item, selected: true } : item,
+                    );
+                  return [
+                    ...items,
+                    {
+                      name: label.trim(),
+                      selected: true,
+                      desired: 1,
+                      quantity: 1,
+                      fill_percentage: 100,
+                      unit: "unit",
+                      notes:
+                        "Chosen from a visual crop; quantity and fill set during review.",
+                    },
+                  ];
+                });
+                requestAnimationFrame(() =>
+                  document
+                    .getElementById("inventory-review")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                );
+              }}
             />
           )}
         </div>
@@ -640,7 +674,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
       </div>
       {/* Review Results */}
       {detectedItems.length > 0 && (
-        <div className="review-card">
+        <div id="inventory-review" className="review-card">
           <div className="review-card-head">
             <div>
               <h3>

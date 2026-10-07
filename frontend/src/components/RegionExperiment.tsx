@@ -14,8 +14,6 @@ type CropResult = {
   region: Region;
   image: string;
   result: MatchResult;
-  ocr?: Commands["ocr_region"]["result"];
-  ocrError?: string;
   recognition?: Recognition;
 };
 type Run = {
@@ -28,7 +26,6 @@ type Run = {
   detectorPeak: number;
   partial: boolean;
   labelCount: number;
-  withOcr: boolean;
   useMemory: boolean;
 };
 const MODES: { id: Mode; label: string }[] = [
@@ -44,7 +41,7 @@ async function decodePhoto(image: string): Promise<HTMLImageElement> {
   await photo.decode();
   return photo;
 }
-function crop(photo: HTMLImageElement, region: Region, ocr = false): string {
+function crop(photo: HTMLImageElement, region: Region): string {
   const canvas = document.createElement("canvas");
   const left = Math.floor(region.x * photo.naturalWidth),
     top = Math.floor(region.y * photo.naturalHeight);
@@ -62,8 +59,6 @@ function crop(photo: HTMLImageElement, region: Region, ocr = false): string {
       Math.ceil(region.height * photo.naturalHeight),
     ),
   );
-  if (ocr && canvas.width * canvas.height > 24_000_000)
-    throw new Error("OCR crop exceeds 24 megapixels. Use smaller regions.");
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Cannot prepare photo regions");
   context.drawImage(
@@ -77,26 +72,24 @@ function crop(photo: HTMLImageElement, region: Region, ocr = false): string {
     canvas.width,
     canvas.height,
   );
-  const encoded = canvas.toDataURL("image/jpeg", ocr ? 0.95 : 0.9);
+  const encoded = canvas.toDataURL("image/jpeg", 0.9);
   if (encoded.length > 7 * 1024 * 1024)
     throw new Error("Crop is too large. Use smaller regions.");
   return encoded;
 }
 export function RegionExperiment({
   image,
-  sourcePhoto,
   disabled,
   onBusyChange,
+  onReviewItem,
 }: {
   image: string;
-  sourcePhoto?: Blob | null;
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
+  onReviewItem: (label: string) => void;
 }) {
   const [mode, setMode] = useState<Mode>("efficientdet_lite2");
   const [busy, setBusy] = useState(false);
-  const [withOcr, setWithOcr] = useState(true);
-  const [rotated, setRotated] = useState(false);
   const [useMemory, setUseMemory] = useState(true);
   const [teaching, setTeaching] = useState(false);
   const [corrections, setCorrections] = useState<Record<number, string>>({});
@@ -141,7 +134,6 @@ export function RegionExperiment({
     setStage("Reading saved food labels…");
     const started = performance.now();
     const complete: CropResult[] = [];
-    let sourceUrl: string | null = null;
     try {
       const settings = await invoke("get_settings");
       const backend = settings.embeddingBackend === "gpu" ? "gpu" : "cpu";
@@ -158,9 +150,6 @@ export function RegionExperiment({
           "Save a food list of 2–1,024 labels in Settings first.",
         );
       const photo = await decodePhoto(image);
-      if (withOcr && sourcePhoto) sourceUrl = URL.createObjectURL(sourcePhoto);
-      const ocrPhoto =
-        withOcr && sourceUrl ? await decodePhoto(sourceUrl) : photo;
       let regions: Region[],
         detectorMs = 0,
         detectorLoadMs = 0,
@@ -187,47 +176,22 @@ export function RegionExperiment({
             : `Identifying region ${index + 1} of ${regions.length}…`,
         );
         const cropped = crop(photo, regions[index]);
-        const result = withOcr
-          ? await invoke("embedding_region_match", {
-              image: cropped,
-              backend,
-              labels,
-              use_feedback: useMemory,
-            })
-          : await invoke("embedding_match", {
-              image: cropped,
-              backend,
-              labels,
-            });
-        let ocr: CropResult["ocr"], ocrError: string | undefined;
-        if (withOcr && !cancelled.current) {
-          setStage(
-            `Reading package text in region ${index + 1} of ${regions.length}…`,
-          );
-          try {
-            ocr = await invoke("ocr_region", {
-              image: crop(ocrPhoto, regions[index], true),
-              rotated,
-            });
-          } catch (failure) {
-            ocrError =
-              failure instanceof Error ? failure.message : String(failure);
-          }
-        }
+        const result = await invoke("embedding_region_match", {
+          image: cropped,
+          backend,
+          labels,
+          use_feedback: useMemory,
+        });
         complete.push({
           region: regions[index],
           image: cropped,
           result,
-          ocr,
-          ocrError,
-          recognition: withOcr
-            ? recognizeFood(
-                ocr?.text ?? "",
-                labels,
-                result.matches,
-                result.background_score,
-              )
-            : undefined,
+          recognition: recognizeFood(
+            "",
+            labels,
+            result.matches,
+            result.background_score,
+          ),
         });
         if (!mounted.current) break;
         setProgress({ done: index + 1, total: regions.length });
@@ -252,8 +216,7 @@ export function RegionExperiment({
             detectorPeak,
             partial: cancelled.current,
             labelCount: labels.length,
-            withOcr,
-            useMemory: withOcr && useMemory,
+            useMemory,
           },
         ]);
       }
@@ -261,7 +224,6 @@ export function RegionExperiment({
       if (mounted.current)
         setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
-      if (sourceUrl) URL.revokeObjectURL(sourceUrl);
       pending.current = false;
       if (mounted.current) {
         setBusy(false);
@@ -317,45 +279,24 @@ export function RegionExperiment({
       <p>
         Compare the same photo and saved food list. The grid checks 10
         overlapping regions; detectors propose up to 12 regions. Generic COCO
-        boxes can miss pantry packages. These runs do not add anything to your
-        inventory. Only explicit crop confirmations and rejections teach
-        corrections.
+        boxes can miss pantry packages. Review a crop label to add it to
+        inventory, with quantity and fill set by you. Only explicit
+        confirmations and rejections teach corrections.
       </p>
       <div className="region-options">
         <label>
           <input
             type="checkbox"
-            checked={withOcr}
-            disabled={busy || teaching || disabled}
-            onChange={(e) => setWithOcr(e.target.checked)}
-          />{" "}
-          Read package text and combine evidence
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={rotated}
-            disabled={!withOcr || busy || teaching || disabled}
-            onChange={(e) => setRotated(e.target.checked)}
-          />{" "}
-          Read rotated labels too (four OCR passes per crop)
-        </label>
-        <label>
-          <input
-            type="checkbox"
             checked={useMemory}
-            disabled={!withOcr || busy || teaching || disabled}
+            disabled={busy || teaching || disabled}
             onChange={(e) => setUseMemory(e.target.checked)}
           />{" "}
           Use my confirmed crop examples
         </label>
         <small>
-          OCR uses{" "}
-          {sourcePhoto
-            ? "source-photo pixels"
-            : "preview pixels; choose a gallery/camera photo for full resolution"}
-          . Turn text and crop examples off for the original visual baseline.
-          Latin OCR supports English, Spanish and Italian text.
+          Confirm or correct each crop below. Saved examples improve visual
+          matching on this phone. Turn examples off to compare the original
+          image scores.
         </small>
       </div>
       <div className="embedding-actions">
@@ -425,7 +366,7 @@ export function RegionExperiment({
                       {MODES.find((x) => x.id === result.mode)?.label} ·{" "}
                       {result.backend.toUpperCase()}
                       {result.partial ? " (partial)" : ""}
-                      {result.withOcr ? " · OCR" : " · visual only"}
+                      {" · visual matching"}
                       {result.useMemory ? " · crop memory" : ""}
                     </td>
                     <td data-label="Total">
@@ -435,9 +376,7 @@ export function RegionExperiment({
                     <td data-label="Sampled PSS">
                       {Math.max(
                         result.detectorPeak,
-                        ...result.regions.map((x) =>
-                          Math.max(x.result.pss_mb, x.ocr?.pss_mb ?? 0),
-                        ),
+                        ...result.regions.map((x) => x.result.pss_mb),
                         0,
                       ).toFixed(0)}{" "}
                       MiB
@@ -461,9 +400,9 @@ export function RegionExperiment({
             {(latest.detectorLoadMs / 1000).toFixed(2)} s · detection{" "}
             {(latest.detectorMs / 1000).toFixed(2)} s.
           </p>
-          {latest.withOcr && (
+          {
             <>
-              <h4>Text and image review</h4>
+              <h4>Image review and corrections</h4>
               <p>
                 Confirm the category for each crop below. “Unknown” is kept when
                 evidence is weak; package quantities are never inferred from
@@ -471,8 +410,8 @@ export function RegionExperiment({
               </p>
               <p role="status">{feedbackMessage}</p>
             </>
-          )}
-          {latest.withOcr && (
+          }
+          {
             <ul>
               {latest.regions.map((region, index) => (
                 <li key={index}>
@@ -487,18 +426,10 @@ export function RegionExperiment({
                 </li>
               ))}
             </ul>
-          )}
-          <details open={!latest.withOcr}>
-            <summary>
-              {latest.withOcr
-                ? "Visual candidates before text review"
-                : "Combined suggestions"}
-            </summary>
-            <h4>
-              {latest.withOcr
-                ? "Visual candidates (before text review)"
-                : "Combined suggestions"}
-            </h4>
+          }
+          <details>
+            <summary>Combined suggestions</summary>
+            <h4>Combined suggestions</h4>
             <p>
               Labels are merged by their best crop score. Matching regions are
               evidence, not package counts. Tap a region to inspect it.
@@ -543,7 +474,7 @@ export function RegionExperiment({
               />
             )}
           </div>
-          <details open={latest.withOcr}>
+          <details open>
             <summary>
               Inspect all {latest.regions.length} regions and weaker matches
             </summary>
@@ -576,11 +507,6 @@ export function RegionExperiment({
                         : ""}
                     </strong>
                     <p>{result.recognition.reason}</p>
-                    {result.ocrError && (
-                      <p role="alert">
-                        OCR unavailable for this crop: {result.ocrError}
-                      </p>
-                    )}
                     <label>
                       Confirmed category for this crop
                       <input
@@ -600,6 +526,31 @@ export function RegionExperiment({
                       />
                     </label>
                     <div className="embedding-actions">
+                      <button
+                        type="button"
+                        className="btn primary"
+                        disabled={
+                          busy ||
+                          teaching ||
+                          disabled ||
+                          !(
+                            corrections[index] ??
+                            result.recognition.label ??
+                            ""
+                          ).trim()
+                        }
+                        onClick={() =>
+                          onReviewItem(
+                            (
+                              corrections[index] ??
+                              result.recognition?.label ??
+                              ""
+                            ).trim(),
+                          )
+                        }
+                      >
+                        Review for inventory
+                      </button>
                       <button
                         type="button"
                         className="btn primary"
@@ -658,35 +609,14 @@ export function RegionExperiment({
                         </li>
                       ))}
                     </ul>
-                    <details open={result.recognition.evidence.length === 0}>
-                      <summary>Read text and keyword evidence</summary>
-                      <pre className="ocr-text">
-                        {result.ocr?.text || "No readable text"}
-                      </pre>
-                      <ul>
-                        {result.recognition.evidence.map((evidence) => (
-                          <li key={evidence.label}>
-                            “{evidence.phrase}” → {evidence.label}
-                            {evidence.fuzzy ? " (uncertain OCR spelling)" : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
                     <small>
-                      OCR {((result.ocr?.total_ms ?? 0) / 1000).toFixed(2)} s ·{" "}
-                      {result.ocr?.width ?? 0} × {result.ocr?.height ?? 0}{" "}
-                      source crop pixels · {result.ocr?.rotations ?? 0}{" "}
-                      rotations · {result.result.correction_count ?? 0} local
-                      examples
+                      {result.result.correction_count ?? 0} local crop examples
                     </small>
                     <small className="recognition-diagnostics">
                       Best image similarity{" "}
                       {result.result.matches[0]?.score.toFixed(3) ?? "—"} ·
                       background{" "}
                       {result.result.background_score?.toFixed(3) ?? "—"}.
-                      {result.ocr &&
-                        Math.min(result.ocr.width, result.ocr.height) < 320 &&
-                        " This crop has few source pixels for reading small text. Try the original photo or a closer shot."}
                     </small>
                     {result.result.feedback_warning && (
                       <p role="alert">{result.result.feedback_warning}</p>

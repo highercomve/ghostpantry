@@ -40,9 +40,9 @@ pub fn build(b: *std.Build) void {
             .version = app_version,
         },
         .android = .{
-            .sources = &.{ b.path("android/native/PantryCameraProvider.kt"), b.path("android/native/PantryAndroidExtension.kt"), b.path("android/native/SystemAiExtension.kt"), b.path("android/native/EmbeddingGemmaExtension.kt"), b.path("android/native/EmbeddingMath.kt"), b.path("android/native/EmbeddingCache.kt"), b.path("android/native/EmbeddingFeedback.kt"), b.path("android/native/PantryDetector.kt"), b.path("android/native/PantryOcr.kt") },
+            .sources = &.{ b.path("android/native/PantryCameraProvider.kt"), b.path("android/native/PantryAndroidExtension.kt"), b.path("android/native/SystemAiExtension.kt"), b.path("android/native/EmbeddingGemmaExtension.kt"), b.path("android/native/EmbeddingMath.kt"), b.path("android/native/EmbeddingCache.kt"), b.path("android/native/EmbeddingFeedback.kt"), b.path("android/native/PantryDetector.kt") },
             .extensions = &.{ "dev.ghostpantry.PantryAndroidExtension", "dev.ghostpantry.SystemAiExtension", "dev.ghostpantry.EmbeddingGemmaExtension" },
-            .dependencies = &.{ "com.google.mlkit:genai-prompt:1.0.0-beta4", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2", "com.google.ai.edge.litertlm:litertlm-android:0.18.0", "com.google.mediapipe:tasks-vision:0.10.32", "com.google.mlkit:text-recognition:16.0.1" },
+            .dependencies = &.{ "com.google.mlkit:genai-prompt:1.0.0-beta4", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2", "com.google.ai.edge.litertlm:litertlm-android:0.18.0", "com.google.mediapipe:tasks-vision:0.10.32" },
             .native_libraries = &.{.{ .name = "libvndksupport.so" }},
             .proguard_rules = b.path("android/native/proguard-rules.pro"),
         },

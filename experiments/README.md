@@ -178,3 +178,19 @@ visible OCR crop was only 122×289 pixels; no usable OCR keywords are visible in
 these screenshots. Raw OCR text is needed to distinguish unreadable text from
 missing aliases. A bigger source image or closer package photo may help text
 recognition; upscaling would not recover missing source detail.
+
+## Visual matching with corrections, without OCR
+
+Phone feedback preferred Lite2 visual matching with a larger food list and user
+corrections. OCR has been removed from the app; crop memory remains on and can be toggled
+independently. All experiment crops use the crop-scoped matching command, so
+confirming or rejecting a crop works even when OCR and remembered examples are
+off. Remembered examples are only applied when their checkbox is on. The OCR results above are historical research records. Browser verification mocks native calls to check this
+routing, confirmation session identity, and absence of OCR calls when disabled.
+
+Inventory review is now reachable from each crop with **Review for inventory**.
+A browser integration check verified that two selections of the same label keep
+one selected review row at quantity 1, no inventory write or feedback happens
+until the corresponding explicit action, and saving sends the chosen Pantry
+location and reviewed item to the existing `apply_scan_results` command. Native
+calls were mocked for this UI check; it is not a phone recognition benchmark.

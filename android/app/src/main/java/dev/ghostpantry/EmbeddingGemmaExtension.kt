@@ -76,7 +76,6 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
                         "cancel" -> { cancelDownload.set(true); connection?.disconnect(); status() }
                         "prepare" -> { load(input.optString("backend", "cpu")); probe(); status() }
                         "detect" -> PantryDetector.detect(checkNotNull(context), input)
-                        "ocr" -> PantryOcr.read(input)
                         "match" -> try { match(input) } catch (failure: Exception) { release(); throw failure }
                         "feedback" -> feedback(input)
                         "clear_feedback" -> {
