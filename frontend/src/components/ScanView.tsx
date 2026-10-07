@@ -1,6 +1,5 @@
 import { NumberInput } from "./NumberInput";
 import { RegionExperiment } from "./RegionExperiment";
-import { splitSuggestions } from "../foodSuggestions";
 import React, { useEffect, useState } from "react";
 import { EmbeddingGemmaPanel } from "./EmbeddingGemmaPanel";
 import { CameraCapture } from "./CameraCapture";
@@ -27,8 +26,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
   const [changingBackend, setChangingBackend] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
   const [showEmbedding, setShowEmbedding] = useState(false);
-  const [isSystem, setIsSystem] = useState(false);
-  const [isFast, setIsFast] = useState(false);
+  const [provider, setProvider] = useState<string | null>(null);
+  const [regionRunRequest, setRegionRunRequest] = useState(0);
+  const isSystem = provider === "system";
   const [fastBackend, setFastBackend] = useState<"cpu" | "gpu">("cpu");
   const [fastResult, setFastResult] = useState<
     Commands["fast_scan"]["result"] | null
@@ -38,12 +38,13 @@ export const ScanView: React.FC<ScanViewProps> = ({
     busy: systemBusy,
     check: checkSystemAi,
   } = useSystemAi(isSystem && !isAnalyzing);
+  const isFast = provider === "embedding" || provider === "local" ||
+    (isSystem && systemStatus !== null && systemStatus.state !== "available");
   useEffect(() => {
     if (window.oriel)
       void invoke("get_settings")
         .then((settings) => {
-          setIsSystem(settings.provider === "system");
-          setIsFast(settings.provider === "embedding");
+          setProvider(settings.provider || "local");
           setFastBackend(settings.embeddingBackend === "gpu" ? "gpu" : "cpu");
         })
         .catch(() => {});
@@ -85,42 +86,14 @@ export const ScanView: React.FC<ScanViewProps> = ({
       // Check saved provider and live readiness again at the point of use.
       const settings = await invoke("get_settings");
       const system = settings.provider === "system";
-      setIsSystem(system);
-      setIsFast(settings.provider === "embedding");
-      if (settings.provider === "embedding") {
-        const result = await invoke("fast_scan", { image: selectedImage });
-        setFastResult(result);
-        if (result.feedback_warning) setFeedbackError(result.feedback_warning);
-        setHasAnalyzed(true);
-        setScanSummary(
-          "Select only the foods you can see. Rename labels and set package counts and fill levels before saving.",
-        );
-        const strongerNames = new Set(
-          splitSuggestions(
-            result.matches,
-            result.background_score,
-          ).stronger.map((match) => match.label),
-        );
-        setDetectedItems(
-          result.matches.map((match) => ({
-            name: match.label,
-            selected: false,
-            desired: 1,
-            quantity: 1,
-            fill_percentage: 100,
-            unit: "package",
-            similarity: match.score,
-            adjustment: match.adjustment,
-            stronger: strongerNames.has(match.label),
-            notes:
-              "Confirmed from a fast local suggestion; quantity and fill level set during review.",
-          })),
-        );
+      setProvider(settings.provider || "local");
+      const status = system ? await checkSystemAi() : null;
+      if (!settings.provider || settings.provider === "embedding" || settings.provider === "local" ||
+          (system && status?.state !== "available")) {
+        setShowRegions(true);
+        setRegionRunRequest((request) => request + 1);
+        requestAnimationFrame(() => document.getElementById("fast-multi-scan")?.scrollIntoView({ behavior: "smooth", block: "start" }));
         return;
-      }
-      if (system) {
-        const status = await checkSystemAi();
-        if (status.state !== "available") return;
       }
       const res = await invoke("analyze_image", {
         location:
@@ -480,7 +453,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
           />
           {systemStatus?.state === "unavailable" && (
             <p className="text-muted">
-              Choose a local model or server in Settings to scan on this device.
+              Use fast multi-item scanning on this device. Choose a server in Settings to use an LLM.
             </p>
           )}
         </div>
@@ -495,6 +468,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
             setFeedbackError(null);
             setHasAnalyzed(false);
             setFastResult(null);
+            setShowRegions(false);
+            setRegionRunRequest(0);
             setSelectedImage(img);
             setDetectedItems([]);
             setAnalysisError(null);
@@ -504,6 +479,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
             setFeedbackError(null);
             setHasAnalyzed(false);
             setFastResult(null);
+            setShowRegions(false);
+            setRegionRunRequest(0);
             setSelectedImage(null);
             setDetectedItems([]);
             setAnalysisError(null);
@@ -530,7 +507,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
                 embeddingBusy ||
                 isAnalyzing ||
                 isSaving ||
-                (isSystem &&
+                provider === null ||
+                (isSystem && !isFast &&
                   (systemBusy !== null || systemStatus?.state !== "available"))
               }
             >
@@ -541,7 +519,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
                     ? "Matching foods on your phone…"
                     : "Analyzing shelf with AI..."}
                 </>
-              ) : isSystem && systemStatus?.state !== "available" ? (
+              ) : isSystem && !isFast && systemStatus?.state !== "available" ? (
                 systemBusy === "downloading" ||
                 systemStatus?.state === "downloading" ? (
                   "Waiting for system model…"
@@ -549,7 +527,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
                   "System AI must be ready to scan"
                 )
               ) : isFast ? (
-                "Suggest foods in this photo"
+                "Suggest foods · fast multi-item scan"
               ) : (
                 "Find items in this photo"
               )}
@@ -559,7 +537,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
       </div>
 
       {selectedImage && (
-        <div className="embedding-entry">
+        <div className="embedding-entry" id="fast-multi-scan">
           <button
             type="button"
             className="btn"
@@ -571,16 +549,21 @@ export const ScanView: React.FC<ScanViewProps> = ({
               embeddingBusy ||
               feedbackBusy
             }
-            onClick={() => setShowRegions((shown) => !shown)}
+            onClick={() => {
+              setRegionRunRequest(0);
+              setShowRegions((shown) => !shown);
+            }}
           >
             {showRegions
-              ? "Close multi-item comparison"
-              : "Compare multi-item scanning"}
+              ? "Close multi-item scan"
+              : isFast ? "Choose multi-item scan options" : "Try fast multi-item scanning"}
           </button>
           {showRegions && (
             <RegionExperiment
               key={selectedImage}
               image={selectedImage}
+              runRequest={regionRunRequest}
+              primaryFlow={isFast}
               disabled={
                 isAnalyzing || isSaving || changingBackend || feedbackBusy
               }

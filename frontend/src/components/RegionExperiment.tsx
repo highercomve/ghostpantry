@@ -96,8 +96,12 @@ export function RegionExperiment({
   disabled,
   onBusyChange,
   onReviewItem,
+  runRequest = 0,
+  primaryFlow = false,
 }: {
   image: string;
+  runRequest?: number;
+  primaryFlow?: boolean;
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
   onReviewItem: (label: string) => void;
@@ -127,11 +131,13 @@ export function RegionExperiment({
       y: (event.clientY - bounds.top) / bounds.height,
     };
   };
+  const lastRunRequest = useRef(0);
   const cancelled = useRef(false),
     mounted = useRef(true),
     pending = useRef(false);
   useEffect(() => {
     mounted.current = true;
+    cancelled.current = false;
     return () => {
       mounted.current = false;
       cancelled.current = true;
@@ -232,7 +238,7 @@ export function RegionExperiment({
           cancelled.current
             ? "Stopped after the current region. Partial results below."
             : regions.length
-              ? "Comparison ready."
+              ? primaryFlow ? "Foods ready for review." : "Comparison ready."
               : `Detector found no regions above its ${threshold.toFixed(2)} threshold.`,
         );
         setRuns((previous) => [
@@ -263,6 +269,11 @@ export function RegionExperiment({
       }
     }
   };
+  useEffect(() => {
+    if (runRequest <= lastRunRequest.current || disabled || teaching || pending.current) return;
+    lastRunRequest.current = runRequest;
+    void run();
+  }, [runRequest, disabled, teaching, run]);
   const teach = async (index: number, accepted: boolean) => {
     const region = runs.at(-1)?.regions[index];
     const label = (
@@ -306,8 +317,8 @@ export function RegionExperiment({
     latest && activeRegion !== null ? latest.regions[activeRegion] : null;
   return (
     <section className="settings-section embedding-panel">
-      <span className="eyebrow">ON-DEVICE COMPARISON</span>
-      <h3>Multi-item scan experiment</h3>
+      <span className="eyebrow">{primaryFlow ? "FAST ON-DEVICE SCAN" : "ON-DEVICE COMPARISON"}</span>
+      <h3>{primaryFlow ? "Find foods to add" : "Multi-item scan experiment"}</h3>
       <p>
         Compare the same photo and saved food list. The grid checks 10
         overlapping regions; detectors propose up to 12 regions. Generic COCO
@@ -508,7 +519,7 @@ export function RegionExperiment({
         }
         onClick={() => void run()}
       >
-        Run comparison
+        {primaryFlow ? "Scan foods" : "Run comparison"}
       </button>
       {busy && (
         <div className="embedding-progress" role="status">

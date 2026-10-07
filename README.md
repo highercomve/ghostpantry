@@ -430,3 +430,8 @@ not phone accuracy or general validation. Native resize/postprocessing tests and
 export comparison are documented in [experiments](experiments/README.md).
 The two YOLOE model assets carry their upstream AGPL-3.0 license, included beside
 the weights as `YOLOE-LICENSE`; they were exported with Ultralytics 8.4.174.
+
+The main photo action now opens and runs fast multi-item detection for local
+and embedding providers, and whenever selected system AI is not ready. Server
+providers keep their LLM analysis path; available system AI also keeps its
+existing path. Crops are reviewed before items are saved to inventory.
