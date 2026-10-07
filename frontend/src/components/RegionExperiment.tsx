@@ -93,7 +93,8 @@ export function RegionExperiment({
   disabled,
   onBusyChange,
   onReviewItem,
-  savedCrops = {},
+  onFinishReview,
+  queuedCrops = {},
   runRequest = 0,
   primaryFlow = false,
 }: {
@@ -103,7 +104,8 @@ export function RegionExperiment({
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
   onReviewItem: (label: string, cropId: string) => Promise<void>;
-  savedCrops?: Record<string, string>;
+  queuedCrops?: Record<string, string>;
+  onFinishReview: () => void;
 }) {
   const [mode, setMode] = useState<Mode>("yoloe");
   const [rfThreshold, setRfThreshold] = useState(0.25);
@@ -318,7 +320,7 @@ export function RegionExperiment({
     const label = corrections[index]?.trim();
     if (!result || !label || addingCrop !== null) return;
     const key = cropKey(result.region);
-    if (savedCrops[key]) return;
+    if (queuedCrops[key] === label) return;
     setAddingCrop(key);
     setCropErrors((previous) => ({ ...previous, [key]: "" }));
     try {
@@ -340,7 +342,7 @@ export function RegionExperiment({
         Compare the same photo and saved food list. The grid checks 10
         overlapping regions; YOLOE combines up to 12 package and 12 produce regions. Generic COCO
         boxes can miss pantry packages. Review a crop label to add it to
-        inventory after choosing its product. Only explicit
+        the final review after choosing its product. Only explicit
         confirmations and rejections teach corrections.
       </p>
       <div className="region-options">
@@ -558,8 +560,9 @@ export function RegionExperiment({
               <h4>Image review and corrections</h4>
               <p>
                 Choose a suggestion or type the product for each crop, then add it
-                to inventory. Each confirmed crop adds one unit; matching products
-                share one inventory entry. “Unknown” is kept when evidence is weak.
+                to the final review. Matching products are grouped and each chosen
+                crop counts as one unit. Review quantity and fill at the end before
+                saving to inventory.
               </p>
               <p role="status">{feedbackMessage}</p>
             </>
@@ -640,9 +643,9 @@ export function RegionExperiment({
                         maxLength={120}
                         placeholder="Type the actual food category"
                         value={
-                          savedCrops[cropKey(result.region)] ?? corrections[index] ?? ""
+                          corrections[index] ?? queuedCrops[cropKey(result.region)] ?? ""
                         }
-                        disabled={busy || teaching || disabled || !!savedCrops[cropKey(result.region)]}
+                        disabled={busy || teaching || disabled}
                         onChange={(e) =>
                           setCorrections((previous) => ({
                             ...previous,
@@ -655,10 +658,10 @@ export function RegionExperiment({
                       <button
                         type="button"
                         className="btn primary"
-                        disabled={busy || teaching || disabled || addingCrop !== null || !!savedCrops[cropKey(result.region)] || !corrections[index]?.trim()}
+                        disabled={busy || teaching || disabled || addingCrop !== null || (!!queuedCrops[cropKey(result.region)] && queuedCrops[cropKey(result.region)] === (corrections[index] ?? queuedCrops[cropKey(result.region)])?.trim()) || !corrections[index]?.trim()}
                         onClick={() => void addCrop(index)}
                       >
-                        {savedCrops[cropKey(result.region)] ? "Added to inventory" : addingCrop === cropKey(result.region) ? "Adding…" : "Add to inventory"}
+                        {addingCrop === cropKey(result.region) ? "Adding…" : queuedCrops[cropKey(result.region)] === (corrections[index] ?? queuedCrops[cropKey(result.region)])?.trim() && queuedCrops[cropKey(result.region)] ? "Added to review" : "Add to final review"}
                       </button>
                       <button
                         type="button"
@@ -695,7 +698,7 @@ export function RegionExperiment({
                         Wrong category for this crop
                       </button>
                     </div>
-                    {savedCrops[cropKey(result.region)] && <p role="status">Added one {savedCrops[cropKey(result.region)]}. Continue with the next crop.</p>}
+                    {queuedCrops[cropKey(result.region)] && <p role="status">{queuedCrops[cropKey(result.region)]} is in the final review. Continue choosing crops; quantity and fill are reviewed at the end.</p>}
                     {cropErrors[cropKey(result.region)] && <p role="alert">{cropErrors[cropKey(result.region)]}</p>}
                     <ul>
                       {result.recognition.suggestions.map((suggestion) => (
@@ -703,7 +706,7 @@ export function RegionExperiment({
                           <button
                             type="button"
                             className="btn"
-                            disabled={busy || teaching || disabled || !!savedCrops[cropKey(result.region)]}
+                            disabled={busy || teaching || disabled}
                             onClick={() =>
                               setCorrections((previous) => ({
                                 ...previous,
@@ -750,6 +753,14 @@ export function RegionExperiment({
               </div>
             ))}
           </details>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy || teaching || disabled || Object.keys(queuedCrops).length === 0}
+            onClick={onFinishReview}
+          >
+            Review quantities and fill
+          </button>
         </>
       )}
       {runs.length > 0 && (
