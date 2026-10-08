@@ -18,6 +18,7 @@ import android.view.WindowInsetsController
 import android.webkit.ValueCallback
 import android.webkit.WebView
 import android.widget.FrameLayout
+import androidx.core.view.WindowCompat
 
 /**
  * Shows one Oriel window. The launcher ([OrielMainActivity], `singleTask`)
@@ -39,6 +40,7 @@ open class OrielActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.enableEdgeToEdge(window)
         root = FrameLayout(this)
         // Android 15 draws apps targeting API 35 edge to edge: keep the page
         // clear of the status and navigation bars, the display cutout and the
@@ -169,23 +171,21 @@ open class OrielActivity : Activity() {
      * installed web app's. A task colour must be opaque (a translucent one
      * is made so); on Android 15+ the caption's icons follow its lightness.
      */
-    /** The status bar's colour before the page's theme-color first replaced it. */
-    private var themeStatusBar: Int? = null
-
     internal fun applyTitle(title: String, themeColor: Int?) {
         setTitle(title)
         val color = themeColor?.let { it or (0xff shl 24) } ?: 0
         @Suppress("DEPRECATION")
         setTaskDescription(ActivityManager.TaskDescription(title, null, color))
-        // ChromeOS paints an Android window's caption with its status bar's
-        // colour: the theme's own comes back when the page drops its colour.
-        @Suppress("DEPRECATION")
-        run {
-            val base = themeStatusBar ?: window.statusBarColor.also { themeStatusBar = it }
-            window.statusBarColor = if (themeColor != null) color else base
+        // Paint behind the inset-protected content rather than using deprecated
+        // status/navigation bar colors. Match icon contrast to the page theme.
+        val light = themeColor?.let { android.graphics.Color.luminance(color) > 0.5f }
+            ?: (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK != Configuration.UI_MODE_NIGHT_YES)
+        root.setBackgroundColor(if (themeColor != null) color else if (light) 0xfff6f5f0.toInt() else 0xff191d18.toInt())
+        WindowCompat.getInsetsController(window, root).apply {
+            isAppearanceLightStatusBars = light
+            isAppearanceLightNavigationBars = light
         }
         if (Build.VERSION.SDK_INT >= 35) {
-            val light = themeColor != null && android.graphics.Color.luminance(color) > 0.5f
             window.insetsController?.setSystemBarsAppearance(
                 if (light) WindowInsetsController.APPEARANCE_LIGHT_CAPTION_BARS else 0,
                 WindowInsetsController.APPEARANCE_LIGHT_CAPTION_BARS,

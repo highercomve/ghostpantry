@@ -17,4 +17,6 @@ Initial validation passed Android unit tests, release APK/AAB builds, AAB signat
 Production access requires a closed test with at least 12 opted-in testers for at least 14 days, followed by Google's production-access review. Internal testing does not satisfy that requirement.
 
 - Internal update: 0.1.2 (version code 102), published 2026-10-08. Guided food review, grouped quantities, system theme support and scan timing details.
-- Latest GitHub preview: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.2
+- GitHub release: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.2
+
+- Release 0.1.3 (version code 103): Android R8 code/resource optimization, updated edge-to-edge handling and corrected app version display. Signed packages prepared for internal and closed testing; Play rollout pending.

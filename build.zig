@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const target = oriel.resolveTarget(b, b.standardTargetOptions(.{}));
     const optimize = b.standardOptimizeOption(.{});
     const is_android = target.result.abi.isAndroid();
-    const app_version = b.option([]const u8, "app_version", "Version embedded in release packages") orelse "0.1.2";
+    const app_version = b.option([]const u8, "app_version", "Version embedded in release packages") orelse "0.1.3";
 
     const dep = b.dependency("oriel", .{
         .target = target,
@@ -42,7 +42,7 @@ pub fn build(b: *std.Build) void {
         .android = .{
             .sources = &.{ b.path("android/native/PantryCameraProvider.kt"), b.path("android/native/PantryAndroidExtension.kt"), b.path("android/native/SystemAiExtension.kt"), b.path("android/native/EmbeddingGemmaExtension.kt"), b.path("android/native/EmbeddingMath.kt"), b.path("android/native/EmbeddingCache.kt"), b.path("android/native/EmbeddingFeedback.kt"), b.path("android/native/PantryDetector.kt"), b.path("android/native/YoloePackageMath.kt"), b.path("android/native/YoloePackageDetector.kt") },
             .extensions = &.{ "dev.ghostpantry.PantryAndroidExtension", "dev.ghostpantry.SystemAiExtension", "dev.ghostpantry.EmbeddingGemmaExtension" },
-            .dependencies = &.{ "com.google.mlkit:genai-prompt:1.0.0-beta4", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2", "com.google.ai.edge.litertlm:litertlm-android:0.18.0", "com.microsoft.onnxruntime:onnxruntime-android:1.30.0" },
+            .dependencies = &.{ "androidx.core:core:1.17.0", "com.google.mlkit:genai-prompt:1.0.0-beta4", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2", "com.google.ai.edge.litertlm:litertlm-android:0.18.0", "com.microsoft.onnxruntime:onnxruntime-android:1.30.0" },
             .native_libraries = &.{.{ .name = "libvndksupport.so" }},
             .proguard_rules = b.path("android/native/proguard-rules.pro"),
         },

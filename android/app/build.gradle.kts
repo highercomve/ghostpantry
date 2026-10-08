@@ -14,15 +14,16 @@ android {
         applicationId = "dev.ghostpantry.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 102
-        versionName = "0.1.2"
+        versionCode = 103
+        versionName = "0.1.3"
 
     }
 
     // Phones and Intel Chromebooks each download only their own native runtime.
     splits {
         abi {
-            isEnable = true
+            // AGP resource shrinking cannot combine split APKs with a bundle.
+            isEnable = !gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }
             reset()
             include("arm64-v8a", "x86_64")
             isUniversalApk = false
@@ -43,7 +44,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (System.getenv("ORIEL_ANDROID_KEYSTORE") != null) signingConfig = signingConfigs.getByName("release")
         }
     }
