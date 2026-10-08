@@ -19,4 +19,4 @@ Production access requires a closed test with at least 12 opted-in testers for a
 - Internal update: 0.1.2 (version code 102), published 2026-10-08. Guided food review, grouped quantities, system theme support and scan timing details.
 - GitHub release: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.2
 
-- Release 0.1.3 (version code 103): Android R8 code/resource optimization, updated edge-to-edge handling and corrected app version display. Signed packages prepared for internal and closed testing; Play rollout pending.
+- Release 0.1.3 (version code 103): Android R8 code/resource optimization, updated edge-to-edge handling and corrected app version display. Published to internal testing on 2026-10-08; closed Alpha update submitted to Google review. GitHub release: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.3
