@@ -15,3 +15,6 @@ The upload certificate is play-upload-certificate.pem. The private upload keysto
 Initial validation passed Android unit tests, release APK/AAB builds, AAB signature verification, and 16 KB ELF load alignment checks for every native library. The AAB is approximately 91 MB; device downloads contain only the matching ABI.
 
 Production access requires a closed test with at least 12 opted-in testers for at least 14 days, followed by Google's production-access review. Internal testing does not satisfy that requirement.
+
+- Internal update: 0.1.2 (version code 102), published 2026-10-08. Guided food review, grouped quantities, system theme support and scan timing details.
+- Latest GitHub preview: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.2
