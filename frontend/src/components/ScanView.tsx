@@ -23,8 +23,10 @@ export const ScanView: React.FC<ScanViewProps> = ({
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [embeddingBusy, setEmbeddingBusy] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(false);
   const [changingBackend, setChangingBackend] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
+  const [finalReview, setFinalReview] = useState(false);
   const [provider, setProvider] = useState<string | null>(null);
   const [regionRunRequest, setRegionRunRequest] = useState(0);
   const [queuedCrops, setQueuedCrops] = useState<Record<string, Record<string, string>>>({});
@@ -252,10 +254,10 @@ export const ScanView: React.FC<ScanViewProps> = ({
         <div>
           <span className="eyebrow">FROM A PHOTO TO YOUR PANTRY</span>
           <h2>
-            Meet your shelf<span>.</span>
+            Add foods from a photo<span>.</span>
           </h2>
           <p className="text-muted">
-            A clear photo is all it takes. Review what we find before adding it.
+            Take a photo, choose the foods, then check quantities before saving.
           </p>
         </div>
       </div>
@@ -273,10 +275,10 @@ export const ScanView: React.FC<ScanViewProps> = ({
                 : ""
           }
         >
-          <span>02</span> Discover & review
+          <span>02</span> Choose foods
         </li>
-        <li>
-          <span>03</span> Save to pantry
+        <li className={finalReview ? "current" : ""}>
+          <span>03</span> Review & save
         </li>
       </ol>
       <div className="target-area-card">
@@ -348,7 +350,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
       )}
 
       {isFast && !hasAnalyzed && (
+        <details className="scan-advanced" open={needsSetup || undefined}><summary>Offline scan setup{needsSetup ? " · download needed" : ""}</summary>
         <EmbeddingGemmaPanel
+          onSetupRequired={setNeedsSetup}
           selectedBackend={fastBackend}
           onBackendChange={(backend) => {
             const previous = fastBackend;
@@ -371,10 +375,11 @@ export const ScanView: React.FC<ScanViewProps> = ({
           disabled={isAnalyzing || isSaving || changingBackend || feedbackBusy}
           onBusyChange={setEmbeddingBusy}
         />
+        </details>
       )}
 
       {isFast && (
-        <div className="suggestion-intro">
+        <details className="scan-advanced"><summary>Saved food corrections</summary><div className="suggestion-intro">
           <strong>Learn from your corrections</strong>
           <p>
             After a scan, remember a correct label or mark a wrong suggestion.
@@ -398,7 +403,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
           </button>
           {feedbackMessage && <p role="status">{feedbackMessage}</p>}
           {feedbackError && <p role="alert">{feedbackError}</p>}
-        </div>
+        </div></details>
       )}
 
       {isSystem && !hasAnalyzed && (
@@ -439,6 +444,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             setFeedbackMessage(null);
             setFeedbackError(null);
             setHasAnalyzed(false);
+            setFinalReview(false);
             setShowRegions(false);
             setRegionRunRequest(0);
             setQueuedCrops({});
@@ -450,6 +456,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
             setFeedbackMessage(null);
             setFeedbackError(null);
             setHasAnalyzed(false);
+            setFinalReview(false);
             setShowRegions(false);
             setRegionRunRequest(0);
             setQueuedCrops({});
@@ -467,7 +474,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
         />
 
         {/* Immediate CTA directly below image preview */}
-        {selectedImage && detectedItems.length === 0 && (
+        {selectedImage && detectedItems.length === 0 && !showRegions && (
           <div className="scan-cta-block">
             <button
               type="button"
@@ -480,6 +487,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
                 isAnalyzing ||
                 isSaving ||
                 provider === null ||
+                (isFast && needsSetup) ||
                 (isSystem && !isFast &&
                   (systemBusy !== null || systemStatus?.state !== "available"))
               }
@@ -498,8 +506,10 @@ export const ScanView: React.FC<ScanViewProps> = ({
                 ) : (
                   "System AI must be ready to scan"
                 )
+              ) : isFast && needsSetup ? (
+                "Download offline model above to start"
               ) : isFast ? (
-                "Suggest foods · fast multi-item scan"
+                "Find foods"
               ) : (
                 "Find items in this photo"
               )}
@@ -510,28 +520,13 @@ export const ScanView: React.FC<ScanViewProps> = ({
 
       {selectedImage && (
         <div className="embedding-entry" id="fast-multi-scan">
-          <button
-            type="button"
-            className="btn"
-            aria-expanded={showRegions}
-            disabled={
-              isAnalyzing ||
-              isSaving ||
-              changingBackend ||
-              embeddingBusy ||
-              feedbackBusy
-            }
-            onClick={() => {
-              setRegionRunRequest(0);
-              setShowRegions((shown) => !shown);
-            }}
-          >
-            {showRegions
-              ? "Close multi-item scan"
-              : isFast ? "Open fast food scan" : "Try fast multi-item scanning"}
-          </button>
+          {!isFast && !showRegions && <button type="button" className="btn"
+            disabled={isAnalyzing || embeddingBusy || isSaving}
+            onClick={() => { setShowRegions(true); setRegionRunRequest((value) => value + 1); }}>
+            Use offline scan instead
+          </button>}
           {showRegions && (
-            <FoodScan
+            <div hidden={finalReview}><FoodScan
               key={selectedImage}
               image={selectedImage}
               runRequest={regionRunRequest}
@@ -541,8 +536,8 @@ export const ScanView: React.FC<ScanViewProps> = ({
               onBusyChange={setEmbeddingBusy}
               queuedCrops={queuedCrops[location] ?? {}}
               onReviewItem={queueCropForReview}
-              onFinishReview={() => document.getElementById("inventory-review")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            />
+              onFinishReview={() => { setFinalReview(true); requestAnimationFrame(() => document.getElementById("inventory-review")?.scrollIntoView({ behavior: "smooth", block: "start" })); }}
+            /></div>
           )}
         </div>
       )}
@@ -561,8 +556,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
         </p>
       </div>
       {/* Review Results */}
-      {detectedItems.length > 0 && (
+      {detectedItems.length > 0 && (!showRegions || finalReview) && (
         <div id="inventory-review" className="review-card">
+          {showRegions && <button className="btn" disabled={isSaving} onClick={() => setFinalReview(false)}>← Back to choosing foods</button>}
           <div className="review-card-head">
             <div>
               <h3>Final inventory review ({detectedItems.length})</h3>

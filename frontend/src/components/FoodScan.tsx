@@ -102,6 +102,7 @@ export function FoodScan({
   const [error, setError] = useState<string | null>(null);
   const [activeRegion, setActiveRegion] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [completedTimings, setCompletedTimings] = useState<MatchResult[]>([]);
   const [manualRegions, setManualRegions] = useState<Region[]>([]);
   const [draft, setDraft] = useState<Region | null>(null);
   const drag = useRef<{ x: number; y: number; pointer: number } | null>(null);
@@ -142,9 +143,11 @@ export function FoodScan({
     onBusyChange(true);
     setError(null);
     setCorrections({});
+    setSkipped([]);
     setFeedbackMessage("");
     setElapsed(0);
-    setActiveRegion(null);
+    setCompletedTimings([]);
+    setActiveRegion(0);
     setProgress({ done: 0, total: 0 });
     setStage("Reading saved food labels…");
     const started = performance.now();
@@ -188,7 +191,7 @@ export function FoodScan({
         if (cancelled.current) break;
         setStage(
           index === 0
-            ? "Preparing label cache and identifying region 1…"
+            ? "Loading food matching and checking saved labels…"
             : `Identifying region ${index + 1} of ${regions.length}…`,
         );
         const cropped = crop(photo, regions[index]);
@@ -198,6 +201,7 @@ export function FoodScan({
           labels,
           use_feedback: useMemory,
         });
+        if (mounted.current) setCompletedTimings((previous) => [...previous, result]);
         complete.push({
           region: regions[index],
           image: cropped,
@@ -301,63 +305,40 @@ export function FoodScan({
     setCropErrors((previous) => ({ ...previous, [key]: "" }));
     try {
       await onReviewItem(label, key);
+      setSkipped((previous) => previous.filter((value) => value !== index));
+      setActiveRegion(Math.min(index + 1, (runs.at(-1)?.regions.length ?? 1) - 1));
     } catch (failure) {
       setCropErrors((previous) => ({ ...previous, [key]: failure instanceof Error ? failure.message : String(failure) }));
     } finally {
       if (mounted.current) setAddingCrop(null);
     }
   };
+  const [skipped, setSkipped] = useState<number[]>([]);
   const latest = runs.at(-1);
   const selected =
     latest && activeRegion !== null ? latest.regions[activeRegion] : null;
   return (
     <section className="settings-section embedding-panel">
-      <span className="eyebrow">FAST & OFFLINE</span>
-      <h3>Find foods to add</h3>
-      <p>Scan packages and loose produce together. Choose the product for each
-        crop, then review grouped quantities and fill before saving.</p>
-      <div className="region-options">
-        <label>
-          <input
-            type="checkbox"
-            checked={useMemory}
-            disabled={busy || teaching || disabled}
-            onChange={(e) => setUseMemory(e.target.checked)}
-          />{" "}
-          Use my confirmed crop examples
-        </label>
-        <small>
-          Confirm or correct each crop below. Saved examples improve visual
-          matching on this phone. Use saved examples to recognize familiar products.
-        </small>
+      <div className="food-scan-heading">
+        <span className="eyebrow">{latest ? "CHOOSE YOUR FOODS" : "ON YOUR PHONE"}</span>
+        <h3>{busy ? "Finding your foods…" : latest ? "What’s in your photo?" : "Ready to find foods"}</h3>
+        <p>{latest ? "Choose a name for each food you want to keep. You’ll check amounts before saving." : "We’ll look for packages, fruit and vegetables. You choose what goes into your pantry."}</p>
       </div>
-      <div className="embedding-actions">
-        <button type="button" className={`btn ${mode === "yoloe" ? "primary" : ""}`}
-          disabled={busy || teaching || disabled} aria-pressed={mode === "yoloe"}
-          onClick={() => setMode("yoloe")}>Automatic food scan</button>
-        <button type="button" className={`btn ${mode === "manual" ? "primary" : ""}`}
-          disabled={busy || teaching || disabled} aria-pressed={mode === "manual"}
-          onClick={() => setMode("manual")}>Mark missed foods</button>
-      </div>
-      {mode === "yoloe" && (
-        <div className="region-options">
-          <p>
-            Scans packages first, then loose fruit and vegetables on CPU. Both
-            phases use the whole photo and overlapping crops. Their boxes are
-            merged before foods are matched for your review.
-          </p>
-          <label>
-            Minimum detection score
-            <select value={packageThreshold} disabled={busy || teaching || disabled}
-              onChange={(event) => setPackageThreshold(Number(event.target.value))}>
-              <option value={0.1}>0.10 · tuned setting</option>
-              <option value={0.15}>0.15 · fewer weak proposals</option>
-              <option value={0.25}>0.25 · stronger proposals</option>
-            </select>
-          </label>
-          <small>Loose produce uses a minimum score of 0.15. Overlapping boxes are merged; confirm foods and quantities before adding them.</small>
-        </div>
-      )}
+      {!busy && <div className="embedding-actions">
+        <button type="button" className="btn" disabled={teaching || disabled}
+          onClick={() => setMode(mode === "manual" ? "yoloe" : "manual")}>
+          {mode === "manual" ? "Back to automatic scan" : "Add a missed food"}
+        </button>
+      </div>}
+      <details className="scan-advanced">
+        <summary>Scan options</summary>
+        <label><input type="checkbox" checked={useMemory} disabled={busy || teaching || disabled}
+          onChange={(event) => setUseMemory(event.target.checked)} /> Use saved food examples</label>
+        <label>Detection sensitivity<select value={packageThreshold} disabled={busy || teaching || disabled}
+          onChange={(event) => setPackageThreshold(Number(event.target.value))}>
+          <option value={0.1}>Find more foods</option><option value={0.15}>Balanced</option><option value={0.25}>Stronger matches only</option>
+        </select></label>
+      </details>
       {mode === "manual" && (
         <div className="package-editor">
           <p>
@@ -460,7 +441,7 @@ export function FoodScan({
           </div>
         </div>
       )}
-      <button
+      {(!latest || mode === "manual") && !busy && <button
         type="button"
         className="btn primary"
         disabled={
@@ -471,19 +452,20 @@ export function FoodScan({
         }
         onClick={() => void run()}
       >
-        Scan foods
-      </button>
+        {mode === "manual" ? "Find these foods" : "Find foods"}
+      </button>}
       {busy && (
         <div className="embedding-progress" role="status">
-          <strong>{stage}</strong>
-          <span>{elapsed.toFixed(1)} s elapsed</span>
+          <strong>{progress.total ? progress.done === 0 ? "Preparing food matching…" : `Identifying food ${Math.min(progress.done + 1, progress.total)} of ${progress.total}` : "Looking for foods in your photo…"}</strong>
+          <span>This can take a moment. Keep the app open.</span>
           {progress.total > 0 && (
             <progress max={progress.total} value={progress.done} />
           )}
-          <p>
-            First use of a food list prepares its cache. Later runs reuse it.
-            Keep the app open.
-          </p>
+          <details><summary>Scan details</summary><p>{stage} · {elapsed.toFixed(1)} s</p>
+            {completedTimings.map((result, index) => <p key={index}>Food {index + 1} · {result.backend?.toUpperCase()}<br />
+              Model load: {(result.load_ms / 1000).toFixed(1)} s · Labels: {(result.labels_ms / 1000).toFixed(1)} s ({result.label_cache})<br />
+              Image matching: {(result.image_ms / 1000).toFixed(1)} s · Memory: {Math.round(result.pss_mb)} MiB</p>)}
+          </details>
           <button
             type="button"
             className="btn"
@@ -492,199 +474,65 @@ export function FoodScan({
               setStage("Stopping after the current region…");
             }}
           >
-            Stop after current region
+            Stop scan
           </button>
         </div>
       )}
-      {!busy && stage && <p role="status">{stage}</p>}
-      {error && <p role="alert">{error}</p>}
-      {latest && (
-        <>
-          {
-            <>
-              <h4>Image review and corrections</h4>
-              <p>
-                Choose a suggestion or type the product for each crop, then add it
-                to the final review. Matching products are grouped and each chosen
-                crop counts as one unit. Review quantity and fill at the end before
-                saving to inventory.
-              </p>
-              <p role="status">{feedbackMessage}</p>
-            </>
-          }
-          {
-            <ul>
-              {latest.regions.map((region, index) => (
-                <li key={index}>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => setActiveRegion(index)}
-                  >
-                    Region {index + 1}: {region.recognition?.label ?? "Unknown"}
-                  </button>{" "}
-                  · {region.recognition?.state ?? "review"}
-                </li>
-              ))}
-            </ul>
-          }
-          {latest.regions.length === 0 && (
-            <p>
-              No foods were detected. Use “Mark missed foods” to draw boxes around visible products.
-            </p>
-          )}
-          <div className="region-photo">
-            <img src={image} alt="Original food photo" />
-            {selected && (
-              <div
-                className="region-outline"
-                style={{
-                  left: `${selected.region.x * 100}%`,
-                  top: `${selected.region.y * 100}%`,
-                  width: `${selected.region.width * 100}%`,
-                  height: `${selected.region.height * 100}%`,
-                }}
-              />
-            )}
+      {error && <div className="alert alert-danger" role="alert"><strong>Couldn’t finish the scan</strong><p>{error}</p><button className="btn" disabled={busy || disabled} onClick={() => void run()}>Try again</button></div>}
+      {latest && !busy && <>
+        <details className="scan-advanced"><summary>Scan timing</summary>
+          <p>Total: {(latest.totalMs / 1000).toFixed(1)} s · Detection: {(latest.detectorMs / 1000).toFixed(1)} s · {latest.backend.toUpperCase()}</p>
+          {completedTimings.map((result, index) => <p key={index}>Food {index + 1}: load {(result.load_ms / 1000).toFixed(1)} s · labels {(result.labels_ms / 1000).toFixed(1)} s ({result.label_cache}) · image {(result.image_ms / 1000).toFixed(1)} s · {Math.round(result.pss_mb)} MiB</p>)}
+        </details>
+        <div className="food-review-progress" role="status">
+          <strong>{Object.keys(queuedCrops).length} chosen</strong><span>{skipped.length} skipped · {latest.regions.length} found</span>
+        </div>
+        <div className="food-review-nav" aria-label="Foods in this photo">
+          {latest.regions.map((result, index) => <button type="button" key={index}
+            className={`btn ${activeRegion === index ? "primary" : ""}`} aria-label={`Food ${index + 1}${queuedCrops[cropKey(result.region)] ? ", chosen" : skipped.includes(index) ? ", skipped" : ""}`}
+            aria-pressed={activeRegion === index} onClick={() => setActiveRegion(index)}>
+            {index + 1}{queuedCrops[cropKey(result.region)] ? " ✓" : skipped.includes(index) ? " −" : ""}
+          </button>)}
+        </div>
+        {latest.regions.length === 0 && <p>No foods found. Tap “Add a missed food” to mark one in your photo.</p>}
+        {selected && activeRegion !== null && <article className="food-choice-card" key={activeRegion}>
+          <div className="food-choice-top"><span className="eyebrow">FOOD {activeRegion + 1} OF {latest.regions.length}</span><span>{queuedCrops[cropKey(selected.region)] ? "✓ Chosen" : "Your choice"}</span></div>
+          <img className="food-choice-image" src={selected.image} alt={`Food ${activeRegion + 1} to identify`} />
+          <h4>What food is this?</h4>
+          <p className="text-muted">Tap a suggestion or enter a name.</p>
+          <div className="food-suggestions">
+            {selected.recognition?.suggestions.slice(0, 5).map((suggestion) => <button type="button" className={`btn ${corrections[activeRegion] === suggestion.label ? "primary" : ""}`} key={suggestion.label}
+              disabled={teaching || disabled} onClick={() => setCorrections((previous) => ({ ...previous, [activeRegion]: suggestion.label }))}>{suggestion.label}</button>)}
           </div>
-          <details open>
-            <summary>
-              Inspect all {latest.regions.length} regions and weaker matches
-            </summary>
-            {latest.regions.map((result, index) => (
-              <div className="embedding-results" key={index}>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setActiveRegion(index)}
-                >
-                  Highlight region {index + 1}
-                </button>
-                <p>
-                  {result.region.label}
-                  {result.region.score !== undefined
-                    ? ` · detector score ${result.region.score.toFixed(3)}`
-                    : ""}
-                </p>
-                <img
-                  className="region-crop"
-                  src={result.image}
-                  alt={`Region ${index + 1}`}
-                />
-                {result.recognition && (
-                  <div className="region-recognition">
-                    <strong>
-                      {result.recognition.label ?? "Unknown"}
-                      {result.recognition.state !== "unknown"
-                        ? ` · ${result.recognition.state}`
-                        : ""}
-                    </strong>
-                    <p>{result.recognition.reason}</p>
-                    <label>
-                      Product for this crop
-                      <input
-                        type="text"
-                        maxLength={120}
-                        placeholder="Type the actual food category"
-                        value={
-                          corrections[index] ?? queuedCrops[cropKey(result.region)] ?? ""
-                        }
-                        disabled={busy || teaching || disabled}
-                        onChange={(e) =>
-                          setCorrections((previous) => ({
-                            ...previous,
-                            [index]: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <div className="embedding-actions">
-                      <button
-                        type="button"
-                        className="btn primary"
-                        disabled={busy || teaching || disabled || addingCrop !== null || (!!queuedCrops[cropKey(result.region)] && queuedCrops[cropKey(result.region)] === (corrections[index] ?? queuedCrops[cropKey(result.region)])?.trim()) || !corrections[index]?.trim()}
-                        onClick={() => void addCrop(index)}
-                      >
-                        {addingCrop === cropKey(result.region) ? "Adding…" : queuedCrops[cropKey(result.region)] === (corrections[index] ?? queuedCrops[cropKey(result.region)])?.trim() && queuedCrops[cropKey(result.region)] ? "Added to review" : "Add to final review"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn primary"
-                        disabled={
-                          busy ||
-                          teaching ||
-                          disabled ||
-                          !(
-                            corrections[index] ??
-                            result.recognition.label ??
-                            ""
-                          ).trim()
-                        }
-                        onClick={() => void teach(index, true)}
-                      >
-                        Confirm and remember crop
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        disabled={
-                          busy ||
-                          teaching ||
-                          disabled ||
-                          !(
-                            corrections[index] ??
-                            result.recognition.label ??
-                            ""
-                          ).trim()
-                        }
-                        onClick={() => void teach(index, false)}
-                      >
-                        Wrong category for this crop
-                      </button>
-                    </div>
-                    {queuedCrops[cropKey(result.region)] && <p role="status">{queuedCrops[cropKey(result.region)]} is in the final review. Continue choosing crops; quantity and fill are reviewed at the end.</p>}
-                    {cropErrors[cropKey(result.region)] && <p role="alert">{cropErrors[cropKey(result.region)]}</p>}
-                    <ul>
-                      {result.recognition.suggestions.map((suggestion) => (
-                        <li key={suggestion.label}>
-                          <button
-                            type="button"
-                            className="btn"
-                            disabled={busy || teaching || disabled}
-                            onClick={() =>
-                              setCorrections((previous) => ({
-                                ...previous,
-                                [index]: suggestion.label,
-                              }))
-                            }
-                          >
-                            {suggestion.label}
-                          </button>{" "}
-                          · {suggestion.source}
-                          {suggestion.score !== undefined
-                            ? ` · similarity ${suggestion.score.toFixed(3)}`
-                            : ""}
-                        </li>
-                      ))}
-                    </ul>
-                    {result.result.feedback_warning && (
-                      <p role="alert">{result.result.feedback_warning}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+          <label htmlFor="food-choice-name">Food name</label>
+          <input id="food-choice-name" type="text" maxLength={120} placeholder="e.g. avocado" value={corrections[activeRegion] ?? queuedCrops[cropKey(selected.region)] ?? ""}
+            disabled={teaching || disabled} onChange={(event) => setCorrections((previous) => ({ ...previous, [activeRegion]: event.target.value }))} />
+          <div className="food-choice-actions">
+            <button className="btn primary" disabled={teaching || disabled || addingCrop !== null || !corrections[activeRegion]?.trim() || queuedCrops[cropKey(selected.region)] === corrections[activeRegion]?.trim()}
+              onClick={() => void addCrop(activeRegion)}>{addingCrop ? "Adding…" : queuedCrops[cropKey(selected.region)] === corrections[activeRegion]?.trim() && queuedCrops[cropKey(selected.region)] ? "Chosen" : "Keep this food"}</button>
+            <button className="btn" disabled={teaching || disabled || addingCrop !== null} onClick={() => {
+              if (!queuedCrops[cropKey(selected.region)]) setSkipped((previous) => previous.includes(activeRegion) ? previous : [...previous, activeRegion]);
+              setActiveRegion(Math.min(activeRegion + 1, latest.regions.length - 1));
+            }}>Skip</button>
+          </div>
+          {cropErrors[cropKey(selected.region)] && <p role="alert">{cropErrors[cropKey(selected.region)]}</p>}
+          <details className="scan-advanced"><summary>Remember this food & scan details</summary>
+            <p>Save a correction on this device to help recognize similar foods next time.</p>
+            <div className="embedding-actions"><button className="btn" disabled={teaching || disabled || !(corrections[activeRegion] ?? selected.recognition?.label ?? "").trim()} onClick={() => void teach(activeRegion, true)}>Remember name</button>
+            <button className="btn" disabled={teaching || disabled || !(corrections[activeRegion] ?? selected.recognition?.label ?? "").trim()} onClick={() => void teach(activeRegion, false)}>Reject suggestion</button></div>
+            {feedbackMessage && <p role="status">{feedbackMessage}</p>}
+            <p>{selected.region.label} · detector score {selected.region.score?.toFixed(3) ?? "manual"}</p>
+            <p>{selected.recognition?.reason}</p>
+            {selected.result.feedback_warning && <p role="alert">{selected.result.feedback_warning}</p>}
           </details>
-          <button
-            type="button"
-            className="btn primary"
-            disabled={busy || teaching || disabled || Object.keys(queuedCrops).length === 0}
-            onClick={onFinishReview}
-          >
-            Review quantities and fill
+        </article>}
+        <div className="food-review-footer">
+          <p>Nothing is saved yet. Check quantities and fill next.</p>
+          <button type="button" className="btn primary w-full" disabled={teaching || disabled || Object.keys(queuedCrops).length === 0} onClick={onFinishReview}>
+            Review {Object.keys(queuedCrops).length} chosen {Object.keys(queuedCrops).length === 1 ? "food" : "foods"} →
           </button>
-        </>
-      )}
+        </div>
+      </>}
     </section>
   );
 }

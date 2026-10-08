@@ -70,7 +70,7 @@ jobs:
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
       - name: Desktop packages
         run: |
-          VERSION=0.1.0
+          VERSION=0.1.2
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
           zig build package -Doptimize=ReleaseSafe -Dcpu=baseline -Dapp_version="$VERSION" -j2
       - run: python scripts/collect-release.py linux-x86_64
@@ -97,7 +97,7 @@ jobs:
       - run: npm ci --prefix frontend
       - name: Desktop packages
         run: |
-          VERSION=0.1.0
+          VERSION=0.1.2
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
           zig build package -Doptimize=ReleaseSafe -Dapp_version="$VERSION" -j3
       - run: python3 scripts/collect-release.py macos-arm64
@@ -132,7 +132,7 @@ jobs:
       - run: npm ci --prefix frontend
       - name: Desktop packages
         run: |
-          $version = '0.1.0'
+          $version = '0.1.2'
           if ($env:GITHUB_REF.StartsWith('refs/tags/v')) { $version = $env:GITHUB_REF_NAME.Substring(1) }
           $loader = (Resolve-Path .zig-cache/webview2/WebView2Loader.dll).Path
           zig build package -Doptimize=ReleaseSafe -Dtarget=x86_64-windows-gnu "-Dwebview2-loader=$loader" "-Dapp_version=$version" -j2
@@ -174,7 +174,7 @@ jobs:
       - run: npm ci --prefix frontend
       - name: Native libraries and regenerated Android extensions
         run: |
-          VERSION=0.1.0
+          VERSION=0.1.2
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
           for TARGET in aarch64-linux-android x86_64-linux-android; do
             zig build -Dtarget="$TARGET" -Doptimize=ReleaseSafe -Dapp_version="$VERSION" -j2
@@ -225,7 +225,13 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" dist/* --clobber
+            # Preserve locally signed packages already attached to the release.
+            gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' > /tmp/existing-assets
+            for asset in dist/*; do
+              if ! grep -Fxq "$(basename "$asset")" /tmp/existing-assets; then
+                gh release upload "$RELEASE_TAG" "$asset"
+              fi
+            done
           else
             gh release create "$RELEASE_TAG" dist/* --verify-tag --draft --generate-notes --title "GhostPantry ${RELEASE_TAG#v}"
           fi

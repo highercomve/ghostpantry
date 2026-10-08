@@ -1,6 +1,6 @@
 .{
     .name = .ghostpantry,
-    .version = "0.1.0",
+    .version = "0.1.2",
     // Derived from the package name; changing it has security and trust implications.
     .fingerprint = 0x7adb9b818f83570d,
     .minimum_zig_version = "0.16.0",

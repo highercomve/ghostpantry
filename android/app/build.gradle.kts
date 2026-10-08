@@ -14,8 +14,8 @@ android {
         applicationId = "dev.ghostpantry.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 100
-        versionName = "0.1.0"
+        versionCode = 102
+        versionName = "0.1.2"
 
     }
 

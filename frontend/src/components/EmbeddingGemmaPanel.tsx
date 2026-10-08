@@ -9,11 +9,13 @@ export function EmbeddingGemmaPanel({
   onBusyChange,
   selectedBackend,
   onBackendChange,
+  onSetupRequired,
 }: {
   disabled?: boolean;
   onBusyChange?: (busy: boolean) => void;
   selectedBackend?: "cpu" | "gpu";
   onBackendChange?: (backend: "cpu" | "gpu") => void;
+  onSetupRequired?: (required: boolean) => void;
 }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [backendChoice, setBackendChoice] = useState<"cpu" | "gpu">("cpu");
@@ -26,6 +28,9 @@ export function EmbeddingGemmaPanel({
   const downloaded =
     status?.state === "downloaded" || status?.state === "ready";
   const blocked = disabled || busy !== null;
+  useEffect(() => {
+    if (status) onSetupRequired?.(!downloaded);
+  }, [status, downloaded, onSetupRequired]);
   const check = useCallback(async () => {
     if (pending.current) return;
     pending.current = true;
@@ -91,8 +96,7 @@ export function EmbeddingGemmaPanel({
       </span>
       <h3>Fast local scan</h3>
       <p className="text-muted">
-        YOLOE finds packages and loose produce; EmbeddingGemma 2 matches them
-        to your food list. Download the matching model once to scan offline.
+        Download once to find foods on your device, even without internet.
       </p>
       <div className="embedding-status" role="status" aria-live="polite">
         <strong>
