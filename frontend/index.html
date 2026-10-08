@@ -4,7 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GhostPantry</title>
-    <meta name="theme-color" content="#2d6147" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#2d6147" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#191d18" />
+    <style>
+      /* First-paint background before the bundled stylesheet loads, so the
+         window never flashes bright in dark mode. */
+      html {
+        background: #f6f5f0;
+      }
+      @media (prefers-color-scheme: dark) {
+        html {
+          background: #191d18;
+        }
+      }
+    </style>
     <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="/brand/ghostpantry-mark.svg" />
   </head>

@@ -121,32 +121,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   useEffect(() => {
     refreshLocalStatus();
-    const unlisten = listen("local_model_download", (p: any) => {
-      const ev = p as any;
-      setLocalProgress({
-        id: ev.id,
-        state: ev.state,
-        done_mb: ev.done_mb ?? 0,
-        total_mb: ev.total_mb ?? 0,
-      });
-      if (ev.state === "done") {
-        setLocalMessage({ ok: true, text: "Model downloaded and ready." });
-        setLocalProgress(null);
-        refreshLocalStatus();
-      } else if (ev.state === "cancelled") {
-        setLocalMessage({
-          ok: false,
-          text: "Download paused — it resumes from where it stopped.",
-        });
-        setLocalProgress(null);
-      } else if (ev.state === "error") {
-        setLocalMessage({
-          ok: false,
-          text: "The download failed. Try again — it resumes from where it stopped.",
-        });
-        setLocalProgress(null);
-      }
-    });
+    const unlisten = window.oriel
+      ? listen("local_model_download", (p: any) => {
+          const ev = p as any;
+          setLocalProgress({
+            id: ev.id,
+            state: ev.state,
+            done_mb: ev.done_mb ?? 0,
+            total_mb: ev.total_mb ?? 0,
+          });
+          if (ev.state === "done") {
+            setLocalMessage({ ok: true, text: "Model downloaded and ready." });
+            setLocalProgress(null);
+            refreshLocalStatus();
+          } else if (ev.state === "cancelled") {
+            setLocalMessage({
+              ok: false,
+              text: "Download paused — it resumes from where it stopped.",
+            });
+            setLocalProgress(null);
+          } else if (ev.state === "error") {
+            setLocalMessage({
+              ok: false,
+              text: "The download failed. Try again — it resumes from where it stopped.",
+            });
+            setLocalProgress(null);
+          }
+        })
+      : undefined;
     return unlisten;
   }, [refreshLocalStatus]);
 
