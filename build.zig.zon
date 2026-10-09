@@ -6,8 +6,8 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .oriel = .{
-            // Reproducible snapshot until the generic extension API is published.
-            .path = "vendor/oriel",
+            .url = "git+https://github.com/highercomve/Oriel#fa876f2afeed80e4faa9848c22a96796750ec7b8",
+            .hash = "oriel-0.9.11-K1NO5QLC4wDitUCwJoqPTeH1lJG1kL5_ux-znos7LGOy",
         },
     },
     .paths = .{ "build.zig", "build.zig.zon", "src", "frontend", "icon.png", "android/native", "README.md", "vendor", "LICENSE" },

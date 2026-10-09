@@ -20,3 +20,5 @@ Production access requires a closed test with at least 12 opted-in testers for a
 - GitHub release: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.2
 
 - Release 0.1.3 (version code 103): Android R8 code/resource optimization, updated edge-to-edge handling and corrected app version display. Published to internal testing on 2026-10-08; closed Alpha update submitted to Google review. GitHub release: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.3
+
+- Release 0.1.4 (version code 104): built on Oriel 0.9.11 (from a vendored 0.9.3 snapshot), whose published Android extension API GhostPantry's photo and AI extensions use. GitHub release: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.4

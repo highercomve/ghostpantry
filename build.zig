@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const target = oriel.resolveTarget(b, b.standardTargetOptions(.{}));
     const optimize = b.standardOptimizeOption(.{});
     const is_android = target.result.abi.isAndroid();
-    const app_version = b.option([]const u8, "app_version", "Version embedded in release packages") orelse "0.1.3";
+    const app_version = b.option([]const u8, "app_version", "Version embedded in release packages") orelse "0.1.4";
 
     const dep = b.dependency("oriel", .{
         .target = target,

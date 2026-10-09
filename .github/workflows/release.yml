@@ -39,11 +39,6 @@ jobs:
       - run: npm ci --prefix frontend
       - run: npm run build --prefix frontend
       - run: npm test --prefix frontend
-      - name: Framework regeneration regression tests
-        working-directory: vendor/oriel
-        run: |
-          zig test build/android_manifest.zig
-          zig test --dep android_manifest -Mroot=tools/package/android.zig -Mandroid_manifest=build/android_manifest.zig
       - name: Bundled detector integrity
         run: python3 scripts/verify-detectors.py
       - name: Fast scan vocabulary tests
@@ -70,7 +65,7 @@ jobs:
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
       - name: Desktop packages
         run: |
-          VERSION=0.1.3
+          VERSION=0.1.4
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
           zig build package -Doptimize=ReleaseSafe -Dcpu=baseline -Dapp_version="$VERSION" -j2
       - run: python scripts/collect-release.py linux-x86_64
@@ -97,7 +92,7 @@ jobs:
       - run: npm ci --prefix frontend
       - name: Desktop packages
         run: |
-          VERSION=0.1.3
+          VERSION=0.1.4
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
           zig build package -Doptimize=ReleaseSafe -Dapp_version="$VERSION" -j3
       - run: python3 scripts/collect-release.py macos-arm64
@@ -132,7 +127,7 @@ jobs:
       - run: npm ci --prefix frontend
       - name: Desktop packages
         run: |
-          $version = '0.1.3'
+          $version = '0.1.4'
           if ($env:GITHUB_REF.StartsWith('refs/tags/v')) { $version = $env:GITHUB_REF_NAME.Substring(1) }
           $loader = (Resolve-Path .zig-cache/webview2/WebView2Loader.dll).Path
           zig build package -Doptimize=ReleaseSafe -Dtarget=x86_64-windows-gnu "-Dwebview2-loader=$loader" "-Dapp_version=$version" -j2
@@ -174,7 +169,7 @@ jobs:
       - run: npm ci --prefix frontend
       - name: Native libraries and regenerated Android extensions
         run: |
-          VERSION=0.1.3
+          VERSION=0.1.4
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
           for TARGET in aarch64-linux-android x86_64-linux-android; do
             zig build -Dtarget="$TARGET" -Doptimize=ReleaseSafe -Dapp_version="$VERSION" -j2

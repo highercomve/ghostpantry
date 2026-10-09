@@ -1198,7 +1198,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {appInfo && (
         <div className="app-info-footer">
           <span>
-            GhostPantry v0.1.3 • Built with Oriel & Zig {appInfo.zig} •{" "}
+            GhostPantry v0.1.4 • Built with Oriel & Zig {appInfo.zig} •{" "}
             {appInfo.mode}
           </span>
         </div>

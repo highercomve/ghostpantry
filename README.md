@@ -215,19 +215,15 @@ MIT
 
 ## Android photo extension development
 
-This checkout includes a reproducible Oriel source snapshot in `vendor/oriel`
-while the generic Android extension API is being developed. GhostPantry registers
-`dev.ghostpantry.PantryAndroidExtension` through `.android.extensions` in
-`build.zig`; its sources live in `android/native/`. Oriel copies those sources
-and regenerates the registration on each Android build. Photo capture and
-content-URI access are app behavior, with no edits or patches to Oriel's
+GhostPantry registers `dev.ghostpantry.PantryAndroidExtension` (and its AI
+extensions) through `.android.extensions` in `build.zig`, using Oriel's Android
+extension API; their sources live in `android/native/`. Oriel copies those
+sources and regenerates the registration on each Android build. Photo capture
+and content-URI access are app behavior, with no edits or patches to Oriel's
 generated runtime. The app's private photo provider is declared outside the
 manifest's generated regions.
 
-See [the framework extension contract](vendor/oriel/docs/android-extensions.md)
-and [snapshot notes](vendor/README.md).
-After that framework change is published, replace the local dependency path
-with the released Oriel URL and hash using `zig fetch --save=oriel`.
+See [Oriel's Android extension contract](https://github.com/highercomve/Oriel/blob/main/docs/android-extensions.md).
 
 ### Learning from corrections
 
