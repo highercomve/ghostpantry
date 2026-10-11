@@ -39,7 +39,51 @@ pub const AiConfig = struct {
     temperature: f32 = 0.2,
 };
 
-pub var last_api_error: ?[]const u8 = null;
+/// The most a server's reply may be: a model list or a chat completion is
+/// kilobytes, so more is a wrong endpoint or a hostile one.
+const max_response_bytes: usize = 8 * 1024 * 1024;
+
+/// A response body sink that refuses more than `max_response_bytes`, where
+/// `std.Io.Writer.Allocating` grows without bound.
+const BodySink = struct {
+    arena: std.mem.Allocator,
+    list: std.ArrayList(u8) = .empty,
+    too_large: bool = false,
+    buffer: [16 * 1024]u8 = undefined,
+    writer: std.Io.Writer,
+
+    fn init(self: *BodySink, arena: std.mem.Allocator) void {
+        self.* = .{ .arena = arena, .writer = .{ .buffer = &self.buffer, .vtable = &.{ .drain = drain } } };
+    }
+
+    fn drain(w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
+        const self: *BodySink = @alignCast(@fieldParentPtr("writer", w));
+        try self.append(w.buffer[0..w.end]);
+        w.end = 0;
+        var n: usize = 0;
+        for (data[0 .. data.len - 1]) |d| {
+            try self.append(d);
+            n += d.len;
+        }
+        const last = data[data.len - 1];
+        for (0..splat) |_| try self.append(last);
+        return n + last.len * splat;
+    }
+
+    fn append(self: *BodySink, bytes: []const u8) std.Io.Writer.Error!void {
+        if (self.list.items.len + bytes.len > max_response_bytes) {
+            self.too_large = true;
+            return error.WriteFailed;
+        }
+        self.list.appendSlice(self.arena, bytes) catch return error.WriteFailed;
+    }
+
+    /// The whole body (flushes what is still buffered).
+    fn written(self: *BodySink) ![]const u8 {
+        self.writer.flush() catch return error.AiResponseTooLarge;
+        return self.list.items;
+    }
+};
 
 pub const pantry_vision_system_prompt =
     \\You are an expert food pantry and refrigerator inventory tracker.
@@ -129,7 +173,8 @@ pub fn fetchAvailableModels(
 
     const auth_header: ?[]const u8 = if (api_key) |k| (if (k.len > 0) try std.fmt.allocPrint(arena, "Bearer {s}", .{k}) else null) else null;
 
-    var response_buffer: std.Io.Writer.Allocating = .init(arena);
+    var response_buffer: BodySink = undefined;
+    response_buffer.init(arena);
 
     const res = client.fetch(.{
         .location = .{ .url = endpoint_url },
@@ -141,6 +186,10 @@ pub fn fetchAvailableModels(
         },
         .response_writer = &response_buffer.writer,
     }) catch |err| {
+        if (response_buffer.too_large) {
+            std.log.err("models reply larger than {d} MiB", .{max_response_bytes >> 20});
+            return error.AiResponseTooLarge;
+        }
         std.log.err("HTTP fetch error for models: {s}", .{@errorName(err)});
         return error.AiNetworkError;
     };
@@ -150,7 +199,7 @@ pub fn fetchAvailableModels(
         return error.AiApiError;
     }
 
-    const resp_raw = response_buffer.written();
+    const resp_raw = try response_buffer.written();
     var list: std.ArrayList(ModelItem) = .empty;
 
     const OpenAIModel = struct {
@@ -213,6 +262,8 @@ fn extractErrorMessage(arena: std.mem.Allocator, raw: []const u8) ?[]const u8 {
     return null;
 }
 
+/// `api_error` receives the server's own error message (in `arena`) when
+/// the call fails with `error.AiApiError` and the reply carried one.
 pub fn analyzePantryImage(
     io: std.Io,
     gpa: std.mem.Allocator,
@@ -220,8 +271,9 @@ pub fn analyzePantryImage(
     cfg: AiConfig,
     location_hint: []const u8,
     image_url_or_base64: []const u8,
+    api_error: *?[]const u8,
 ) !VisionResult {
-    last_api_error = null;
+    api_error.* = null;
     const formatted_image_url = if (std.mem.startsWith(u8, image_url_or_base64, "data:"))
         image_url_or_base64
     else
@@ -307,7 +359,8 @@ pub fn analyzePantryImage(
     else
         null;
 
-    var response_buffer: std.Io.Writer.Allocating = .init(arena);
+    var response_buffer: BodySink = undefined;
+    response_buffer.init(arena);
 
     const res = client.fetch(.{
         .location = .{ .url = endpoint_url },
@@ -321,17 +374,19 @@ pub fn analyzePantryImage(
         },
         .response_writer = &response_buffer.writer,
     }) catch |err| {
+        if (response_buffer.too_large) {
+            std.log.err("vision reply larger than {d} MiB", .{max_response_bytes >> 20});
+            return error.AiResponseTooLarge;
+        }
         std.log.err("HTTP fetch error: {s}", .{@errorName(err)});
         return error.AiNetworkError;
     };
 
-    const resp_raw = response_buffer.written();
+    const resp_raw = try response_buffer.written();
 
     if (res.status.class() != .success) {
         std.log.err("HTTP error status: {d}, body: {s}", .{ @intFromEnum(res.status), resp_raw });
-        if (extractErrorMessage(arena, resp_raw)) |msg| {
-            last_api_error = msg;
-        }
+        api_error.* = extractErrorMessage(arena, resp_raw);
         return error.AiApiError;
     }
 

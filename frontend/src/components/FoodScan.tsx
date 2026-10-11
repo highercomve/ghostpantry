@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import { invoke, type Commands } from "../oriel";
 import { recognizeFood, type Recognition } from "../foodRecognition";
+import { checkedDetection, checkedMatch } from "../nativeResults";
 import {
   paddedRegion,
   drawnRegion,
@@ -104,6 +105,7 @@ export function FoodScan({
   const [elapsed, setElapsed] = useState(0);
   const [completedTimings, setCompletedTimings] = useState<MatchResult[]>([]);
   const [manualRegions, setManualRegions] = useState<Region[]>([]);
+  const [skipped, setSkipped] = useState<number[]>([]);
   const [draft, setDraft] = useState<Region | null>(null);
   const drag = useRef<{ x: number; y: number; pointer: number } | null>(null);
   const point = (event: PointerEvent<HTMLDivElement>) => {
@@ -134,7 +136,7 @@ export function FoodScan({
     );
     return () => window.clearInterval(timer);
   }, [busy]);
-  const run = async () => {
+  const run = useCallback(async () => {
     if (pending.current || disabled || teaching) return;
     if (mode === "manual" && manualRegions.length === 0) return;
     pending.current = true;
@@ -176,11 +178,13 @@ export function FoodScan({
       if (mode === "manual") regions = manualRegions;
       else {
         setStage("Finding object regions on CPU…");
-        const detection = await invoke("detect_regions", {
-          image,
-          detector: mode,
-          threshold,
-        });
+        const detection = checkedDetection(
+          await invoke("detect_regions", {
+            image,
+            detector: mode,
+            threshold,
+          }),
+        );
         detectorMs = detection.detect_ms;
         detectorLoadMs = detection.load_ms;
         detectorPeak = detection.pss_mb;
@@ -195,12 +199,14 @@ export function FoodScan({
             : `Identifying region ${index + 1} of ${regions.length}…`,
         );
         const cropped = crop(photo, regions[index]);
-        const result = await invoke("embedding_region_match", {
-          image: cropped,
-          backend,
-          labels,
-          use_feedback: useMemory,
-        });
+        const result = checkedMatch(
+          await invoke("embedding_region_match", {
+            image: cropped,
+            backend,
+            labels,
+            use_feedback: useMemory,
+          }),
+        );
         if (mounted.current) setCompletedTimings((previous) => [...previous, result]);
         complete.push({
           region: regions[index],
@@ -250,7 +256,7 @@ export function FoodScan({
         onBusyChange(false);
       }
     }
-  };
+  }, [disabled, teaching, mode, manualRegions, packageThreshold, image, useMemory, onBusyChange]);
   useEffect(() => {
     if (runRequest <= lastRunRequest.current || disabled || teaching || pending.current) return;
     lastRunRequest.current = runRequest;
@@ -313,7 +319,6 @@ export function FoodScan({
       if (mounted.current) setAddingCrop(null);
     }
   };
-  const [skipped, setSkipped] = useState<number[]>([]);
   const latest = runs.at(-1);
   const selected =
     latest && activeRegion !== null ? latest.regions[activeRegion] : null;

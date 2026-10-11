@@ -171,8 +171,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleLocalCancel = async () => {
     try {
       await invoke("local_cancel_download");
-    } catch {
+    } catch (error) {
       /* the download also stops itself when it fails */
+      console.warn("Could not cancel the local model download", error);
     }
   };
 
@@ -233,7 +234,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     loadSettings();
     invoke("app_info")
       .then((info) => setAppInfo(info as any))
-      .catch(() => {});
+      .catch((error) => console.warn("Could not read app info", error));
   }, []);
 
   const loadSettings = async () => {

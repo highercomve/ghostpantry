@@ -18,6 +18,7 @@ import com.google.ai.edge.litertlm.EmbeddingOptions
 import com.google.ai.edge.litertlm.InputData
 import dev.oriel.OrielAndroidExtension
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -38,7 +39,7 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
 
     companion object {
         @JvmStatic private external fun bind()
-        private var context: Context? = null
+        @Volatile private var context: Context? = null
         private const val MODEL_BYTES = 387710976L
         private const val MODEL_SHA = "92dcbea108899e5d6e30d919b0744f90d9967e80c67a4ab5503ac16d54f62eb0"
         private const val MODEL_URL = "https://huggingface.co/litert-community/embeddinggemma-2-text-vision-440m-litert-lm/resolve/e301f74d5551b0c2641bd5cb4652a76239d5c5f8/embeddinggemma-2-text-vision-440m.litertlm"
@@ -68,15 +69,26 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
                 val input = JSONObject(String(bytes, Charsets.UTF_8))
                 check(context != null) { "Android extension is not initialized" }
                 val operation = input.getString("operation")
+                // Pausing only flips flags the download thread polls, so it must not
+                // wait behind a long match holding the lock.
+                if (operation == "cancel") {
+                    cancelDownload.set(true)
+                    connection?.disconnect()
+                    return status().toString().toByteArray(Charsets.UTF_8)
+                }
                 check(lock.tryLock()) { "Image matching is busy. Wait for the current operation." }
                 try {
                     val result = when (operation) {
                         "status" -> status()
                         "download" -> { startDownload(); status() }
-                        "cancel" -> { cancelDownload.set(true); connection?.disconnect(); status() }
                         "prepare" -> { load(input.optString("backend", "cpu")); probe(); status() }
                         "detect" -> PantryDetector.detect(checkNotNull(context), input)
-                        "match" -> try { match(input) } catch (failure: Exception) { release(); throw failure }
+                        // Bad labels or photos leave the engine and label cache loaded;
+                        // only engine or native failures drop them.
+                        "match" -> try { match(input) }
+                            catch (failure: IllegalArgumentException) { throw failure }
+                            catch (failure: JSONException) { throw failure }
+                            catch (failure: Throwable) { release(); throw failure }
                         "feedback" -> feedback(input)
                         "clear_feedback" -> {
                             for (backend in listOf("cpu", "gpu")) for (scope in listOf("photo", "crop")) {
@@ -92,7 +104,11 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
                             release()
                             check(!modelFile().exists() || modelFile().delete()) { "Cannot delete model" }
                             check(!partFile().exists() || partFile().delete()) { "Cannot delete partial download" }
-                            for (backend in listOf("cpu", "gpu")) File(folder(), "labels-$backend.bin").delete()
+                            for (backend in listOf("cpu", "gpu")) {
+                                // Not fatal: the cache key includes the model hash, so a stale file is never reused.
+                                val labels = File(folder(), "labels-$backend.bin")
+                                if (labels.exists() && !labels.delete()) Log.w("GhostPantryEmbedding", "Cannot delete ${labels.name}")
+                            }
                             downloadError = null
                             status()
                         }
@@ -142,8 +158,10 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
             downloadError = null
             Thread({
                 try { downloadModel() }
-                catch (failure: Exception) {
+                catch (failure: Throwable) {
+                    // Throwable: an Error escaping this thread would kill the process.
                     if (!cancelDownload.get()) downloadError = failure.message ?: "Model download failed"
+                    Log.w("GhostPantryEmbedding", "Model download stopped", failure)
                 } finally {
                     connection?.disconnect()
                     connection = null
@@ -236,7 +254,9 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
             val candidate = EmbeddingEngine(config)
             try { candidate.initialize() }
             catch (failure: Throwable) {
-                if (candidate.isInitialized()) candidate.close()
+                // Close even a half-initialized engine: its native allocations leak otherwise.
+                Log.w("GhostPantryEmbedding", "${backend.uppercase()} engine failed to initialize", failure)
+                runCatching { candidate.close() }.onFailure { Log.w("GhostPantryEmbedding", "Closing the failed engine failed", it) }
                 throw IllegalStateException("${backend.uppercase()} could not initialize on this phone. ${if (backend == "gpu") "Try CPU. " else ""}${failure.message}", failure)
             }
             engine = candidate

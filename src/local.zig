@@ -61,16 +61,18 @@ pub const Entry = struct {
     desktop_only: bool = false,
 };
 
-/// Smallest first. Sizes from Hugging Face (checked 2026-10); the desktop
-/// entries and their hashes are GhostPen's catalog, proven with mtmd.
+/// Smallest first. Sizes, revisions and SHA-256s from Hugging Face's API
+/// (checked 2026-10): every entry pins a commit, so a re-uploaded file can't
+/// change under a hash; the desktop entries are GhostPen's catalog, proven
+/// with mtmd.
 pub const catalog = [_]Entry{
     .{ .id = "qwen3.5-0.8b", .label = "Qwen3.5 0.8B", .repo = "unsloth/Qwen3.5-0.8B-GGUF", .revision = "6ab461498e2023f6e3c1baea90a8f0fe38ab64d0", .model_sha256 = "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517", .projector_sha256 = "56e4c6cfe73b0c82e3e82bc518d7591997e61d81f723fc41a586f4fa69ea2453", .file = "Qwen3.5-0.8B-Q4_K_M.gguf", .size = 532517120, .projector = "mmproj-F16.gguf", .projector_local = "mmproj-qwen3.5-0.8b-F16.gguf", .projector_size = 204987232, .speed = 5, .quality = 1, .note = "smallest download; try simple shelves first; speed and accuracy need device testing" },
-    .{ .id = "qwen2.5-vl-3b", .label = "Qwen2.5-VL 3B", .repo = "ggml-org/Qwen2.5-VL-3B-Instruct-GGUF", .file = "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf", .size = 1929901056, .projector = "mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf", .projector_size = 844757728, .speed = 3, .quality = 4, .note = "balanced vision; the phone pick" },
-    .{ .id = "qwen3.5-2b", .label = "Qwen3.5 2B", .repo = "unsloth/Qwen3.5-2B-GGUF", .file = "Qwen3.5-2B-Q4_K_M.gguf", .size = 1280835840, .projector = "mmproj-F16.gguf", .projector_local = "mmproj-qwen3.5-2b-F16.gguf", .projector_size = 668227264, .speed = 5, .quality = 2, .note = "lighter than 3B; speed depends on the device" },
-    .{ .id = "gemma-3-4b-it", .label = "Gemma 3 4B", .repo = "ggml-org/gemma-3-4b-it-GGUF", .file = "gemma-3-4b-it-Q4_K_M.gguf", .size = 2489757856, .projector = "mmproj-model-f16.gguf", .projector_size = 851251104, .speed = 4, .quality = 3, .note = "good all-rounder, many languages", .desktop_only = true },
-    .{ .id = "qwen3.5-4b", .label = "Qwen3.5 4B", .repo = "unsloth/Qwen3.5-4B-GGUF", .file = "Qwen3.5-4B-Q4_K_M.gguf", .size = 2740937888, .projector = "mmproj-F16.gguf", .projector_local = "mmproj-qwen3.5-4b-F16.gguf", .projector_size = 672423616, .speed = 4, .quality = 3, .note = "balanced", .desktop_only = true },
-    .{ .id = "gemma-4-e4b-it", .label = "Gemma 4 E4B", .repo = "unsloth/gemma-4-E4B-it-GGUF", .file = "gemma-4-E4B-it-Q4_K_M.gguf", .size = 4977171584, .projector = "mmproj-F16.gguf", .projector_local = "mmproj-gemma-4-e4b-it-F16.gguf", .projector_size = 990372672, .speed = 3, .quality = 4, .note = "recommended on desktops", .desktop_only = true },
-    .{ .id = "qwen3.5-9b", .label = "Qwen3.5 9B", .repo = "unsloth/Qwen3.5-9B-GGUF", .file = "Qwen3.5-9B-UD-Q4_K_XL.gguf", .size = 5966095584, .projector = "mmproj-F16.gguf", .projector_local = "mmproj-qwen3.5-9b-F16.gguf", .projector_size = 918166080, .speed = 2, .quality = 5, .note = "best quality; needs ~8 GB of GPU memory", .desktop_only = true },
+    .{ .id = "qwen2.5-vl-3b", .label = "Qwen2.5-VL 3B", .repo = "ggml-org/Qwen2.5-VL-3B-Instruct-GGUF", .revision = "5037fcf163dd95d1e41d1974465f0898ed108ca2", .model_sha256 = "d02fe9b69ad8cadbbd228e387667af66612c44bed29ffc8eb1e7caf9ac486c12", .projector_sha256 = "980c9b2f78c04e6cff93d277ada09e768394f112d75db3b4e9dea8a69f9fb904", .file = "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf", .size = 1929901056, .projector = "mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf", .projector_size = 844757728, .speed = 3, .quality = 4, .note = "balanced vision; the phone pick" },
+    .{ .id = "qwen3.5-2b", .label = "Qwen3.5 2B", .repo = "unsloth/Qwen3.5-2B-GGUF", .revision = "f6d5376be1edb4d416d56da11e5397a961aca8ae", .model_sha256 = "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223", .projector_sha256 = "7035e9cb8d7c6a9681d07eef9a364783e86ea4cd73faab2eabb4f43a101830c7", .file = "Qwen3.5-2B-Q4_K_M.gguf", .size = 1280835840, .projector = "mmproj-F16.gguf", .projector_local = "mmproj-qwen3.5-2b-F16.gguf", .projector_size = 668227264, .speed = 5, .quality = 2, .note = "lighter than 3B; speed depends on the device" },
+    .{ .id = "gemma-3-4b-it", .label = "Gemma 3 4B", .repo = "ggml-org/gemma-3-4b-it-GGUF", .revision = "d0976223747697cb51e056d85c532013931fe52e", .model_sha256 = "882e8d2db44dc554fb0ea5077cb7e4bc49e7342a1f0da57901c0802ea21a0863", .projector_sha256 = "8c0fb064b019a6972856aaae2c7e4792858af3ca4561be2dbf649123ba6c40cb", .file = "gemma-3-4b-it-Q4_K_M.gguf", .size = 2489757856, .projector = "mmproj-model-f16.gguf", .projector_size = 851251104, .speed = 4, .quality = 3, .note = "good all-rounder, many languages", .desktop_only = true },
+    .{ .id = "qwen3.5-4b", .label = "Qwen3.5 4B", .repo = "unsloth/Qwen3.5-4B-GGUF", .revision = "e87f176479d0855a907a41277aca2f8ee7a09523", .model_sha256 = "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4", .projector_sha256 = "cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864", .file = "Qwen3.5-4B-Q4_K_M.gguf", .size = 2740937888, .projector = "mmproj-F16.gguf", .projector_local = "mmproj-qwen3.5-4b-F16.gguf", .projector_size = 672423616, .speed = 4, .quality = 3, .note = "balanced", .desktop_only = true },
+    .{ .id = "gemma-4-e4b-it", .label = "Gemma 4 E4B", .repo = "unsloth/gemma-4-E4B-it-GGUF", .revision = "bfc15c382204943c3a8fff0c750b94ae2364d7a3", .model_sha256 = "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87", .projector_sha256 = "ddf46c21d7078e95338cfc22306b19b276a29a5ad089023449dd54d4b6170a51", .file = "gemma-4-E4B-it-Q4_K_M.gguf", .size = 4977171584, .projector = "mmproj-F16.gguf", .projector_local = "mmproj-gemma-4-e4b-it-F16.gguf", .projector_size = 990372672, .speed = 3, .quality = 4, .note = "recommended on desktops", .desktop_only = true },
+    .{ .id = "qwen3.5-9b", .label = "Qwen3.5 9B", .repo = "unsloth/Qwen3.5-9B-GGUF", .revision = "3885219b6810b007914f3a7950a8d1b469d598a5", .model_sha256 = "6f5d30666c2d8ae16a306e616d95341dcf3cc46810df84d7e6f5a7d1e4c1b293", .projector_sha256 = "f70dc3509053962b0d0d3ee8a7eacebf5d60aa560cad78254ae8698516ae029f", .file = "Qwen3.5-9B-UD-Q4_K_XL.gguf", .size = 5966095584, .projector = "mmproj-F16.gguf", .projector_local = "mmproj-qwen3.5-9b-F16.gguf", .projector_size = 918166080, .speed = 2, .quality = 5, .note = "best quality; needs ~8 GB of GPU memory", .desktop_only = true },
 };
 
 pub const default_id = "qwen2.5-vl-3b";
@@ -122,7 +124,9 @@ pub fn init(app_io: std.Io, app_gpa: std.mem.Allocator) void {
 }
 
 var mutex: std.Io.Mutex = .init;
-var backend_ready = false;
+/// Set last (release) by `ensureBackend`, under `mutex`: whoever sees it
+/// true (acquire) also sees the names below, which never change after.
+var backend_ready = std.atomic.Value(bool).init(false);
 var backend_name: []const u8 = "CPU";
 var gpu_name: ?[]const u8 = null;
 
@@ -160,15 +164,16 @@ const Loaded = struct {
 };
 var loaded: ?Loaded = null;
 
+/// Caller holds `mutex`, so only one thread ever initializes.
 fn ensureBackend() void {
-    if (backend_ready) return;
-    backend_ready = true;
+    if (backend_ready.load(.acquire)) return;
     c.llama_backend_init();
     if (oriel.ggml_gpu.load(io) > 0) {
         backend_name = oriel.ggml_gpu.backendName() orelse "GPU";
         gpu_name = oriel.ggml_gpu.gpuName();
     }
     log.info("llama backend: {s}{s}{s}", .{ backend_name, if (gpu_name != null) " on " else "", gpu_name orelse "" });
+    backend_ready.store(true, .release);
 }
 
 fn threads() i32 {
@@ -185,23 +190,36 @@ const n_batch: u32 = if (is_phone) 512 else 2048;
 /// the reply, with headroom.
 const n_ctx_want: u32 = if (is_phone) 6144 else 8192;
 const max_tokens: u32 = 2048;
+/// The photo the page sends (like system_ai's cap): a phone camera JPEG is
+/// a few MB, more is not a shelf photo.
+const max_image_bytes: usize = 7 * 1024 * 1024;
+/// Decoded pixels: a 50 MP bitmap is already ~150 MB of RGB.
+const max_image_pixels: u64 = 50_000_000;
 
 /// Load `e` (replacing another loaded model). `pref` is "auto", "gpu" or
 /// "cpu" (the Settings → Processor choice). Caller holds `mutex`.
 fn ensureLoaded(e: Entry, pref: []const u8, fast: bool) !u64 {
     ensureBackend();
     const requested_gpu = if (std.mem.eql(u8, pref, "cpu")) false else if (std.mem.eql(u8, pref, "gpu")) gpu_name != null else (!is_phone and gpu_name != null);
+    const dir = try modelsDir(gpa);
+    defer gpa.free(dir);
+    const projector_path = try std.fs.path.joinZ(gpa, &.{ dir, e.projector_local orelse e.projector });
+    defer gpa.free(projector_path);
     if (loaded) |*l| {
-        if (std.mem.eql(u8, l.id, e.id) and l.requested_gpu == requested_gpu and l.fast == fast) return 0;
+        if (std.mem.eql(u8, l.id, e.id) and l.requested_gpu == requested_gpu) {
+            if (l.fast == fast) return 0;
+            // Only the scan mode changed: its image token limits live in the
+            // vision context. Keep the model and its context: re-reading
+            // 2-3 GB on a phone is slow and invites a low-memory kill.
+            return reloadVision(l, projector_path, fast);
+        }
         l.deinit();
         loaded = null;
     }
-    const dir = try modelsDir(gpa);
-    defer gpa.free(dir);
     const model_path = try std.fs.path.joinZ(gpa, &.{ dir, e.file });
     defer gpa.free(model_path);
-    const projector_path = try std.fs.path.joinZ(gpa, &.{ dir, e.projector_local orelse e.projector });
-    defer gpa.free(projector_path);
+    const id = try gpa.dupe(u8, e.id);
+    errdefer gpa.free(id);
     const t0 = std.Io.Clock.awake.now(io);
 
     // The Processor setting: "gpu" asks for the GPU (the CPU when there is
@@ -232,22 +250,8 @@ fn ensureLoaded(e: Entry, pref: []const u8, fast: bool) !u64 {
     };
     errdefer c.llama_model_free(model);
 
-    // The projector: the part that reads images.
-    var vision: ?*c.mtmd_context = null;
-    if (std.Io.Dir.cwd().access(io, projector_path, .{})) |_| {
-        var vp = c.mtmd_context_params_default();
-        vp.use_gpu = gpu;
-        vp.n_threads = threads();
-        // Supported by dynamic-resolution vision encoders; other models may ignore it.
-        if (fast) {
-            vp.image_min_tokens = 64;
-            vp.image_max_tokens = 512;
-        }
-        vision = c.mtmd_init_from_file(projector_path.ptr, model, vp) orelse blk: {
-            log.warn("no vision projector for {s}: scans will fail, texts still work", .{e.id});
-            break :blk null;
-        };
-    } else |_| {}
+    const vision = initVision(model, projector_path, gpu, fast, e.id);
+    errdefer if (vision) |v| c.mtmd_free(v);
 
     // The context: capped at what the model was trained for; a q8_0 KV cache
     // (half the memory of f16) needs flash attention, else f16; out of
@@ -287,14 +291,20 @@ fn ensureLoaded(e: Entry, pref: []const u8, fast: bool) !u64 {
     var tpp = c.ggml_threadpool_params_default(n_threads);
     const tp = c.ggml_threadpool_new(&tpp) orelse return error.OutOfMemory;
     c.llama_attach_threadpool(ctx, tp, tp);
+    errdefer {
+        c.llama_detach_threadpool(ctx);
+        c.ggml_threadpool_free(tp);
+    }
 
     var template_copy: ?[]u8 = null;
     if (c.llama_model_chat_template(model, null)) |tmpl| {
         template_copy = try gpa.dupe(u8, std.mem.span(tmpl));
     }
+    errdefer if (template_copy) |t| gpa.free(t);
     const load_ms: u64 = @intCast(@max(t0.durationTo(std.Io.Clock.awake.now(io)).toMilliseconds(), 0));
+    // Nothing fails from here on: `loaded` owns everything.
     loaded = .{
-        .id = try gpa.dupe(u8, e.id),
+        .id = id,
         .gpu = gpu,
         .requested_gpu = requested_gpu,
         .fast = fast,
@@ -311,6 +321,36 @@ fn ensureLoaded(e: Entry, pref: []const u8, fast: bool) !u64 {
     return load_ms;
 }
 
+/// The projector (the part that reads images), or null when it's missing or
+/// unusable: scans then fail, the rest still works. `fast` caps the image
+/// tokens (dynamic-resolution vision encoders; other models may ignore it).
+fn initVision(model: *c.llama_model, projector_path: [:0]const u8, gpu: bool, fast: bool, id: []const u8) ?*c.mtmd_context {
+    std.Io.Dir.cwd().access(io, projector_path, .{}) catch return null;
+    var vp = c.mtmd_context_params_default();
+    vp.use_gpu = gpu;
+    vp.n_threads = threads();
+    if (fast) {
+        vp.image_min_tokens = 64;
+        vp.image_max_tokens = 512;
+    }
+    return c.mtmd_init_from_file(projector_path.ptr, model, vp) orelse {
+        log.warn("no vision projector for {s}: scans will fail, texts still work", .{id});
+        return null;
+    };
+}
+
+/// Swap only the vision context of `l` for one with `fast`'s image token
+/// limits. The old one goes first: two projectors at once may not fit.
+fn reloadVision(l: *Loaded, projector_path: [:0]const u8, fast: bool) u64 {
+    const t0 = std.Io.Clock.awake.now(io);
+    if (l.vision) |v| c.mtmd_free(v);
+    l.vision = initVision(l.handle, projector_path, l.gpu, fast, l.id);
+    l.fast = fast;
+    const ms: u64 = @intCast(@max(t0.durationTo(std.Io.Clock.awake.now(io)).toMilliseconds(), 0));
+    log.info("{s}: vision reloaded for {s} scans in {d} ms", .{ l.id, if (fast) "fast" else "balanced", ms });
+    return ms;
+}
+
 fn abortCallback(_: ?*anyopaque) callconv(.c) bool {
     return cancelled.load(.acquire);
 }
@@ -321,7 +361,8 @@ fn warmUp(l: *Loaded) void {
     var toks: [16]c.llama_token = undefined;
     const n = c.llama_tokenize(vocab, "Hello, how are you?", 19, &toks, toks.len, true, false);
     if (n <= 0) return;
-    _ = c.llama_decode(l.ctx, c.llama_batch_get_one(&toks, n));
+    const rc = c.llama_decode(l.ctx, c.llama_batch_get_one(&toks, n));
+    if (rc != 0) log.warn("GPU warm-up decode failed ({d}): the first scan builds the pipelines", .{rc});
     c.llama_memory_clear(c.llama_get_memory(l.ctx), true);
 }
 
@@ -410,9 +451,11 @@ pub fn status(arena: std.mem.Allocator) !Status {
         // "done" event makes the page call this.
         if (downloading_id) |d| dl_id = arena.dupe(u8, d) catch null;
     }
+    // Unlocked: the names are only read once the backend published them.
+    const ready = backend_ready.load(.acquire);
     return .{
-        .backend = backend_name,
-        .gpu = gpu_name,
+        .backend = if (ready) backend_name else "CPU",
+        .gpu = if (ready) gpu_name else null,
         .models_dir = dir,
         .supported = oriel.ggml_gpu.cpuSupported(),
         .models = models.items,
@@ -427,7 +470,7 @@ pub fn status(arena: std.mem.Allocator) !Status {
 /// Backend init for read-only callers (status): only when nothing else may
 /// hold the state mutex, so the page never waits for a scan.
 fn ensureBackendIfIdle() void {
-    if (backend_ready) return;
+    if (backend_ready.load(.acquire)) return;
     if (generating.load(.acquire)) return;
     if (!mutex.tryLock()) return;
     defer mutex.unlock(io);
@@ -492,10 +535,27 @@ fn errSend(id: []const u8, err: anyerror) void {
 /// while writing (Hugging Face publishes the SHA-256) and renamed. The
 /// total is known, so progress is exact.
 fn fetchFile(e: Entry, name: []const u8, url: []const u8, expected: u64) !void {
+    // A server that ignores the range restarts once, from byte 0: that
+    // attempt asks for no range, so it can't be ignored again.
+    for (0..2) |_| if (try fetchAttempt(e, name, url, expected)) return;
+    return error.BadHttpStatus;
+}
+
+/// Delete `path`; a missing file is fine, anything else is logged.
+fn deleteIfPresent(path: []const u8) void {
+    std.Io.Dir.cwd().deleteFile(io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => log.warn("cannot delete {s}: {s}", .{ path, @errorName(err) }),
+    };
+}
+
+/// One try of `fetchFile`: false when the server ignored the range of a
+/// resume (the `.part` is gone then; try again).
+fn fetchAttempt(e: Entry, name: []const u8, url: []const u8, expected: u64) !bool {
     const dir_path = try modelsDir(gpa);
     defer gpa.free(dir_path);
     // The models directory doesn't exist yet on a fresh device.
-    std.Io.Dir.cwd().createDirPath(io, dir_path) catch {};
+    std.Io.Dir.cwd().createDirPath(io, dir_path) catch |err| log.warn("cannot create {s}: {s}", .{ dir_path, @errorName(err) });
     var arena_state: std.heap.ArenaAllocator = .init(gpa);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
@@ -520,7 +580,7 @@ fn fetchFile(e: Entry, name: []const u8, url: []const u8, expected: u64) !void {
             r.interface.toss(chunk.len);
         }
         if (have >= expected) {
-            std.Io.Dir.cwd().deleteFile(io, part) catch {};
+            deleteIfPresent(part);
             hasher = .init(.{});
             have = 0;
         }
@@ -576,8 +636,8 @@ fn fetchFile(e: Entry, name: []const u8, url: []const u8, expected: u64) !void {
         if (response.head.status == .ok) {
             file.close(io);
             closed = true;
-            std.Io.Dir.cwd().deleteFile(io, part) catch {};
-            return fetchFile(e, name, url, expected);
+            deleteIfPresent(part);
+            return false;
         }
         if (response.head.status != .partial_content) return error.BadHttpStatus;
         var start: ?u64 = null;
@@ -618,12 +678,13 @@ fn fetchFile(e: Entry, name: []const u8, url: []const u8, expected: u64) !void {
         var wanted: [32]u8 = undefined;
         _ = try std.fmt.hexToBytes(&wanted, hex);
         if (!std.mem.eql(u8, &digest, &wanted)) {
-            std.Io.Dir.cwd().deleteFile(io, part) catch {};
+            deleteIfPresent(part);
             return error.HashMismatch;
         }
     }
     try std.Io.Dir.cwd().rename(part, std.Io.Dir.cwd(), final, io);
     log.info("downloaded {s} ({d} MB)", .{ name, done >> 20 });
+    return true;
 }
 
 /// `bytes 100-199/200` → 100.
@@ -656,10 +717,11 @@ pub fn delete(id: []const u8) !void {
     const arena = arena_state.allocator();
     const dir = try modelsDir(arena);
     const model_path = try std.fs.path.join(arena, &.{ dir, e.file });
-    std.Io.Dir.cwd().deleteFile(io, model_path) catch {};
-    std.Io.Dir.cwd().deleteFile(io, try std.fmt.allocPrint(arena, "{s}.part", .{model_path})) catch {};
-    std.Io.Dir.cwd().deleteFile(io, try std.fs.path.join(arena, &.{ dir, e.projector_local orelse e.projector })) catch {};
-    std.Io.Dir.cwd().deleteFile(io, try std.fmt.allocPrint(arena, "{s}.part", .{try std.fs.path.join(arena, &.{ dir, e.projector_local orelse e.projector })})) catch {};
+    const projector_path = try std.fs.path.join(arena, &.{ dir, e.projector_local orelse e.projector });
+    deleteIfPresent(model_path);
+    deleteIfPresent(try std.fmt.allocPrint(arena, "{s}.part", .{model_path}));
+    deleteIfPresent(projector_path);
+    deleteIfPresent(try std.fmt.allocPrint(arena, "{s}.part", .{projector_path}));
 }
 
 /// Free the model (memory pressure; the next scan loads it again). Safe on
@@ -742,7 +804,7 @@ pub fn analyze(
     const load_ms = try ensureLoaded(e, backend_pref, fast);
     const vision_started = std.Io.Clock.awake.now(io);
     const l = &loaded.?;
-    const vocab = c.llama_model_get_vocab(l.handle).?;
+    const vocab = c.llama_model_get_vocab(l.handle) orelse return error.NoVocab;
     const n_ctx: usize = c.llama_n_ctx(l.ctx);
     const vision = l.vision orelse return error.NoVisionProjector;
 
@@ -751,6 +813,7 @@ pub fn analyze(
     const b64 = image_data_url[prefix + ";base64,".len ..];
     const decoder = std.base64.standard.Decoder;
     const size = decoder.calcSizeForSlice(b64) catch return error.BadImageData;
+    if (size > max_image_bytes) return error.ImageTooLarge;
     const bytes = arena.alloc(u8, size) catch return error.OutOfMemory;
     decoder.decode(bytes, b64) catch return error.BadImageData;
 
@@ -759,6 +822,8 @@ pub fn analyze(
     const wrapped = c.mtmd_helper_bitmap_init_from_buf(vision, bytes.ptr, bytes.len, false, c.mtmd_helper_init_opt_default());
     const bitmap = wrapped.bitmap orelse return error.BadImageData;
     defer c.mtmd_bitmap_free(bitmap);
+    const pixels = @as(u64, c.mtmd_bitmap_get_nx(bitmap)) * c.mtmd_bitmap_get_ny(bitmap);
+    if (pixels > max_image_pixels) return error.ImageTooLarge;
 
     const user_prompt = try std.fmt.allocPrint(arena, "{s}\nAnalyze this photo of the {s}. List all visible food items with their quantities and estimated remaining fill percentages.", .{ std.mem.span(c.mtmd_default_marker()), location_hint });
     const system_prompt = if (fast) ai_mod.pantry_vision_system_prompt ++ "\nReturn at most 12 visible items. Use empty notes and a very short summary. /no_think" else ai_mod.pantry_vision_system_prompt;
@@ -805,7 +870,7 @@ pub fn analyze(
     var generated: usize = 0;
     while (generated < budget) {
         if (cancelled.load(.acquire)) return error.Cancelled;
-        var tok = sampleWithGrammar(l.ctx, chain, grammar, candidates);
+        var tok = try sampleWithGrammar(l.ctx, chain, grammar, candidates);
         if (c.llama_vocab_is_eog(vocab, tok)) break;
         generated += 1;
         var piece: [256]u8 = undefined;
@@ -841,32 +906,55 @@ pub fn analyze(
 
 /// The next token under `grammar`: drawn from the usual chain and only
 /// checked against the grammar; only when it's rejected does the grammar
-/// filter the whole vocabulary before drawing again.
+/// filter the whole vocabulary before drawing again. Missing or NaN logits,
+/// or no allowed token, end the scan with an error: only a token both
+/// samplers can take is accepted.
 fn sampleWithGrammar(
     ctx: *c.llama_context,
     chain: *c.llama_sampler,
     grammar: *c.llama_sampler,
     candidates: []c.llama_token_data,
-) c.llama_token {
+) !c.llama_token {
     const logits = c.llama_get_logits_ith(ctx, -1);
-    for (candidates, 0..) |*cd, i| cd.* = .{ .id = @intCast(i), .logit = logits[i], .p = 0 };
+    if (logits == null) return error.NoLogits;
+    try fillCandidates(candidates, logits);
     var all: c.llama_token_data_array = .{ .data = candidates.ptr, .size = candidates.len, .selected = -1, .sorted = false };
     c.llama_sampler_apply(chain, &all);
-    var tok = all.data[@intCast(all.selected)].id;
+    var tok = selectedToken(all) orelse return error.NoTokenSampled;
 
     var one = [1]c.llama_token_data{.{ .id = tok, .logit = 1, .p = 0 }};
     var single: c.llama_token_data_array = .{ .data = &one, .size = 1, .selected = -1, .sorted = false };
     c.llama_sampler_apply(grammar, &single);
-    if (one[0].logit == -std.math.inf(f32)) {
-        for (candidates, 0..) |*cd, i| cd.* = .{ .id = @intCast(i), .logit = logits[i], .p = 0 };
+    if (!std.math.isFinite(one[0].logit)) {
+        try fillCandidates(candidates, logits);
         all = .{ .data = candidates.ptr, .size = candidates.len, .selected = -1, .sorted = false };
         c.llama_sampler_apply(grammar, &all);
         c.llama_sampler_apply(chain, &all);
-        tok = all.data[@intCast(all.selected)].id;
+        // Every token the grammar rejected is -inf: a -inf pick means none was allowed.
+        tok = selectedToken(all) orelse return error.GrammarRejected;
     }
     c.llama_sampler_accept(grammar, tok);
     c.llama_sampler_accept(chain, tok);
     return tok;
+}
+
+/// The vocabulary with this step's logits. A NaN (or +inf) logit is a
+/// broken step: refused before it reaches the samplers.
+fn fillCandidates(candidates: []c.llama_token_data, logits: [*c]const f32) !void {
+    for (candidates, 0..) |*cd, i| {
+        const v = logits[i];
+        if (std.math.isNan(v) or std.math.isPositiveInf(v)) return error.BadLogits;
+        cd.* = .{ .id = @intCast(i), .logit = v, .p = 0 };
+    }
+}
+
+/// The sampled token, or null when nothing was selected or the pick has a
+/// non-finite logit.
+fn selectedToken(all: c.llama_token_data_array) ?c.llama_token {
+    if (all.selected < 0 or all.selected >= all.size) return null;
+    const cd = all.data[@intCast(all.selected)];
+    if (!std.math.isFinite(cd.logit)) return null;
+    return cd.id;
 }
 
 /// The model's own chat template (from its GGUF), else ChatML.
@@ -877,7 +965,8 @@ fn applyTemplate(arena: std.mem.Allocator, template: ?[]const u8, system: []cons
     };
     const tmpl: ?[*:0]const u8 = if (template) |t| (try arena.dupeZ(u8, t)).ptr else null;
     var cap: usize = (system.len + user.len) * 2 + 512;
-    while (true) {
+    // A first guess, then the exact size the template reported.
+    for (0..2) |_| {
         const buf = try arena.alloc(u8, cap);
         var n = c.llama_chat_apply_template(tmpl, &msgs, msgs.len, true, buf.ptr, @intCast(cap));
         if (n < 0 and tmpl != null) n = c.llama_chat_apply_template("chatml", &msgs, msgs.len, true, buf.ptr, @intCast(cap));
@@ -885,6 +974,7 @@ fn applyTemplate(arena: std.mem.Allocator, template: ?[]const u8, system: []cons
         if (@as(usize, @intCast(n)) <= cap) return buf[0..@intCast(n)];
         cap = @intCast(n);
     }
+    return error.UnsupportedChatTemplate;
 }
 
 /// Memory pressure (Android's trim-memory): free the model unless it is

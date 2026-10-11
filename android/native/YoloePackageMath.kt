@@ -68,9 +68,14 @@ object YoloePackageMath {
         require(count in 1..8400 && channels.all { it.size == count })
         val rows = mutableListOf<FloatArray>()
         for (index in 0 until count) {
-            val category = labels.indices.filter { channels[4+it][index].isFinite() }
-                .maxByOrNull { channels[4+it][index] } ?: continue
-            val score = channels[4+category][index]
+            // Plain loop: this runs for every anchor of every tile, so no per-anchor lists.
+            var category = -1
+            var score = 0f
+            for (label in labels.indices) {
+                val value = channels[4+label][index]
+                if (value.isFinite() && (category < 0 || value > score)) { category = label; score = value }
+            }
+            if (category < 0) continue
             if (score < threshold || score > 1f) continue
             val cx = channels[0][index]
             val cy = channels[1][index]

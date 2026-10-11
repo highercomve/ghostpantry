@@ -1,12 +1,16 @@
 const MAX_DIMENSION = 1600;
 const TIMEOUT_MS = 15000;
 
+/** A decode that hangs once will hang again: fallbacks rethrow this instead
+    of spending another 15 s each. */
+class PhotoTimeoutError extends Error {}
+
 function withTimeout<T>(promise: Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(
       () =>
         reject(
-          new Error(
+          new PhotoTimeoutError(
             "This photo could not be read. Try downloading it to your device first.",
           ),
         ),
@@ -82,15 +86,19 @@ export async function preparePhoto(file: File): Promise<string> {
       } finally {
         expired = true;
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof PhotoTimeoutError) throw error;
       /* Older WebViews need an HTMLImageElement instead. */
+      console.warn("createImageBitmap failed; trying an image element", error);
     }
   }
   const objectUrl = URL.createObjectURL(file);
   try {
     const image = await loadImage(objectUrl);
     return encode(image, image.naturalWidth, image.naturalHeight);
-  } catch {
+  } catch (error) {
+    if (error instanceof PhotoTimeoutError) throw error;
+    console.warn("Photo URL failed to load; trying a data URL", error);
     const dataUrl = await withTimeout(
       new Promise<string>((resolve, reject) => {
         const reader = new FileReader();

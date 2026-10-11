@@ -75,19 +75,37 @@ pub const AppSettings = struct {
 
 fn readSettings(arena: std.mem.Allocator, d: db_mod.Db) AppSettings {
     var s = AppSettings{};
-    if (d.getSetting(arena, "provider") catch null) |v| s.provider = v;
-    if (d.getSetting(arena, "baseUrl") catch null) |v| s.baseUrl = v;
-    if (d.getSetting(arena, "apiKey") catch null) |v| s.apiKey = v;
-    if (d.getSetting(arena, "model") catch null) |v| s.model = v;
-    if (d.getSetting(arena, "defaultLocation") catch null) |v| s.defaultLocation = v;
-    if (d.getSetting(arena, "localBackend") catch null) |v| s.localBackend = v;
-    if (d.getSetting(arena, "localScanMode") catch null) |v| s.localScanMode = v;
-    if (d.getSetting(arena, "embeddingBackend") catch null) |v| s.embeddingBackend = v;
-    if (d.getSetting(arena, "matchingLabels") catch null) |v| {
+    if (setting(arena, d, "provider")) |v| s.provider = v;
+    if (setting(arena, d, "baseUrl")) |v| s.baseUrl = v;
+    if (setting(arena, d, "apiKey")) |v| s.apiKey = v;
+    if (setting(arena, d, "model")) |v| s.model = v;
+    if (setting(arena, d, "defaultLocation")) |v| s.defaultLocation = v;
+    if (setting(arena, d, "localBackend")) |v| s.localBackend = v;
+    if (setting(arena, d, "localScanMode")) |v| s.localScanMode = v;
+    if (setting(arena, d, "embeddingBackend")) |v| s.embeddingBackend = v;
+    if (setting(arena, d, "matchingLabels")) |v| {
         if (v.len > 0) s.matchingLabels = v;
     }
     return s;
 }
+
+/// One stored setting; a database error is logged and reads as unset (the
+/// default), so a broken row never hides the whole Settings page.
+fn setting(arena: std.mem.Allocator, d: db_mod.Db, key: []const u8) ?[]const u8 {
+    return d.getSetting(arena, key) catch |err| {
+        log.err("cannot read setting {s}: {s}", .{ key, @errorName(err) });
+        return null;
+    };
+}
+
+fn oneOf(value: []const u8, comptime allowed: []const []const u8) bool {
+    inline for (allowed) |a| if (std.mem.eql(u8, value, a)) return true;
+    return false;
+}
+
+/// The most items one scan may save, and scan log rows one call may list.
+const max_scan_items = 200;
+const max_scan_logs = 500;
 
 pub const Commands = struct {
     pub const async_commands = .{
@@ -157,6 +175,14 @@ pub const Commands = struct {
         };
         if (!std.mem.eql(u8, args.settings.embeddingBackend, "cpu") and !std.mem.eql(u8, args.settings.embeddingBackend, "gpu"))
             return oriel.ipc.fail("Choose CPU or GPU for fast local scans.", .{});
+        // Empty is the default (settings saved before these existed).
+        if (!oneOf(args.settings.localScanMode, &.{ "", "fast", "balanced" }))
+            return oriel.ipc.fail("Choose fast or balanced local scans.", .{});
+        if (!oneOf(args.settings.localBackend, &.{ "", "auto", "gpu", "cpu" }))
+            return oriel.ipc.fail("Choose Auto, GPU or CPU for the local model.", .{});
+        // Other providers name their own models; a local one must be in the catalog.
+        if (std.mem.eql(u8, args.settings.provider, "local") and local_mod.find(args.settings.model) == null)
+            return oriel.ipc.fail("Unknown local model {s}.", .{args.settings.model});
         const d = try getDb(arena);
         try d.setSetting("provider", args.settings.provider);
         try d.setSetting("baseUrl", args.settings.baseUrl);
@@ -216,9 +242,10 @@ pub const Commands = struct {
         };
 
         log.info("Analyzing image for {s} using model {s} at {s}", .{ args.location, cfg.model, cfg.baseUrl });
-        const res = ai_mod.analyzePantryImage(io, gpa, arena, cfg, args.location, args.image) catch |err| {
+        var api_error: ?[]const u8 = null;
+        const res = ai_mod.analyzePantryImage(io, gpa, arena, cfg, args.location, args.image, &api_error) catch |err| {
             log.err("Image analysis failed: {s}", .{@errorName(err)});
-            if (ai_mod.last_api_error) |detail| {
+            if (api_error) |detail| {
                 return oriel.ipc.fail("{s}", .{detail});
             }
             return oriel.ipc.fail("Vision analysis failed ({s}). Check your endpoint URL, model name, and API key in Settings.", .{@errorName(err)});
@@ -327,18 +354,27 @@ pub const Commands = struct {
         arena: std.mem.Allocator,
         args: struct { location: []const u8, summary: []const u8, items: []const db_mod.Item },
     ) !void {
+        if (args.items.len > max_scan_items)
+            return oriel.ipc.fail("A scan can save at most {d} items.", .{max_scan_items});
         const d = try getDb(arena);
-        for (args.items) |it| {
-            _ = try d.upsertItem(it);
+        // All or nothing: a failed write leaves the inventory as it was.
+        try d.db.exec("BEGIN IMMEDIATE;");
+        {
+            errdefer d.db.exec("ROLLBACK;") catch |err| log.err("scan rollback failed: {s}", .{@errorName(err)});
+            for (args.items) |it| {
+                _ = try d.upsertItem(it);
+            }
+            try d.recordScan(args.location, @intCast(args.items.len), args.summary);
+            try d.db.exec("COMMIT;");
         }
-        try d.recordScan(args.location, @intCast(args.items.len), args.summary);
         notifyUpdated();
         events.emit(.scan_completed, .{ .count = args.items.len, .summary = args.summary });
     }
 
     pub fn get_scan_logs(arena: std.mem.Allocator, args: struct { limit: ?i64 = 20 }) ![]db_mod.ScanLog {
         const d = try getDb(arena);
-        return d.getScanLogs(arena, args.limit orelse 20);
+        // Negative means "no limit" to SQLite: always 1..max_scan_logs.
+        return d.getScanLogs(arena, std.math.clamp(args.limit orelse 20, 1, max_scan_logs));
     }
 
     pub fn clear_all_items(arena: std.mem.Allocator) !void {

@@ -29,6 +29,11 @@ pub const ScanLog = struct {
     created_at: []const u8,
 };
 
+/// oriel's Stmt has no float bind: the C call, with its result checked.
+fn bindDouble(stmt: oriel.sql.Stmt, index: c_int, value: f64) !void {
+    if (oriel.sql.c.sqlite3_bind_double(stmt.handle, index, value) != oriel.sql.c.SQLITE_OK) return error.SqliteBind;
+}
+
 pub const Db = struct {
     db: oriel.sql.Db,
 
@@ -116,10 +121,10 @@ pub const Db = struct {
             try stmt.bindText(1, item.name);
             try stmt.bindText(2, item.category);
             try stmt.bindText(3, item.location);
-            _ = oriel.sql.c.sqlite3_bind_double(stmt.handle, 4, item.quantity);
-            _ = oriel.sql.c.sqlite3_bind_double(stmt.handle, 5, item.fill_percentage);
+            try bindDouble(stmt, 4, item.quantity);
+            try bindDouble(stmt, 5, item.fill_percentage);
             try stmt.bindText(6, item.unit);
-            _ = oriel.sql.c.sqlite3_bind_double(stmt.handle, 7, item.desired_quantity);
+            try bindDouble(stmt, 7, item.desired_quantity);
             try stmt.bindText(8, item.notes);
             try stmt.bindInt(9, item.id);
 
@@ -138,8 +143,8 @@ pub const Db = struct {
                 const update_sql = "UPDATE inventory_items SET quantity = ?1, fill_percentage = ?2, unit = ?3, notes = ?4, last_scanned_at = datetime('now', 'localtime'), updated_at = datetime('now', 'localtime') WHERE id = ?5";
                 const upd = try self.db.prepare(update_sql);
                 defer upd.finalize();
-                _ = oriel.sql.c.sqlite3_bind_double(upd.handle, 1, item.quantity);
-                _ = oriel.sql.c.sqlite3_bind_double(upd.handle, 2, item.fill_percentage);
+                try bindDouble(upd, 1, item.quantity);
+                try bindDouble(upd, 2, item.fill_percentage);
                 try upd.bindText(3, item.unit);
                 try upd.bindText(4, item.notes);
                 try upd.bindInt(5, existing_id);
@@ -154,10 +159,10 @@ pub const Db = struct {
             try stmt.bindText(1, item.name);
             try stmt.bindText(2, item.category);
             try stmt.bindText(3, item.location);
-            _ = oriel.sql.c.sqlite3_bind_double(stmt.handle, 4, item.quantity);
-            _ = oriel.sql.c.sqlite3_bind_double(stmt.handle, 5, item.fill_percentage);
+            try bindDouble(stmt, 4, item.quantity);
+            try bindDouble(stmt, 5, item.fill_percentage);
             try stmt.bindText(6, item.unit);
-            _ = oriel.sql.c.sqlite3_bind_double(stmt.handle, 7, item.desired_quantity);
+            try bindDouble(stmt, 7, item.desired_quantity);
             try stmt.bindText(8, item.notes);
 
             _ = try stmt.step();
@@ -175,8 +180,8 @@ pub const Db = struct {
     pub fn updateStock(self: Db, id: i64, quantity: f64, fill_percentage: f64) !void {
         const stmt = try self.db.prepare("UPDATE inventory_items SET quantity = ?1, fill_percentage = ?2, updated_at = datetime('now', 'localtime') WHERE id = ?3");
         defer stmt.finalize();
-        _ = oriel.sql.c.sqlite3_bind_double(stmt.handle, 1, quantity);
-        _ = oriel.sql.c.sqlite3_bind_double(stmt.handle, 2, fill_percentage);
+        try bindDouble(stmt, 1, quantity);
+        try bindDouble(stmt, 2, fill_percentage);
         try stmt.bindInt(3, id);
         _ = try stmt.step();
     }
@@ -184,7 +189,7 @@ pub const Db = struct {
     pub fn updateDesired(self: Db, id: i64, desired_quantity: f64) !void {
         const stmt = try self.db.prepare("UPDATE inventory_items SET desired_quantity = ?1, updated_at = datetime('now', 'localtime') WHERE id = ?2");
         defer stmt.finalize();
-        _ = oriel.sql.c.sqlite3_bind_double(stmt.handle, 1, desired_quantity);
+        try bindDouble(stmt, 1, desired_quantity);
         try stmt.bindInt(2, id);
         _ = try stmt.step();
     }
@@ -231,7 +236,7 @@ pub const Db = struct {
     pub fn getScanLogs(self: Db, arena: std.mem.Allocator, limit: i64) ![]ScanLog {
         const stmt = try self.db.prepare("SELECT id, location, items_detected_count, summary, created_at FROM scan_logs ORDER BY id DESC LIMIT ?1");
         defer stmt.finalize();
-        try stmt.bindInt(1, limit);
+        try stmt.bindInt(1, std.math.clamp(limit, 1, 500));
 
         var list: std.ArrayList(ScanLog) = .empty;
         while (try stmt.step()) {

@@ -90,7 +90,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       }
       stream.current = media;
       setCameraOpen(true);
-    } catch {
+    } catch (failure) {
+      console.warn("Camera could not open", failure);
       setError(
         "Camera unavailable or permission denied. You can still choose a photo below.",
       );
@@ -104,7 +105,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       if (!video.current) return;
       onImageSelected(captureVideo(video.current));
       closeCamera();
-    } catch {
+    } catch (failure) {
+      console.warn("Camera frame could not be captured", failure);
       setError("The camera is still starting. Wait a moment and try again.");
     }
   };

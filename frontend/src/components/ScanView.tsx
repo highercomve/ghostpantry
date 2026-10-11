@@ -46,7 +46,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
           setProvider(settings.provider || "embedding");
           setFastBackend(settings.embeddingBackend === "gpu" ? "gpu" : "cpu");
         })
-        .catch(() => {});
+        .catch((error) => console.warn("Could not read settings; using defaults", error));
   }, []);
 
   const [location, setLocation] = useState<string>(defaultLocation);

@@ -77,8 +77,9 @@ export function EmbeddingGemmaPanel({
       setError(err instanceof Error ? err.message : String(err));
       try {
         setStatus(await invoke("embedding_status"));
-      } catch {
+      } catch (statusError) {
         /* retain last status */
+        console.warn("Could not refresh image matching status", statusError);
       }
     } finally {
       pending.current = false;
