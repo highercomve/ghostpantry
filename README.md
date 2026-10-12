@@ -90,14 +90,15 @@ oriel android build --apk
 
 Open the **Settings** tab in GhostPantry to select your AI Vision provider:
 
-### Option A: Android system AI (Gemini Nano)
-Select **System AI** in Settings. GhostPantry asks Android’s ML Kit Prompt API whether the shared system model is **ready**, **downloadable**, **downloading**, or **unavailable**. The result comes from the phone, without a hardcoded device list. Use **Download system model** when offered, or **Choose a local model** if unavailable. Scans use image and text input, run on-device, and still require reviewing the detected items before saving. This integration uses Google’s beta API and needs validation on a supported physical phone.
+### Option A: System AI (the phone's own model)
+Select **System AI** in Settings (Android and iOS builds only; desktops don't show it). GhostPantry asks the system, through Oriel's `oriel.system_ai` module (Gemini Nano via ML Kit's Prompt API on Android, Apple Foundation Models on iOS 26+), whether the shared system model is **ready**, **downloadable**, **downloading**, or **unavailable**. The result comes from the phone, without a hardcoded device list. Use **Download system model** when offered, or **Choose a local model** if unavailable. Scans use image and text input, run on-device, and still require reviewing the detected items before saving. This integration uses Google’s beta API and needs validation on a supported physical phone.
 
 A failed support check is shown separately from an unavailable model and can be retried. The app never silently sends a system-AI photo to a cloud provider. See [Google’s setup and capability API](https://developers.google.com/ml-kit/genai/prompt/android/get-started).
 
 ### Fast local scan (YOLOE + EmbeddingGemma 2)
 
-**Fast local** is the default provider. YOLOE scans packages, jars and cartons,
+**Fast local** is the default provider on Android, the only platform that has it
+so far (desktop and iOS builds hide it and start with the local LLM). YOLOE scans packages, jars and cartons,
 then loose fruit and vegetables. It merges overlapping boxes before
 EmbeddingGemma 2 matches each crop against your saved food labels. The three
 fixed-prompt YOLOE profiles are bundled; the 388 MB matching model downloads once
@@ -116,7 +117,7 @@ starting matching backend; GPU is available where the device supports it.
 The full editable preset contains 710 labels, with a limit of 1,024 custom labels.
 
 ### Option B: On this device (downloaded models, offline)
-Download a vision model once from the model catalog (Qwen3.5 0.8B/2B, Qwen2.5-VL 3B, Gemma 3/4 — smallest first; phones are offered the small ones), and scans then run entirely on the device with llama.cpp: no server, no API key, works offline. The model stays loaded between scans and is freed again when Android reports memory pressure.
+Download a vision model once from the model catalog (Qwen3.5 0.8B/2B, Qwen2.5-VL 3B, Gemma 3/4 — smallest first; phones are offered the small ones), and scans then run entirely on the device with llama.cpp: no server, no API key, works offline. The model stays loaded between scans and is freed again on memory pressure, and when a phone app leaves the screen (`oriel.lifecycle`).
 
 The smallest fallback, **Qwen3.5 0.8B Q4_K_M**, uses about **703 MiB** of downloads including its vision projector; runtime memory is higher. Its source revision and SHA-256 hashes are pinned. Treat it as a candidate for simple shelves; phone speed and pantry accuracy have not yet been measured.
 
@@ -213,17 +214,30 @@ Android artifacts include an installable debug APK, release APK, and AAB. Releas
 
 MIT
 
-## Android photo extension development
+## Platform features and the fast local extension
 
-GhostPantry registers `dev.ghostpantry.PantryAndroidExtension` (and its AI
-extensions) through `.android.extensions` in `build.zig`, using Oriel's Android
-extension API; their sources live in `android/native/`. Oriel copies those
-sources and regenerates the registration on each Android build. Photo capture
-and content-URI access are app behavior, with no edits or patches to Oriel's
-generated runtime. The app's private photo provider is declared outside the
-manifest's generated regions.
+GhostPantry writes no platform glue of its own; platform features come from Oriel:
 
-See [Oriel's Android extension contract](https://github.com/highercomve/Oriel/blob/main/docs/android-extensions.md).
+- **Photos:** `.permissions.camera` turns on `oriel.camera`, so the page's
+  `<input type="file" accept="image/*" capture>` opens the camera app on Android
+  (the photo picker without `capture`, HEIC/AVIF transcoded to JPEG) and
+  WKWebView's Take Photo / Photo Library menu on iOS.
+- **System AI:** `oriel.system_ai` (`.system_ai = true`; Oriel adds ML Kit).
+- **Memory:** `oriel.lifecycle` frees the local LLM on critical memory pressure
+  and in the background.
+- **Fast local** (YOLOE + EmbeddingGemma 2) is the app extension
+  `pantry.vision`, declared in `build.zig` `.extensions` with its Kotlin sources
+  in `android/native/` (`EmbeddingGemmaExtension` implements `OrielAppExtension`)
+  and its LiteRT-LM and ONNX Runtime dependencies. `src/embedding.zig` calls it with
+  `oriel.extensions.get("pantry.vision").call(...)`, the method being the
+  operation (status, download, cancel, prepare, detect, match, feedback,
+  clear_feedback, release, delete) and the input JSON. The extension releases
+  its engine on critical memory pressure (`onLifecycle`). There is no iOS or
+  desktop implementation yet, so there `available()` is false, the `capabilities`
+  command reports it, and the UI hides the provider.
+
+Oriel copies the Kotlin sources and regenerates the registration on each Android
+build. See [Oriel's app extensions](https://github.com/highercomve/Oriel/blob/release/0.10/docs/extensions.md).
 
 ### Learning from corrections
 
@@ -240,7 +254,8 @@ Android produces separate **arm64-v8a** (phones and ARM Chromebooks) and **x86_6
 (Intel Chromebooks) APKs, with compressed native libraries. Each APK contains only
 its own processor's libraries. System AI, downloaded local vision LLMs, fast local
 YOLOE/EmbeddingGemma scanning, and configured server/API scanning remain supported.
-Selecting Local LLM uses that model; unavailable system AI uses fast local scanning.
+Selecting Local LLM uses that model; unavailable system AI uses fast local scanning
+where the build has it.
 Gemma/Qwen LLM weights and EmbeddingGemma weights are downloaded separately,
 so catalog entries do not add their model sizes to the APK.
 
