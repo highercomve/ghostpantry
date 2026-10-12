@@ -439,7 +439,9 @@ export const ScanView: React.FC<ScanViewProps> = ({
           />
           {systemStatus?.state === "unavailable" && (
             <p className="text-muted">
-              Use fast multi-item scanning on this device. Choose a server in Settings to use an LLM.
+              {caps?.fastLocal
+                ? "Use fast multi-item scanning on this device. Choose a server in Settings to use an LLM."
+                : "Choose a downloaded local model or a server in Settings to scan."}
             </p>
           )}
         </div>

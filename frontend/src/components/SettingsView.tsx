@@ -860,9 +860,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               style={{ display: "block", marginTop: 12 }}
             >
               A downloaded model stays on the device (in{" "}
-              <code>{localStatus?.models_dir || "the app's data folder"}</code>
-              ). The first scan after opening the app loads it once; Android
-              frees it again when memory runs low.
+              <code style={{ overflowWrap: "anywhere" }}>
+                {localStatus?.models_dir || "the app's data folder"}
+              </code>
+              ). The first scan after opening the app loads it once; it is
+              freed again when the app goes to the background or memory runs
+              low.
             </small>
 
             <div className="form-group" style={{ marginTop: 16 }}>
