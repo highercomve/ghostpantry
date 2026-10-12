@@ -282,6 +282,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          # Packages only: not ios-simulator-test (screenshot and logs).
+          pattern: '{linux-x86_64,macos-arm64,windows-x86_64,android,ios}'
           merge-multiple: true
       - name: Create draft release with packages and checksums
         env:
