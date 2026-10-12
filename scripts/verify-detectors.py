@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 
-root = Path(__file__).resolve().parents[1] / "android/app/src/main/assets/detectors"
+root = Path(__file__).resolve().parents[1] / "android/native/detectors"
 for model in json.loads((root / "yoloe_packages.json").read_text())["profiles"]:
     packed = (root / model["file"]).read_bytes()
     data = gzip.decompress(packed)
