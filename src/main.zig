@@ -284,7 +284,7 @@ pub const Commands = struct {
     }
 
     pub fn system_ai_download(arena: std.mem.Allocator) !system_ai.Status {
-        return system_ai.download(io, arena);
+        return system_ai.download(arena);
     }
 
     pub fn embedding_default_labels(arena: std.mem.Allocator) ![]const []const u8 {
@@ -419,7 +419,7 @@ pub const Commands = struct {
         return .{
             .zig = builtin.zig_version_string,
             .mode = @tagName(builtin.mode),
-            .dev = app.dev != null,
+            .dev = app.build.dev != null,
         };
     }
 };
@@ -440,14 +440,11 @@ pub fn main(init: std.process.Init) !u8 {
     local_mod.init(init.io, gpa);
     oriel.lifecycle.subscribe(onLifecycle) catch |err| log.err("lifecycle: {s}", .{@errorName(err)});
     return oriel.main(init, .{ .commands = Commands, .events = Events }, .{
-        .id = "dev.ghostpantry.app",
-        .title = "GhostPantry - Food & Fridge Inventory AI",
-        .width = 1100,
-        .height = 780,
-        .assets = app.assets,
-        .dev = app.dev,
-        .deep_link_schemes = app.url_schemes,
-        .permissions = app.permissions,
-        .security = .{ .isolation = app.isolation },
+        .app = app.build,
+        .window = .{
+            .title = "GhostPantry - Food & Fridge Inventory AI",
+            .width = 1100,
+            .height = 780,
+        },
     });
 }

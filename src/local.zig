@@ -32,8 +32,11 @@ pub const DownloadEvent = struct {
     total_mb: u32 = 0,
 };
 
+/// The app's typed events (main.zig declares `local_model_download`).
+const events = oriel.App.events(@import("main.zig").Events);
+
 fn emitDownload(id: []const u8, state: []const u8, done_mb: u32, total_mb: u32) void {
-    oriel.App.emit("local_model_download", DownloadEvent{ .id = id, .state = state, .done_mb = done_mb, .total_mb = total_mb });
+    events.emit(.local_model_download, .{ .id = id, .state = state, .done_mb = done_mb, .total_mb = total_mb });
 }
 
 // ---------------------------------------------------------------------------

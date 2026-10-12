@@ -43,9 +43,9 @@ fn describe(arena: std.mem.Allocator, state: anytype, reason: []const u8) !Statu
 
 /// Download the system model where the platform does it on demand; blocks
 /// until it's ready (up to Oriel's 10 minute cap), then reports the status.
-pub fn download(io: std.Io, arena: std.mem.Allocator) !Status {
+pub fn download(arena: std.mem.Allocator) !Status {
     if (oriel.system_ai.available) {
-        oriel.system_ai.download(io, null) catch |err| switch (err) {
+        oriel.system_ai.download(null) catch |err| switch (err) {
             error.Unavailable => return oriel.ipc.fail("System AI is unavailable. Use a downloaded local model.", .{}),
             // iOS: Apple Intelligence is still getting it ready.
             error.NotReady => {},
@@ -72,7 +72,7 @@ pub fn analyze(io: std.Io, arena: std.mem.Allocator, location: []const u8, image
     const photo = try decodeDataUrl(arena, image);
     const prompt = try std.fmt.allocPrint(arena, "{s}\nLocation: {s}. Return at most 20 visible items. Keep notes and summary short. Do not guess hidden contents; note when fill is unknown.", .{ ai.pantry_vision_system_prompt, location });
     const started_ms = std.Io.Clock.awake.now(io).toMilliseconds();
-    const content = generate(io, arena, prompt, photo) catch |err| switch (err) {
+    const content = generate(arena, prompt, photo) catch |err| switch (err) {
         error.NotReady => return oriel.ipc.fail("The system model needs to be downloaded before scanning. Download it in Settings and wait for Ready to scan.", .{}),
         error.Unavailable => return oriel.ipc.fail("System AI is unavailable on this device. Check support again or choose a downloaded local model.", .{}),
         error.Busy => return oriel.ipc.fail("System AI is busy. Try again when the current operation finishes.", .{}),
@@ -84,9 +84,9 @@ pub fn analyze(io: std.Io, arena: std.mem.Allocator, location: []const u8, image
     return result;
 }
 
-fn generate(io: std.Io, arena: std.mem.Allocator, prompt: []const u8, photo: Photo) ![]const u8 {
+fn generate(arena: std.mem.Allocator, prompt: []const u8, photo: Photo) ![]const u8 {
     if (oriel.system_ai.available) {
-        return oriel.system_ai.generate(io, arena, .{
+        return oriel.system_ai.generate(arena, .{
             .prompt = prompt,
             .images = &.{.{ .bytes = photo.bytes, .mime = photo.mime }},
             .temperature = 0.2,
