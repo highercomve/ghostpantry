@@ -27,10 +27,10 @@ export function SystemAiStatusPanel({
             : "System AI unavailable";
   const message =
     busy === "downloading"
-      ? "Downloading Gemini Nano to enable scans on this phone."
+      ? "Downloading the system model to enable scans on this phone."
       : busy === "checking"
         ? "Checking system AI support on this phone."
-        : status?.message || "Open the Android app to check system AI support.";
+        : status?.message || "Open the phone app to check system AI support.";
 
   return (
     <>

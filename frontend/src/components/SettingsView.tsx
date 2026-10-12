@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { AppSettings } from "../types";
 import { invoke, listen, openExternal } from "../oriel";
 import { useSystemAi } from "../hooks/useSystemAi";
+import { useCapabilities } from "../hooks/useCapabilities";
 import { EmbeddingGemmaPanel } from "./EmbeddingGemmaPanel";
 import { SystemAiStatusPanel } from "./SystemAiStatusPanel";
 
@@ -53,8 +54,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSettingsSaved,
   onResetData,
 }) => {
+  // What this build can scan with: providers it can't use are hidden.
+  const caps = useCapabilities();
   const [settings, setSettings] = useState<AppSettings>({
-    provider: "embedding",
+    // Replaced by the saved (or this platform's default) provider on load.
+    provider: "local",
     baseUrl: "https://api.openai.com/v1",
     apiKey: "",
     model: "qwen2.5-vl-3b",
@@ -538,15 +542,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             role="radiogroup"
             aria-label="Vision provider"
           >
-            <button
-              type="button"
-              className={`seg-btn ${isFast ? "active" : ""}`}
-              role="radio"
-              aria-checked={isFast}
-              onClick={() => handleProviderChange("embedding")}
-            >
-              Fast local
-            </button>
+            {caps?.fastLocal && (
+              <button
+                type="button"
+                className={`seg-btn ${isFast ? "active" : ""}`}
+                role="radio"
+                aria-checked={isFast}
+                onClick={() => handleProviderChange("embedding")}
+              >
+                Fast local
+              </button>
+            )}
             <button
               type="button"
               className={`seg-btn ${isLocal ? "active" : ""}`}
@@ -565,15 +571,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             >
               Server / API
             </button>
-            <button
-              type="button"
-              role="radio"
-              className={`seg-btn ${isSystem ? "active" : ""}`}
-              aria-checked={isSystem}
-              onClick={() => handleProviderChange("system")}
-            >
-              System AI
-            </button>
+            {caps?.systemAi && (
+              <button
+                type="button"
+                role="radio"
+                className={`seg-btn ${isSystem ? "active" : ""}`}
+                aria-checked={isSystem}
+                onClick={() => handleProviderChange("system")}
+              >
+                System AI
+              </button>
+            )}
           </div>
         </div>
 
@@ -664,10 +672,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </>
         ) : isSystem ? (
           <div className="settings-section">
-            <h3>2. Android system AI</h3>
+            <h3>2. System AI</h3>
             <p className="text-muted">
-              Uses the phone’s shared Gemini Nano model. Android checks support
-              on this device; no API key is needed and scans run on the phone.
+              Uses the phone’s own model (Gemini Nano on Android, Apple
+              Intelligence on iOS). The system checks support on this device;
+              no API key is needed and scans run on the phone.
             </p>
             <SystemAiStatusPanel
               status={systemStatus}

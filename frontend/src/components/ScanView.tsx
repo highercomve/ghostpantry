@@ -5,6 +5,7 @@ import { EmbeddingGemmaPanel } from "./EmbeddingGemmaPanel";
 import { CameraCapture } from "./CameraCapture";
 import { invoke } from "../oriel";
 import { useSystemAi } from "../hooks/useSystemAi";
+import { loadCapabilities, useCapabilities } from "../hooks/useCapabilities";
 import { SystemAiStatusPanel } from "./SystemAiStatusPanel";
 import { reviewCrop, type InventoryReviewItem } from "../cropInventory";
 import { InventoryItem, VisionResult } from "../types";
@@ -31,19 +32,22 @@ export const ScanView: React.FC<ScanViewProps> = ({
   const [regionRunRequest, setRegionRunRequest] = useState(0);
   const [queuedCrops, setQueuedCrops] = useState<Record<string, Record<string, string>>>({});
   const isSystem = provider === "system";
+  const caps = useCapabilities();
   const [fastBackend, setFastBackend] = useState<"cpu" | "gpu">("cpu");
   const {
     status: systemStatus,
     busy: systemBusy,
     check: checkSystemAi,
   } = useSystemAi(isSystem && !isAnalyzing);
+  // System AI that isn't ready falls back to fast local matching, where
+  // this build has it.
   const isFast = provider === "embedding" ||
-    (isSystem && systemStatus !== null && systemStatus.state !== "available");
+    (isSystem && caps?.fastLocal === true && systemStatus !== null && systemStatus.state !== "available");
   useEffect(() => {
     if (window.oriel)
       void invoke("get_settings")
         .then((settings) => {
-          setProvider(settings.provider || "embedding");
+          setProvider(settings.provider || "local");
           setFastBackend(settings.embeddingBackend === "gpu" ? "gpu" : "cpu");
         })
         .catch((error) => console.warn("Could not read settings; using defaults", error));
@@ -75,9 +79,14 @@ export const ScanView: React.FC<ScanViewProps> = ({
       // Check saved provider and live readiness again at the point of use.
       const settings = await invoke("get_settings");
       const system = settings.provider === "system";
-      setProvider(settings.provider || "embedding");
+      setProvider(settings.provider || "local");
       const status = system ? await checkSystemAi() : null;
-      if (!settings.provider || settings.provider === "embedding" ||
+      const { fastLocal } = await loadCapabilities();
+      if (system && status?.state !== "available" && !fastLocal) {
+        setAnalysisError(status?.message || "System AI isn't ready. Choose another provider in Settings.");
+        return;
+      }
+      if (settings.provider === "embedding" ||
           (system && status?.state !== "available")) {
         setShowRegions(true);
         setRegionRunRequest((request) => request + 1);
@@ -520,7 +529,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
 
       {selectedImage && (
         <div className="embedding-entry" id="fast-multi-scan">
-          {!isFast && !showRegions && <button type="button" className="btn"
+          {!isFast && !showRegions && caps?.fastLocal && <button type="button" className="btn"
             disabled={isAnalyzing || embeddingBusy || isSaving}
             onClick={() => { setShowRegions(true); setRegionRunRequest((value) => value + 1); }}>
             Use offline scan instead
