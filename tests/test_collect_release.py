@@ -37,6 +37,20 @@ class ReleaseCollectionTests(unittest.TestCase):
             self.assertTrue((root / "dist/ghostpantry-android-app-debug.apk").is_file())
             self.assertFalse((root / "dist/ghostpantry-android-app-old.apk").exists())
 
+    def test_ios_collects_the_device_ipa_and_the_simulator_app(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            out = root / "zig-out/ios-release"
+            out.mkdir(parents=True)
+            (out / "GhostPantry.ipa").write_bytes(b"device")
+            (out / "GhostPantry-simulator.app.zip").write_bytes(b"simulator")
+            (out / "notes.txt").write_bytes(b"ignored")
+            subprocess.run([sys.executable, str(SCRIPT), "ios"], cwd=root, check=True, capture_output=True)
+            self.assertTrue((root / "dist/ghostpantry-ios-GhostPantry.ipa").is_file())
+            self.assertTrue((root / "dist/ghostpantry-ios-GhostPantry-simulator.app.zip").is_file())
+            self.assertFalse((root / "dist/ghostpantry-ios-notes.txt").exists())
+            self.assertEqual(len((root / "dist/SHA256SUMS-ios").read_text().splitlines()), 2)
+
     def test_missing_packages_fail_instead_of_uploading_an_empty_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
             result = subprocess.run([sys.executable, str(SCRIPT), "linux-x86_64"], cwd=directory, capture_output=True, text=True)

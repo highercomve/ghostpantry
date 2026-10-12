@@ -9,7 +9,7 @@ on:
       platform:
         description: Build one platform or all
         type: choice
-        options: [all, linux, macos, windows, android]
+        options: [all, linux, macos, windows, android, ios]
         default: all
       sign_android:
         description: Sign Android release packages using this repository's keystore secrets
@@ -203,9 +203,78 @@ jobs:
           name: android
           path: dist/
           if-no-files-found: error
+  ios:
+    needs: validate
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'ios'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - name: Device app (unsigned .ipa; sign it with xtool or Xcode to install)
+        run: |
+          VERSION=0.1.5
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          zig build ios-ipa -Dtarget=aarch64-ios -Dapple_sdk="$SDK" -Doptimize=ReleaseSafe -Dapp_version="$VERSION" -j3
+          mkdir -p zig-out/ios-release
+          mv zig-out/GhostPantry.ipa zig-out/ios-release/GhostPantry.ipa
+      - name: Simulator app (ad-hoc signed, Apple silicon)
+        run: |
+          VERSION=0.1.5
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          rm -rf zig-out/ios
+          zig build -Dtarget=aarch64-ios-simulator -Dapple_sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)" -Doptimize=ReleaseSafe -Dapp_version="$VERSION" -j3
+          # The simulator runs ad-hoc signed code only.
+          codesign --force --sign - zig-out/ios/GhostPantry.app
+          plutil -lint zig-out/ios/GhostPantry.app/Info.plist
+          (cd zig-out/ios && ditto -c -k --keepParent GhostPantry.app ../ios-release/GhostPantry-simulator.app.zip)
+      - name: "Smoke test: launch in a simulator"
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          for runtime in sorted(devices, reverse=True):
+              if "iOS" in runtime:
+                  for d in devices[runtime]:
+                      if d["name"].startswith("iPhone"):
+                          print(d["udid"]); sys.exit()
+          sys.exit("no iPhone simulator")')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl install "$udid" zig-out/ios/GhostPantry.app
+          xcrun simctl launch --stdout="$PWD/app.log" --stderr="$PWD/app.log" "$udid" dev.ghostpantry.app
+          sleep 20
+          xcrun simctl io "$udid" screenshot ios-simulator.png
+          # Still running after 20 s: it started and didn't crash.
+          xcrun simctl spawn "$udid" launchctl list | grep -i dev.ghostpantry.app
+      - name: Simulator logs and screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-test
+          path: |
+            app.log
+            ios-simulator.png
+            ~/Library/Logs/DiagnosticReports/*
+          if-no-files-found: ignore
+      - run: python3 scripts/collect-release.py ios
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: dist/
+          if-no-files-found: error
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, macos, windows, android]
+    needs: [linux, macos, windows, android, ios]
     runs-on: ubuntu-latest
     permissions:
       contents: write

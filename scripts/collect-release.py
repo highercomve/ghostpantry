@@ -9,9 +9,16 @@ import sys
 platform = sys.argv[1]
 output = Path("dist")
 output.mkdir(exist_ok=True)
-roots = [Path("zig-out/package")] if platform != "android" else [
-    Path("android/app/build/outputs/apk"), Path("android/app/build/outputs/bundle")
-]
+if platform == "android":
+    roots = [Path("android/app/build/outputs/apk"), Path("android/app/build/outputs/bundle")]
+elif platform == "ios":
+    # The unsigned device .ipa and the simulator .app, zipped (release.yml).
+    roots = [Path("zig-out/ios-release")]
+else:
+    roots = [Path("zig-out/package")]
+suffixes = {".deb", ".rpm", ".appimage", ".dmg", ".exe", ".apk", ".aab"}
+if platform == "ios":
+    suffixes = {".ipa", ".zip"}
 collected = []
 for root in roots:
     for path in sorted(root.rglob("*")):
@@ -22,7 +29,7 @@ for root in roots:
             current = {element["outputFile"] for element in json.loads(metadata.read_text())["elements"]}
             if path.name not in current:
                 continue
-        if path.is_file() and path.suffix.lower() in {".deb", ".rpm", ".appimage", ".dmg", ".exe", ".apk", ".aab"}:
+        if path.is_file() and path.suffix.lower() in suffixes:
             destination = output / f"ghostpantry-{platform}-{path.name}"
             shutil.copy2(path, destination)
             collected.append(destination)
