@@ -1,7 +1,6 @@
-# JNI resolves these runtime and extension classes by name.
+# JNI resolves these runtime classes by name (Oriel keeps the declared
+# extension classes itself).
 -keep class dev.oriel.** { *; }
--keep class dev.ghostpantry.SystemAiExtension { *; }
--keep class dev.ghostpantry.EmbeddingGemmaExtension { *; }
 # ONNX Runtime and LiteRT-LM: their native code finds their Java classes,
 # constructors and fields by name (TensorInfo, OnnxTensor, the embedding
 # results...). Their AARs don't keep them (ONNX Runtime 1.30's rules cover

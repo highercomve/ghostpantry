@@ -11,7 +11,8 @@
 //! (Vulkan/CUDA/Metal through `oriel.ggml_gpu`) and fall back to the CPU;
 //! the KV cache is q8_0 with flash attention where available, else f16, and
 //! a failing context halves until it fits. The model stays resident between
-//! scans (loading is the slow part) and unloads on Android's trim-memory.
+//! scans (loading is the slow part) and unloads on memory pressure and in the
+//! background (`oriel.lifecycle`, main.zig).
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -98,11 +99,11 @@ fn repoUrl(arena: std.mem.Allocator, repo: []const u8, revision: []const u8, fil
 
 /// `<files dir>/models` on Android, `<data dir>/GhostPantry/models` elsewhere.
 pub fn modelsDir(alloc: std.mem.Allocator) ![]const u8 {
-    if (builtin.target.os.tag == .linux and builtin.target.abi.isAndroid()) {
-        if (@hasDecl(oriel, "android") and @hasDecl(oriel.android, "paths")) {
-            if (oriel.android.paths.filesDir()) |fdir| {
-                return try std.fs.path.join(alloc, &.{ fdir, "models" });
-            }
+    // Android: the app's files dir itself, where earlier releases kept it.
+    // (store.dataDir is <filesDir>/<app id> there: moving would orphan data.)
+    if (builtin.abi.isAndroid()) {
+        if (oriel.android.paths.filesDir()) |fdir| {
+            return try std.fs.path.join(alloc, &.{ fdir, "models" });
         }
     }
     const base = try oriel.store.dataDir(alloc, "GhostPantry");
@@ -975,14 +976,4 @@ fn applyTemplate(arena: std.mem.Allocator, template: ?[]const u8, system: []cons
         cap = @intCast(n);
     }
     return error.UnsupportedChatTemplate;
-}
-
-/// Memory pressure (Android's trim-memory): free the model unless it is
-/// answering; the next scan loads it again.
-pub fn handleSystemEvent(name: []const u8, data: []const u8) void {
-    if (std.mem.eql(u8, name, "trim-memory")) {
-        const level = std.fmt.parseInt(i32, data, 10) catch 0;
-        // 10 = running low, 15 = low, 20 = UI hidden, 40 = background.
-        if (level >= 15) unloadIdle();
-    }
 }

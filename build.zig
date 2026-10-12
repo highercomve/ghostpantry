@@ -4,16 +4,17 @@ const oriel = @import("oriel");
 pub fn build(b: *std.Build) void {
     const target = oriel.resolveTarget(b, b.standardTargetOptions(.{}));
     const optimize = b.standardOptimizeOption(.{});
-    const is_android = target.result.abi.isAndroid();
     const app_version = b.option([]const u8, "app_version", "Version embedded in release packages") orelse "0.1.5";
 
     const dep = b.dependency("oriel", .{
         .target = target,
         .optimize = optimize,
-        .tray = !is_android,
+        // Intent, once for every target: each module resolves per target to
+        // `oriel.<module>.available` (no tray or dialog on phones).
+        .tray = true,
         .menu = false,
         .store = true,
-        .dialog = !is_android,
+        .dialog = true,
         .notification = true,
         .updater = false,
         .sql = true,
@@ -26,6 +27,10 @@ pub fn build(b: *std.Build) void {
         .global_shortcut = false,
         .input = false,
         .clipboard = true,
+        // The phone's own model ("System AI"): Gemini Nano through ML Kit on
+        // Android, Foundation Models on iOS 26+. Oriel adds the ML Kit
+        // dependency; elsewhere `oriel.system_ai.available` is false.
+        .system_ai = true,
     });
 
     _ = oriel.addApp(b, dep, .{
@@ -39,13 +44,26 @@ pub fn build(b: *std.Build) void {
             .summary = "AI-powered Fridge and Food Pantry Inventory Manager",
             .version = app_version,
         },
+        // Fast local matching (EmbeddingGemma + YOLOE), the app's own native
+        // code. Android only for now: elsewhere `available()` is false and
+        // the UI hides the provider.
+        .extensions = &.{.{
+            .name = "pantry.vision",
+            .android = .{
+                .class = "dev.ghostpantry.EmbeddingGemmaExtension",
+                .sources = &.{ b.path("android/native/EmbeddingGemmaExtension.kt"), b.path("android/native/EmbeddingMath.kt"), b.path("android/native/EmbeddingCache.kt"), b.path("android/native/EmbeddingFeedback.kt"), b.path("android/native/PantryDetector.kt"), b.path("android/native/YoloePackageMath.kt"), b.path("android/native/YoloePackageDetector.kt") },
+                .dependencies = &.{ "com.google.ai.edge.litertlm:litertlm-android:0.18.0", "com.microsoft.onnxruntime:onnxruntime-android:1.30.0" },
+            },
+            // Cancel and status answer while a long match or detection runs
+            // (the extension serializes the rest itself and reports busy).
+            .concurrency = 2,
+        }},
         .android = .{
-            .sources = &.{ b.path("android/native/PantryCameraProvider.kt"), b.path("android/native/PantryAndroidExtension.kt"), b.path("android/native/SystemAiExtension.kt"), b.path("android/native/EmbeddingGemmaExtension.kt"), b.path("android/native/EmbeddingMath.kt"), b.path("android/native/EmbeddingCache.kt"), b.path("android/native/EmbeddingFeedback.kt"), b.path("android/native/PantryDetector.kt"), b.path("android/native/YoloePackageMath.kt"), b.path("android/native/YoloePackageDetector.kt") },
-            .extensions = &.{ "dev.ghostpantry.PantryAndroidExtension", "dev.ghostpantry.SystemAiExtension", "dev.ghostpantry.EmbeddingGemmaExtension" },
-            .dependencies = &.{ "androidx.core:core:1.17.0", "com.google.mlkit:genai-prompt:1.0.0-beta4", "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2", "com.google.ai.edge.litertlm:litertlm-android:0.18.0", "com.microsoft.onnxruntime:onnxruntime-android:1.30.0" },
             .native_libraries = &.{.{ .name = "libvndksupport.so" }},
             .proguard_rules = b.path("android/native/proguard-rules.pro"),
         },
+        // Also turns on oriel.camera: <input type=file accept=image/* capture>
+        // opens the camera app, the photo picker and HEIC transcoding.
         .permissions = .{
             .camera = "Scan fridge and pantry shelves to detect food items",
         },

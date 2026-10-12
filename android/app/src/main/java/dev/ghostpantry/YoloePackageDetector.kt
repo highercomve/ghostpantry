@@ -73,8 +73,10 @@ object YoloePackageDetector {
                 // Sessions are created per pass and closed before the next one on
                 // purpose: keeping all three (plus their ORT arenas) alive next to
                 // the 388 MB matching engine raises the resident peak on low-RAM
-                // phones, and extensions get no trim-memory hook to drop them.
-                // The cost is the session load time, reported as load_ms.
+                // phones. The cost is the session load time, reported as load_ms.
+                // (Caching them, released from the extension's onLifecycle on
+                // memory pressure, is possible now; it needs peak-memory numbers
+                // on a low-RAM phone first.)
                 OrtSession.SessionOptions().use { options ->
                     options.setIntraOpNumThreads(4)
                     options.setInterOpNumThreads(1)

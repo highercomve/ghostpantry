@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- oriel:permissions end -->
     <!-- oriel:features begin -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- oriel:features end -->
     <!-- oriel:queries begin -->
     <!-- oriel.dictation's system engine: Android 11+ only lets apps see the
@@ -69,12 +70,14 @@
             android:authorities="${applicationId}.oriel.files"
             android:exported="false"
             android:grantUriPermissions="true" />
-        <provider
-            android:name="dev.ghostpantry.PantryCameraProvider"
-            android:authorities="${applicationId}.pantry.camera"
-            android:exported="false"
-            android:grantUriPermissions="true" />
         <!-- oriel:components begin -->
+        <provider
+            android:name="dev.oriel.OrielCaptureProvider"
+            android:authorities="${applicationId}.oriel.capture"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="dev.oriel.camera.transcode" android:value="true" />
+        </provider>
         <uses-native-library android:name="libvndksupport.so" android:required="false" />
         <!-- oriel:components end -->
     </application>

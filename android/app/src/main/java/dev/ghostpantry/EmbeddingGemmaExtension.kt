@@ -1,11 +1,9 @@
 package dev.ghostpantry
 
-import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
-import android.os.Bundle
 import android.os.Debug
 import android.os.Looper
 import android.util.Base64
@@ -16,7 +14,10 @@ import com.google.ai.edge.litertlm.EmbeddingEngine
 import com.google.ai.edge.litertlm.EmbeddingEngineConfig
 import com.google.ai.edge.litertlm.EmbeddingOptions
 import com.google.ai.edge.litertlm.InputData
-import dev.oriel.OrielAndroidExtension
+import dev.oriel.OrielAppExtension
+import dev.oriel.OrielCall
+import dev.oriel.OrielExtensionContext
+import dev.oriel.OrielExtensionError
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -30,15 +31,37 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
-/** Downloadable, app-owned LiteRT experiment; no dependency on AICore support. */
-class EmbeddingGemmaExtension : OrielAndroidExtension {
-    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-        context = activity.applicationContext
-        bind()
+/**
+ * The "pantry.vision" app extension (build.zig, `.extensions`): fast local
+ * matching with a downloadable LiteRT EmbeddingGemma model and the YOLOE
+ * detectors, independent of AICore. src/embedding.zig calls it through
+ * `oriel.extensions`; the method is the operation, the input its JSON.
+ */
+class EmbeddingGemmaExtension : OrielAppExtension {
+    override fun onLoad(ctx: OrielExtensionContext) {
+        context = ctx.context
+    }
+
+    override fun call(method: String, input: ByteArray, call: OrielCall): ByteArray {
+        if (context == null) context = call.context
+        return request(method, input)
+    }
+
+    /** Critical memory pressure: drop the 388 MB engine and the label vectors
+        unless a call is using them; the next match loads them again. */
+    override fun onLifecycle(event: String, level: String?) {
+        if (event != "memory_pressure" || level != "critical") return
+        // The main thread never waits behind a long match.
+        if (!lock.tryLock()) return
+        try {
+            if (engine != null) {
+                release()
+                Log.i("GhostPantryEmbedding", "Memory pressure: released the matching engine")
+            }
+        } finally { lock.unlock() }
     }
 
     companion object {
-        @JvmStatic private external fun bind()
         @Volatile private var context: Context? = null
         private const val MODEL_BYTES = 387710976L
         private const val MODEL_SHA = "92dcbea108899e5d6e30d919b0744f90d9967e80c67a4ab5503ac16d54f62eb0"
@@ -62,13 +85,14 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
         private fun supported() = Build.VERSION.SDK_INT >= 29 && Build.SUPPORTED_ABIS.any { it == "arm64-v8a" || it == "x86_64" }
         private fun device() = "${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}"
 
-        @JvmStatic fun request(bytes: ByteArray): ByteArray {
+        /** One operation, on an extension worker: failures reach Zig as
+            OrielExtensionError (code and message), never as an exception. */
+        private fun request(operation: String, bytes: ByteArray): ByteArray {
             return try {
                 check(Looper.myLooper() != Looper.getMainLooper()) { "Image matching must run off the UI thread" }
                 require(bytes.size <= 8 * 1024 * 1024) { "Photo request is too large" }
-                val input = JSONObject(String(bytes, Charsets.UTF_8))
+                val input = if (bytes.isEmpty()) JSONObject() else JSONObject(String(bytes, Charsets.UTF_8))
                 check(context != null) { "Android extension is not initialized" }
-                val operation = input.getString("operation")
                 // Pausing only flips flags the download thread polls, so it must not
                 // wait behind a long match holding the lock.
                 if (operation == "cancel") {
@@ -116,10 +140,12 @@ class EmbeddingGemmaExtension : OrielAndroidExtension {
                     }
                     result.toString().toByteArray(Charsets.UTF_8)
                 } finally { lock.unlock() }
+            } catch (failure: OrielExtensionError) {
+                throw failure
             } catch (failure: Exception) {
-                JSONObject().put("error", failure.message ?: failure.javaClass.simpleName).toString().toByteArray(Charsets.UTF_8)
+                throw OrielExtensionError("failed", failure.message ?: failure.javaClass.simpleName)
             } catch (failure: LinkageError) {
-                JSONObject().put("error", "LiteRT could not load on this device: ${failure.message}").toString().toByteArray(Charsets.UTF_8)
+                throw OrielExtensionError("litert_unavailable", "LiteRT could not load on this device: ${failure.message}")
             }
         }
 

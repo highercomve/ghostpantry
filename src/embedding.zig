@@ -1,17 +1,20 @@
-//! Optional Android image/text matching experiment, independent of AICore.
+//! Fast local matching (EmbeddingGemma + YOLOE), independent of AICore:
+//! the app extension "pantry.vision" (build.zig). Android has the Kotlin
+//! implementation; elsewhere the extension is unavailable and every command
+//! reports that cleanly.
 const std = @import("std");
-const builtin = @import("builtin");
 const oriel = @import("oriel");
-const is_android = builtin.abi.isAndroid();
-const Android = @import("android_ai_bridge.zig").Bridge("dev.ghostpantry.EmbeddingGemmaExtension");
 
-comptime {
-    if (is_android) @export(&Android.bind, .{ .name = "Java_dev_ghostpantry_EmbeddingGemmaExtension_bind" });
+const vision = oriel.extensions.get("pantry.vision");
+
+/// Whether this build has an implementation (comptime, per target).
+pub fn available() bool {
+    return vision.available();
 }
 
 pub const Status = struct {
     state: []const u8 = "unavailable",
-    message: []const u8 = "This experiment runs in the Android app.",
+    message: []const u8 = "Fast local matching isn't available on this platform.",
     supported: bool = false,
     device: []const u8 = "",
     backend: []const u8 = "",
@@ -43,8 +46,8 @@ pub const Result = struct {
 };
 pub const Box = struct { x: f64, y: f64, width: f64, height: f64, label: []const u8, score: f64 };
 pub const DetectionResult = struct { boxes: []const Box, detector: []const u8, load_ms: u64, detect_ms: u64, total_ms: u64, pss_mb: f64 };
+/// The extension's input; the operation is the method.
 const Request = struct {
-    operation: []const u8,
     backend: []const u8 = "cpu",
     image: []const u8 = "",
     labels: []const []const u8 = &.{},
@@ -59,47 +62,56 @@ const Request = struct {
     accepted: bool = false,
 };
 
-fn request(comptime Reply: type, arena: std.mem.Allocator, input: Request) !Reply {
-    if (!is_android) return oriel.ipc.fail("Image matching requires the Android app.", .{});
+/// Loading the engine, embedding up to 1,024 labels or detecting on the CPU
+/// can take minutes on a slow phone; status and cancel answer at once.
+const slow_timeout_ms = oriel.extensions.max_timeout_ms;
+const quick_timeout_ms = 30_000;
+
+fn request(comptime Reply: type, arena: std.mem.Allocator, operation: []const u8, input: Request) !Reply {
+    if (!available()) return oriel.ipc.fail("Fast local matching isn't available on this platform.", .{});
     const bytes = try std.json.Stringify.valueAlloc(arena, input, .{});
-    const raw = Android.request(arena, bytes) catch |err| {
-        return oriel.ipc.fail("Image matching could not connect to Android ({s}).", .{@errorName(err)});
+    const quick = std.mem.eql(u8, operation, "status") or std.mem.eql(u8, operation, "cancel");
+    var diag: oriel.extensions.Diagnostics = .{};
+    const raw = vision.call(arena, operation, bytes, .{
+        .timeout_ms = if (quick) quick_timeout_ms else slow_timeout_ms,
+        .diag = &diag,
+    }) catch |err| switch (err) {
+        error.ExtensionFailed => return oriel.ipc.fail("EmbeddingGemma: {s}", .{diag.message()}),
+        else => return oriel.ipc.fail("Image matching could not run ({s}).", .{@errorName(err)}),
     };
-    const envelope = try std.json.parseFromSliceLeaky(struct { @"error": ?[]const u8 = null }, arena, raw, .{ .ignore_unknown_fields = true });
-    if (envelope.@"error") |message| return oriel.ipc.fail("EmbeddingGemma: {s}", .{message});
     return std.json.parseFromSliceLeaky(Reply, arena, raw, .{ .ignore_unknown_fields = true });
 }
 
 pub fn status(arena: std.mem.Allocator) !Status {
-    if (!is_android) return .{};
-    return request(Status, arena, .{ .operation = "status" });
+    if (!available()) return .{};
+    return request(Status, arena, "status", .{});
 }
 
 pub fn manage(arena: std.mem.Allocator, operation: []const u8, backend: []const u8) !Status {
-    return request(Status, arena, .{ .operation = operation, .backend = backend });
+    return request(Status, arena, operation, .{ .backend = backend });
 }
 
 pub fn releaseForScan(arena: std.mem.Allocator) !void {
-    if (is_android) _ = try manage(arena, "release", "cpu");
+    if (available()) _ = try manage(arena, "release", "cpu");
 }
 
 pub fn feedback(arena: std.mem.Allocator, scan_id: []const u8, label: []const u8, accepted: bool) !FeedbackStatus {
     if (scan_id.len > 64 or label.len > 480) return oriel.ipc.fail("Invalid correction.", .{});
-    return request(FeedbackStatus, arena, .{ .operation = "feedback", .scan_id = scan_id, .label = label, .accepted = accepted });
+    return request(FeedbackStatus, arena, "feedback", .{ .scan_id = scan_id, .label = label, .accepted = accepted });
 }
 
 pub fn clearFeedback(arena: std.mem.Allocator) !FeedbackStatus {
-    return request(FeedbackStatus, arena, .{ .operation = "clear_feedback" });
+    return request(FeedbackStatus, arena, "clear_feedback", .{});
 }
 
 pub fn detect(arena: std.mem.Allocator, image: []const u8, detector: []const u8, threshold: f64) !DetectionResult {
     if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("Photo is too large.", .{});
     if (!(threshold >= 0.1 and threshold <= 0.9)) return oriel.ipc.fail("Invalid detector threshold.", .{});
-    return request(DetectionResult, arena, .{ .operation = "detect", .image = image, .detector = detector, .threshold = threshold });
+    return request(DetectionResult, arena, "detect", .{ .image = image, .detector = detector, .threshold = threshold });
 }
 
 pub fn regionMatch(arena: std.mem.Allocator, image: []const u8, backend: []const u8, labels: []const []const u8, use_feedback: bool) !Result {
     if (image.len > 7 * 1024 * 1024) return oriel.ipc.fail("Crop is too large.", .{});
     if (labels.len < 2 or labels.len > 1024) return oriel.ipc.fail("Provide 2–1,024 food labels.", .{});
-    return request(Result, arena, .{ .operation = "match", .image = image, .backend = backend, .labels = labels, .max_matches = 10, .personalized = true, .feedback_scope = "crop", .use_feedback = use_feedback });
+    return request(Result, arena, "match", .{ .image = image, .backend = backend, .labels = labels, .max_matches = 10, .personalized = true, .feedback_scope = "crop", .use_feedback = use_feedback });
 }

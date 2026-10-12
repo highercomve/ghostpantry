@@ -9,7 +9,8 @@ internal object NativeLib {
     /** 1 = started, 2 = already running, 0 = failed. */
     @JvmStatic external fun start(files: ByteArray, cache: ByteArray, external: ByteArray, args: Array<ByteArray>): Int
     @JvmStatic external fun isRunning(): Boolean
-    @JvmStatic external fun onMessage(window: Int, data: ByteArray, origin: ByteArray)
+    /** `load`: the window's page-load counter, returned with each reply (OrielRuntime.postMessage). */
+    @JvmStatic external fun onMessage(window: Int, data: ByteArray, origin: ByteArray, load: Int)
     /** The encoded response ("status\nmime\nheaders\n\nbody"), or null for the network. */
     @JvmStatic external fun serve(window: Int, url: ByteArray): ByteArray?
     /** Whether the webview may load `url` (a top-level navigation). */
@@ -24,8 +25,16 @@ internal object NativeLib {
     @JvmStatic external fun onFileDialogResult(path: ByteArray?)
     /** A folder call's answer (OrielRuntime.FOLDER_* status); `request` is Zig's. */
     @JvmStatic external fun onFolderResult(request: Long, status: Int, data: ByteArray?)
+    /** A capturePhoto's answer (OrielCamera's STATUS_*; the encoded photo when ok); `request` is Zig's. */
+    @JvmStatic external fun onCameraResult(request: Long, status: Int, width: Int, height: Int, data: ByteArray?)
     /** A tile tap, notification action, headset button or keyboard event (OrielSystem). */
     @JvmStatic external fun onSystemEvent(name: ByteArray, data: ByteArray)
+    /** oriel.lifecycle: 0 background (no Activity started), 1 foreground (OrielRuntime). */
+    @JvmStatic external fun onLifecycle(event: Int)
+    /** OrielCall.isCancelled: the caller cancelled or timed out (src/platform/android/extensions.zig). */
+    @JvmStatic external fun extensionCancelled(id: Long): Boolean
+    /** An app extension's emit (any thread): Zig's onEvent handlers and the page. */
+    @JvmStatic external fun onExtensionEvent(extension: ByteArray, event: ByteArray, data: ByteArray)
     /** A registered keyboard shortcut was pressed (src/plugins/global_shortcut/android.zig). */
     @JvmStatic external fun onShortcut(id: ByteArray)
     /** The system speech recognizer (OrielSpeech): kind 0 partial, 1 final, 2 level, 3 error, 4 ended. */

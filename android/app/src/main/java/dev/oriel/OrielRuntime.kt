@@ -51,6 +51,9 @@ object OrielRuntime {
     private const val CHANNEL = "oriel"
     /** espeak-ng's compiled data (-Dkokoro), shipped as assets. */
     private const val ESPEAK_DATA = "espeak-ng-data"
+    /** NativeLib.onLifecycle events (src/platform/android/android.zig). */
+    private const val LIFECYCLE_BACKGROUND = 0
+    private const val LIFECYCLE_FOREGROUND = 1
 
     internal lateinit var app: Application
         private set
@@ -102,6 +105,28 @@ object OrielRuntime {
     internal fun onActivityDestroyed(activity: OrielActivity) {
         if (mainActivity === activity) mainActivity = null
         if (foreground === activity) foreground = null
+    }
+
+    /** Started Oriel Activities: the app is in the background at 0 (oriel.lifecycle). */
+    private var startedActivities = 0
+    private var inBackground = false
+
+    internal fun onActivityStarted() {
+        startedActivities++
+        // Only a return from the background: the launch itself isn't one.
+        if (startedActivities == 1 && inBackground) {
+            inBackground = false
+            if (loaded) NativeLib.onLifecycle(LIFECYCLE_FOREGROUND)
+        }
+    }
+
+    internal fun onActivityStopped(activity: OrielActivity) {
+        if (startedActivities > 0) startedActivities--
+        // A configuration change restarts the Activity: not the background.
+        if (startedActivities == 0 && !activity.isChangingConfigurations) {
+            inBackground = true
+            if (loaded) NativeLib.onLifecycle(LIFECYCLE_BACKGROUND)
+        }
     }
 
     /**
@@ -156,8 +181,9 @@ object OrielRuntime {
 
     /**
      * Memory pressure to Zig as the "trim-memory" system event (data: the
-     * level): liboriel.so purges malloc's caches, and the app may drop its
-     * own (src/platform/android/android.zig).
+     * level): oriel.lifecycle's memory_pressure (liboriel.so purges malloc's
+     * caches, modules unload models), and the app may drop its own
+     * (src/platform/android/android.zig).
      */
     private object TrimMemory : ComponentCallbacks2 {
         override fun onTrimMemory(level: Int) = NativeLib.onSystemEvent("trim-memory".bytes(), level.toString().bytes())
@@ -470,9 +496,10 @@ object OrielRuntime {
         windows[id]?.eval(script.utf8())
     }
 
+    /** `load`: the page load a reply is for (OrielWindow.post); 0 for events. */
     @JvmStatic
-    fun postMessage(id: Int, json: ByteArray) {
-        windows[id]?.post(json.utf8())
+    fun postMessage(id: Int, load: Int, json: ByteArray) {
+        windows[id]?.post(json.utf8(), load)
     }
 
     @JvmStatic
@@ -860,6 +887,15 @@ object OrielRuntime {
         }
 
     // ---------------------------------------------------------------------
+    // oriel.camera (src/modules/camera/android.zig, OrielCamera): answered
+    // once through NativeLib.onCameraResult; false means it won't be.
+    // ---------------------------------------------------------------------
+
+    @JvmStatic
+    fun capturePhoto(request: Long, source: Int, maxSide: Int, format: Int, quality: Int): Boolean =
+        OrielCamera.capturePhoto(request, source, maxSide, format, quality)
+
+    // ---------------------------------------------------------------------
     // Audio (src/modules/audio_capture/android.zig) and the foreground service
     // ---------------------------------------------------------------------
 
@@ -955,6 +991,22 @@ object OrielRuntime {
 
     @JvmStatic
     fun mdnsStopBrowse(id: Int) = OrielMdns.stopBrowse(id)
+
+    // App extensions (src/platform/android/extensions.zig). Unlike the rest
+    // of this object, extensionLoad and extensionCall run on the
+    // extension's worker thread.
+    // ---------------------------------------------------------------------
+
+    @JvmStatic
+    fun extensionLoad(name: ByteArray): Boolean = OrielExtensions.load(name.utf8())
+
+    @JvmStatic
+    fun extensionCall(name: ByteArray, method: ByteArray, input: ByteArray, id: Long): ByteArray =
+        OrielExtensions.call(name.utf8(), method.utf8(), input, id)
+
+    @JvmStatic
+    fun extensionLifecycle(name: ByteArray, event: ByteArray, level: ByteArray?) =
+        OrielExtensions.lifecycle(name.utf8(), event.utf8(), level?.utf8())
 
     // Keyboard shortcuts (src/plugins/global_shortcut/android.zig)
     // ---------------------------------------------------------------------

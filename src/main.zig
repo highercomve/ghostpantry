@@ -32,12 +32,12 @@ fn notifyUpdated() void {
 }
 
 fn getDbPath(alloc: std.mem.Allocator) ![:0]const u8 {
-    if (builtin.target.os.tag == .linux and builtin.target.abi.isAndroid()) {
-        if (@hasDecl(oriel, "android") and @hasDecl(oriel.android, "paths")) {
-            if (oriel.android.paths.filesDir()) |fdir| {
-                const p = try std.fs.path.join(alloc, &.{ fdir, "pantry.db" });
-                return try alloc.dupeZ(u8, p);
-            }
+    // Android: the app's files dir itself, where earlier releases kept it.
+    // (store.dataDir is <filesDir>/<app id> there: moving would orphan data.)
+    if (builtin.abi.isAndroid()) {
+        if (oriel.android.paths.filesDir()) |fdir| {
+            const p = try std.fs.path.join(alloc, &.{ fdir, "pantry.db" });
+            return try alloc.dupeZ(u8, p);
         }
     }
     const base_dir = oriel.store.dataDir(alloc, "GhostPantry") catch ".";
@@ -61,8 +61,30 @@ fn getDb(_: std.mem.Allocator) !db_mod.Db {
     return d;
 }
 
+/// What this build can scan with: fast local matching where the
+/// "pantry.vision" extension has an implementation (Android), System AI
+/// where `oriel.system_ai` exists (Android, iOS). Both are comptime facts;
+/// whether the device has the model is the providers' own runtime status.
+pub const Capabilities = struct {
+    fastLocal: bool,
+    systemAi: bool,
+    /// The provider a new install starts with.
+    defaultProvider: []const u8,
+};
+const fast_local = embedding.available();
+/// Fast local where it exists; elsewhere the local LLM, which runs on every
+/// platform (a server needs an address and usually a key first).
+const default_provider = if (fast_local) "embedding" else "local";
+
+/// Whether this build can use `provider` (servers and the local LLM always).
+fn providerUsable(provider: []const u8) bool {
+    if (std.mem.eql(u8, provider, "embedding")) return fast_local;
+    if (std.mem.eql(u8, provider, "system")) return system_ai.available;
+    return true;
+}
+
 pub const AppSettings = struct {
-    provider: []const u8 = "embedding",
+    provider: []const u8 = default_provider,
     baseUrl: []const u8 = "https://api.openai.com/v1",
     apiKey: []const u8 = "",
     model: []const u8 = "qwen2.5-vl-3b",
@@ -75,7 +97,11 @@ pub const AppSettings = struct {
 
 fn readSettings(arena: std.mem.Allocator, d: db_mod.Db) AppSettings {
     var s = AppSettings{};
-    if (setting(arena, d, "provider")) |v| s.provider = v;
+    // A provider this build can't use (a database copied from the phone, or
+    // saved before providers were hidden) reads as the default.
+    if (setting(arena, d, "provider")) |v| {
+        if (providerUsable(v)) s.provider = v;
+    }
     if (setting(arena, d, "baseUrl")) |v| s.baseUrl = v;
     if (setting(arena, d, "apiKey")) |v| s.apiKey = v;
     if (setting(arena, d, "model")) |v| s.model = v;
@@ -169,7 +195,13 @@ pub const Commands = struct {
         return readSettings(arena, d);
     }
 
+    pub fn capabilities(_: std.mem.Allocator) Capabilities {
+        return .{ .fastLocal = fast_local, .systemAi = system_ai.available, .defaultProvider = default_provider };
+    }
+
     pub fn save_settings(arena: std.mem.Allocator, args: struct { settings: AppSettings }) !void {
+        if (!providerUsable(args.settings.provider))
+            return oriel.ipc.fail("{s} isn't available on this platform. Choose another provider.", .{args.settings.provider});
         if (args.settings.matchingLabels.len > 0 or std.mem.eql(u8, args.settings.provider, "embedding")) _ = @import("embedding_labels.zig").parse(arena, args.settings.matchingLabels) catch |err| {
             return oriel.ipc.fail("Set 2–1,024 unique food labels ({s}).", .{@errorName(err)});
         };
@@ -219,7 +251,7 @@ pub const Commands = struct {
         try embedding.releaseForScan(arena);
         if (std.mem.eql(u8, s.provider, "system")) {
             local_mod.unload();
-            return system_ai.analyze(arena, args.location, args.image) catch |err| {
+            return system_ai.analyze(io, arena, args.location, args.image) catch |err| {
                 if (err == error.CommandFailed) return err;
                 return oriel.ipc.fail("System AI scan failed ({s}). Check system AI in Settings or choose a downloaded local model.", .{@errorName(err)});
             };
@@ -259,7 +291,7 @@ pub const Commands = struct {
     }
 
     pub fn system_ai_download(arena: std.mem.Allocator) !system_ai.Status {
-        return system_ai.download(arena);
+        return system_ai.download(io, arena);
     }
 
     pub fn embedding_default_labels(arena: std.mem.Allocator) ![]const []const u8 {
@@ -399,12 +431,21 @@ pub const Commands = struct {
     }
 };
 
+/// Free the local model when the system wants memory back, and when the app
+/// leaves the screen (phones only send `background`): the next scan loads it
+/// again. A model that is answering stays (unloadIdle never waits).
+fn onLifecycle(event: oriel.lifecycle.Event) void {
+    switch (event) {
+        .memory_pressure => |level| if (level == .critical) local_mod.unloadIdle(),
+        .background => local_mod.unloadIdle(),
+        else => {},
+    }
+}
+
 pub fn main(init: std.process.Init) !u8 {
     io = init.io;
     local_mod.init(init.io, gpa);
-    if (@hasDecl(oriel, "android") and @hasDecl(oriel.android, "onSystemEvent")) {
-        oriel.android.onSystemEvent(local_mod.handleSystemEvent);
-    }
+    oriel.lifecycle.subscribe(onLifecycle) catch |err| log.err("lifecycle: {s}", .{@errorName(err)});
     return oriel.main(init, .{ .commands = Commands, .events = Events }, .{
         .id = "dev.ghostpantry.app",
         .title = "GhostPantry - Food & Fridge Inventory AI",

@@ -8,6 +8,7 @@ export interface Commands {
   update_desired: { args: { id: number; desired_quantity: number; }; result: null };
   get_low_stock_analysis: { args: null; result: ({ item: { id?: number; name: string; category: string; location: string; quantity?: number; fill_percentage?: number; unit?: string; desired_quantity?: number; notes?: string; last_scanned_at?: string; updated_at?: string; }; missing_quantity: number; status: string; })[] };
   get_settings: { args: null; result: { provider?: string; baseUrl?: string; apiKey?: string; model?: string; defaultLocation?: string; localBackend?: string; localScanMode?: string; embeddingBackend?: string; matchingLabels?: string; } };
+  capabilities: { args: null; result: { fastLocal: boolean; systemAi: boolean; defaultProvider: string; } };
   save_settings: { args: { settings: { provider?: string; baseUrl?: string; apiKey?: string; model?: string; defaultLocation?: string; localBackend?: string; localScanMode?: string; embeddingBackend?: string; matchingLabels?: string; }; }; result: null };
   get_available_models: { args: { baseUrl: string; apiKey?: string | null; }; result: ({ id: string; name: string; vision?: boolean; })[] };
   analyze_image: { args: { location: string; image: string; }; result: { items: ({ name: string; category?: string; quantity?: number; fill_percentage?: number; unit?: string; notes?: string; })[]; summary: string; timing?: { total_ms: number; load_ms?: number; vision_ms?: number; generation_ms?: number; input_tokens?: number; output_tokens?: number; } | null; } };
@@ -42,6 +43,7 @@ export interface Events {
   scan_completed: { count: number; summary: string; };
   local_model_download: { id: string; state: string; done_mb?: number; total_mb?: number; };
   "permission-changed": { name: PermissionName; status: PermissionStatus };
+  lifecycle: LifecycleEvent;
 }
 
 type Args<K extends keyof Commands> = Commands[K]["args"];
@@ -94,8 +96,136 @@ export interface Platform {
   arch: string;
 }
 
+/** Oriel's modules as this build resolved them for its target (fixed per
+ *  build): `features.tray` is false where there is no tray. */
+export interface Features {
+  tray: boolean;
+  updater: boolean;
+  mediaServer: boolean;
+  sql: boolean;
+  fsWatch: boolean;
+  dialog: boolean;
+  notification: boolean;
+  store: boolean;
+  menu: boolean;
+  deepLink: boolean;
+  network: boolean;
+  share: boolean;
+  camera: boolean;
+  globalShortcut: boolean;
+  input: boolean;
+  clipboard: boolean;
+  sqliteVec: boolean;
+  llama: boolean;
+  llamaMtmd: boolean;
+  whisper: boolean;
+  kokoro: boolean;
+  audioCapture: boolean;
+  layerShell: boolean;
+  nativeUi: boolean;
+  systemAi: boolean;
+}
+
 export interface DeepLinkApi {
   current(): Promise<string | null>;
+}
+
+/** The app's lifecycle (oriel.lifecycle); `level` is set for memory_pressure. */
+export interface LifecycleEvent {
+  type: "background" | "foreground" | "memory_pressure" | "suspend" | "resume" | "terminating";
+  level: "moderate" | "critical" | null;
+}
+
+/** An app extension's event (`extension:<name>`): `data` is parsed when it is JSON. */
+export interface ExtensionEvent {
+  name: string;
+  data: unknown;
+}
+
+export interface ExtensionsApi {
+  /** A method Zig exposed (oriel.extensions.expose); others fail with "not exposed". */
+  call<T = unknown>(name: string, method: string, payload?: unknown): Promise<T>;
+  /** Events the extension's native code emits. Returns an unsubscribe function. */
+  on(name: string, callback: (event: ExtensionEvent) => void): () => void;
+}
+/** oriel.systemAi.status(): `reason` says why it's unavailable, or what to do next. */
+export interface SystemAiStatus {
+  state: "available" | "downloadable" | "downloading" | "unavailable";
+  reason: string;
+}
+
+export interface SystemAiCapabilities {
+  images: boolean;
+  maxImages: number;
+  streaming: boolean;
+  /** False so far: a schema goes to the model as instructions. */
+  structuredOutput: boolean;
+  /** The context window in tokens; 0 when unknown. */
+  maxInputTokens: number;
+}
+
+export interface SystemAiImage {
+  /** Base64, a Blob/File, an ArrayBuffer or a typed array; at most 8 MiB. */
+  data: string | Blob | ArrayBuffer | ArrayBufferView;
+  mime?: string;
+}
+
+export interface SystemAiRequest {
+  prompt: string;
+  system?: string;
+  /** Up to capabilities().maxImages (4 at most). */
+  images?: SystemAiImage[];
+  temperature?: number;
+  maxTokens?: number;
+  /** A JSON schema the reply should follow (sent as instructions). */
+  schema?: string | object;
+}
+
+/** The "system_ai:download" event. */
+export interface SystemAiDownloadEvent {
+  state: "started" | "progress" | "completed" | "failed";
+  downloaded: number;
+  /** 0 when the platform doesn't say. */
+  total: number;
+}
+
+export interface SystemAiApi {
+  status(): Promise<SystemAiStatus>;
+  capabilities(): Promise<SystemAiCapabilities>;
+  /** Where the platform downloads on demand (Android); resolves with the new status. */
+  download(onProgress?: (event: SystemAiDownloadEvent) => void): Promise<SystemAiStatus>;
+  /** The whole reply; `onToken` sees it piece by piece. */
+  generate(request: SystemAiRequest, onToken?: (text: string) => void): Promise<string>;
+  /** Stops the running generate or download: it rejects with "Cancelled". */
+  cancel(): Promise<void>;
+}
+
+export interface LifecycleApi {
+  /** Events from before the page listened come first. Returns an unsubscribe function. */
+  on(callback: (event: LifecycleEvent) => void): () => void;
+}
+
+export interface CapturePhotoOptions {
+  /** "camera" takes a new photo (phones), "library" picks one. Default "library". */
+  source?: "camera" | "library";
+  /** The longest side in pixels (1..8192), default 1600. */
+  maxSide?: number;
+  format?: "jpeg" | "png";
+  /** JPEG quality, 1..100, default 85. */
+  quality?: number;
+}
+
+export interface CapturedPhoto {
+  dataUrl: string;
+  /** 0 when the desktop returned a file it couldn't decode (HEIC) as it was. */
+  width: number;
+  height: number;
+  mime: string;
+}
+
+export interface CameraApi {
+  /** Rejects with "Cancelled", "Unsupported", "PermissionDenied" or "TooLarge". Needs `features.camera`. */
+  capturePhoto(options?: CapturePhotoOptions): Promise<CapturedPhoto>;
 }
 
 export interface WindowApi {
@@ -110,10 +240,15 @@ declare global {
   interface Window {
     oriel: {
       platform: Platform;
+      features: Features;
       invoke(cmd: string, args: unknown): Promise<unknown>;
       listen(event: string, callback: (payload: unknown) => void): () => void;
       window: WindowApi;
       deepLink: DeepLinkApi;
+      lifecycle: LifecycleApi;
+      extensions: ExtensionsApi;
+      systemAi: SystemAiApi;
+      camera: CameraApi;
       permissions: PermissionsApi;
       openExternal(url: string): Promise<void>;
     };
@@ -139,10 +274,20 @@ export function listen<K extends keyof Events>(event: K, callback: (payload: Eve
 export const orielWindow: WindowApi = (globalThis as any).oriel?.window;
 /** Built-in deep link API. */
 export const deepLink: DeepLinkApi = (globalThis as any).oriel?.deepLink;
+/** Built-in lifecycle API: background, memory pressure, sleep, terminating. */
+export const lifecycle: LifecycleApi = (globalThis as any).oriel?.lifecycle;
+/** The app's extensions, as far as Zig exposes them (oriel.extensions.expose). */
+export const extensions: ExtensionsApi = (globalThis as any).oriel?.extensions;
+/** The device's own model (oriel.system_ai): check features.systemAi, then status(). */
+export const systemAi: SystemAiApi = (globalThis as any).oriel?.systemAi;
+/** Photos from the camera or the library (oriel.camera; `features.camera`). */
+export const camera: CameraApi = (globalThis as any).oriel?.camera;
 /** Built-in OS permissions API. */
 export const permissions: PermissionsApi = (globalThis as any).oriel?.permissions;
 /** The OS and CPU the app was built for: `platform.os === "android"`. */
 export const platform: Platform = (globalThis as any).oriel?.platform;
+/** What this build has: `if (features.tray) ...` (camelCase module names). */
+export const features: Features = (globalThis as any).oriel?.features;
 /** Global Oriel API object. */
 export const oriel: Window["oriel"] = (globalThis as any).oriel;
 /** Open a URL in the system's default browser. */

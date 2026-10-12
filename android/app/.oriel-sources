@@ -1,6 +1,4 @@
-app/src/main/java/dev/ghostpantry/PantryCameraProvider.kt
-app/src/main/java/dev/ghostpantry/PantryAndroidExtension.kt
-app/src/main/java/dev/ghostpantry/SystemAiExtension.kt
+app/src/main/java/dev/oriel/OrielSystemAi.kt
 app/src/main/java/dev/ghostpantry/EmbeddingGemmaExtension.kt
 app/src/main/java/dev/ghostpantry/EmbeddingMath.kt
 app/src/main/java/dev/ghostpantry/EmbeddingCache.kt
