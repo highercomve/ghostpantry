@@ -118,6 +118,9 @@ enum Vision {
     }
 
     static func status() -> [String: Any] {
+        // Every file arrived but the compile didn't run (iOS suspended the
+        // app first): finish it now.
+        if !MobileClip.installed() && !Download.running { Download.finishIfComplete() }
         let (running, state, error, downloaded) = Download.snapshot()
         let present = MobileClip.installed()
         let loaded = engine

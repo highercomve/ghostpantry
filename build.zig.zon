@@ -6,8 +6,8 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .oriel = .{
-            .url = "git+https://github.com/highercomve/Oriel#1153c589ec40209b9ee5f411fe45e890b39190ec",
-            .hash = "oriel-0.10.0-K1NO5UfS6wApk7JsoCxvK9fJ5JiLX-if11AyBBqTgl5w",
+            .url = "git+https://github.com/highercomve/Oriel?ref=release/0.11#b2e6549b79d41bfe91e5d0ea7f0c9b5b796d90ae",
+            .hash = "oriel-0.10.0-K1NO5Sj06wAwRr5ObFzjThCITLn8uzCaD4FMIY5W_13F",
         },
         // The YOLOE CoreML detectors (scripts/export_yoloe_coreml.py; checksums
         // in ios/native/detectors/yoloe_coreml.json), fetched for iOS only.

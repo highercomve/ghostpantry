@@ -17,6 +17,7 @@
 // is checked instead, and App Transport Security blocks plain HTTP anyway.
 
 import Foundation
+import UIKit
 
 enum Download {
     static let identifier = "dev.ghostpantry.app.mobileclip"
@@ -67,6 +68,9 @@ enum Download {
         // A user-started download: not left to the system's discretion.
         configuration.isDiscretionary = false
         configuration.timeoutIntervalForRequest = 60
+        // No HTTP cache: a revalidated file comes back as 304 with no body.
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = 1
         queue.name = "pantry.vision download"
@@ -151,7 +155,7 @@ enum Download {
     // MARK: Files
 
     private static func request(_ file: MobileClip.File) -> URLRequest {
-        var request = URLRequest(url: MobileClip.url(file))
+        var request = URLRequest(url: MobileClip.url(file), cachePolicy: .reloadIgnoringLocalAndRemoteCacheData)
         request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
         return request
     }
@@ -206,6 +210,7 @@ enum Download {
             try FileManager.default.moveItem(at: location, to: target)
             lock.withLock { written[path] = file.bytes }
         } catch {
+            NSLog("pantry.vision: \(path) rejected: \(error.localizedDescription)")
             lock.withLock {
                 written[path] = 0
                 if self.error == nil { self.error = error.localizedDescription }
@@ -237,8 +242,12 @@ enum Download {
         if last { finishIfComplete() }
     }
 
-    /// Every file present: compile (once), then the model is installed.
-    private static func finishIfComplete() {
+    /// Every file present: compile (once), then the model is installed. The
+    /// files often arrive while the app is in the background, and iOS
+    /// suspends it right after: a background task asks for the time the
+    /// compile needs. Should iOS still stop it, the next status or download
+    /// finds every file present and compiles then.
+    static func finishIfComplete() {
         guard let root = try? MobileClip.downloads(), MobileClip.files.allSatisfy({ present($0, root) }) else { return }
         let begin = lock.withLock { () -> Bool in
             if compiling || error != nil { return false }
@@ -246,6 +255,8 @@ enum Download {
             return true
         }
         guard begin else { return }
+        let task = BackgroundTime.begin("pantry.vision compile")
+        defer { BackgroundTime.end(task) }
         do { try MobileClip.verifyAndCompile(cancelled: { false }, state: { _ in }) }
         catch { lock.withLock { self.error = error.localizedDescription } }
         lock.withLock {
@@ -285,5 +296,28 @@ enum Download {
         func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
             Download.eventsFinished()
         }
+    }
+}
+
+/// UIApplication's background tasks, from any thread (begin and end run on
+/// the main thread, as UIKit asks).
+private enum BackgroundTime {
+    /// Out of time, iOS would end the app if the task were still open: end
+    /// it (the compile resumes on the next status).
+    static func begin(_ name: String) -> UIBackgroundTaskIdentifier {
+        let work = { () -> UIBackgroundTaskIdentifier in
+            var task = UIBackgroundTaskIdentifier.invalid
+            task = UIApplication.shared.beginBackgroundTask(withName: name) {
+                UIApplication.shared.endBackgroundTask(task)
+                task = .invalid
+            }
+            return task
+        }
+        return Thread.isMainThread ? work() : DispatchQueue.main.sync(execute: work)
+    }
+
+    static func end(_ task: UIBackgroundTaskIdentifier) {
+        guard task != .invalid else { return }
+        DispatchQueue.main.async { UIApplication.shared.endBackgroundTask(task) }
     }
 }
