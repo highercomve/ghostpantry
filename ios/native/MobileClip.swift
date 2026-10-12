@@ -59,16 +59,6 @@ enum MobileClip {
         return text == revision
     }
 
-    static func partBytes() -> Int64 {
-        guard let root = try? downloads() else { return 0 }
-        return files.reduce(0) { total, file in
-            let done = root.appendingPathComponent(file.path)
-            let part = done.appendingPathExtension("part")
-            let size = { (u: URL) in ((try? FileManager.default.attributesOfItem(atPath: u.path))?[.size] as? Int64) ?? 0 }
-            return total + max(size(done), size(part))
-        }
-    }
-
     static func delete() throws {
         for url in [try downloads(), try compiled("image"), try compiled("text"), try readyMarker()]
         where FileManager.default.fileExists(atPath: url.path) {

@@ -72,7 +72,7 @@ pub fn build(b: *std.Build) void {
             // the YOLOE detectors are in the bundle (ios_resources above).
             .ios = .{
                 .class = "PantryVisionExtension",
-                .swift_sources = &.{ b.path("ios/native/PantryVisionExtension.swift"), b.path("ios/native/MobileClip.swift"), b.path("ios/native/ClipTokenizer.swift"), b.path("ios/native/YoloeDetector.swift"), b.path("ios/native/EmbeddingStore.swift") },
+                .swift_sources = &.{ b.path("ios/native/PantryVisionExtension.swift"), b.path("ios/native/MobileClip.swift"), b.path("ios/native/ClipTokenizer.swift"), b.path("ios/native/YoloeDetector.swift"), b.path("ios/native/EmbeddingStore.swift"), b.path("ios/native/BackgroundDownload.swift") },
                 .frameworks = &.{ "CoreML", "CoreGraphics", "CoreVideo", "ImageIO", "CryptoKit" },
                 .resources = ios_resources,
             },
@@ -83,6 +83,12 @@ pub fn build(b: *std.Build) void {
         .android = .{
             .native_libraries = &.{.{ .name = "libvndksupport.so" }},
             .proguard_rules = b.path("android/native/proguard-rules.pro"),
+        },
+        // pantry.vision's class is also a platform hook (one shared instance;
+        // its sources come with the extension): it claims the model
+        // download's background URLSession when iOS wakes the app for it.
+        .ios = .{
+            .hooks = &.{.{ .class = "PantryVisionExtension" }},
         },
         // Also turns on oriel.camera: <input type=file accept=image/* capture>
         // opens the camera app, the photo picker and HEIC transcoding.

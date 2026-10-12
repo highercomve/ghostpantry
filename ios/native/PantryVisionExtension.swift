@@ -10,7 +10,7 @@ import CoreVideo
 import Foundation
 
 @objc(PantryVisionExtension)
-final class PantryVisionExtension: NSObject, OrielAppExtension {
+final class PantryVisionExtension: NSObject, OrielAppExtension, OrielPlatformHooks {
     func callMethod(_ method: String, input: Data, call: OrielCall) throws -> Data {
         do {
             return try JSONSerialization.data(withJSONObject: Vision.request(method, input, call: call))
@@ -19,6 +19,13 @@ final class PantryVisionExtension: NSObject, OrielAppExtension {
         } catch {
             throw NSError(domain: "failed", code: 1, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription])
         }
+    }
+
+    /// Oriel's iOS hook (build.zig `.ios.hooks`, the same instance as the
+    /// extension): iOS launched or woke the app for the model download's
+    /// background URLSession (BackgroundDownload.swift).
+    func handleEvents(forBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) -> Bool {
+        Download.claim(identifier, completionHandler: completionHandler)
     }
 
     /// Critical memory pressure: drop the matcher and the label vectors
@@ -88,6 +95,7 @@ enum Vision {
         case "delete":
             guard !Download.running else { throw VisionError.failed("Pause the download before deleting the model") }
             release()
+            Download.forget()
             try MobileClip.delete()
             for backend in ["cpu", "gpu"] {
                 // Not fatal: the cache key includes the model, so a stale file is never reused.
@@ -116,7 +124,7 @@ enum Vision {
         let current = running ? state : error != nil ? "error" : loaded != nil ? "ready" : present ? "downloaded" : "downloadable"
         let message: String
         switch current {
-        case "downloading": message = "Downloading \(MobileClip.label), Apple's image-and-text model. You can pause and resume."
+        case "downloading": message = "Downloading \(MobileClip.label), Apple's image-and-text model. It continues if you leave the app; you can pause and resume."
         case "verifying": message = "Checking the downloaded model's SHA-256 checksums and preparing it."
         case "error": message = error ?? "Model download failed"
         case "ready": message = "Image matching is ready on \(loaded?.backend == "gpu" ? "GPU and Neural Engine" : "CPU")."
@@ -125,7 +133,7 @@ enum Vision {
         }
         return ["state": current, "message": message, "supported": true, "device": device(),
                 "backend": loaded?.backend ?? "", "loaded": loaded != nil, "model": MobileClip.label,
-                "bytes_downloaded": running ? downloaded : present ? MobileClip.totalBytes : MobileClip.partBytes(),
+                "bytes_downloaded": running ? downloaded : present ? MobileClip.totalBytes : downloaded,
                 "total_bytes": MobileClip.totalBytes]
     }
 
@@ -272,176 +280,5 @@ enum Vision {
         engine = nil
         cachedLabels = []
         cachedVectors = []
-    }
-}
-
-/// The model download, on its own thread: resumable per file (HTTP Range),
-/// paused by "cancel", then verified and compiled (MobileClip).
-enum Download {
-    private static let lock = NSLock()
-    private static var isRunning = false
-    private static var state = ""
-    private static var error: String?
-    private static var bytes: Int64 = 0
-    private static var cancelled = false
-    private static var task: URLSessionDataTask?
-
-    static var running: Bool { lock.withLock { isRunning } }
-
-    static func snapshot() -> (running: Bool, state: String, error: String?, bytes: Int64) {
-        lock.withLock { (isRunning, state.isEmpty ? "downloading" : state, error, bytes) }
-    }
-
-    static func clearError() { lock.withLock { error = nil } }
-
-    static func cancel() {
-        lock.withLock {
-            cancelled = true
-            task?.cancel()
-        }
-    }
-
-    static func start() throws {
-        if MobileClip.installed() { clearError(); return }
-        let begin: Bool = lock.withLock {
-            if isRunning { return false }
-            isRunning = true
-            cancelled = false
-            state = "downloading"
-            error = nil
-            return true
-        }
-        guard begin else { return }
-        let thread = Thread {
-            do { try run() }
-            catch {
-                lock.withLock { if !cancelled { self.error = error.localizedDescription } }
-                NSLog("pantry.vision: model download stopped: \(error.localizedDescription)")
-            }
-            lock.withLock {
-                isRunning = false
-                task = nil
-            }
-        }
-        thread.name = "pantry.vision download"
-        thread.start()
-    }
-
-    private static func run() throws {
-        let root = try MobileClip.downloads()
-        var done: Int64 = 0
-        for file in MobileClip.files {
-            let target = root.appendingPathComponent(file.path)
-            try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
-            if (try? FileManager.default.attributesOfItem(atPath: target.path))?[.size] as? Int64 == file.bytes {
-                done += file.bytes
-                continue
-            }
-            try fetch(file, to: target, before: done)
-            done += file.bytes
-        }
-        try MobileClip.verifyAndCompile(cancelled: { lock.withLock { cancelled } }, state: { s in lock.withLock { state = s } })
-    }
-
-    /// One file into <target>.part from where it stopped, then renamed.
-    private static func fetch(_ file: MobileClip.File, to target: URL, before: Int64) throws {
-        let part = target.appendingPathExtension("part")
-        var offset = ((try? FileManager.default.attributesOfItem(atPath: part.path))?[.size] as? Int64) ?? 0
-        if offset > file.bytes { try FileManager.default.removeItem(at: part); offset = 0 }
-        if offset < file.bytes {
-            if !FileManager.default.fileExists(atPath: part.path) { FileManager.default.createFile(atPath: part.path, contents: nil) }
-            let sink = Sink(part: part, offset: offset, limit: file.bytes) { written in lock.withLock { bytes = before + written } }
-            var request = URLRequest(url: MobileClip.url(file), timeoutInterval: 30)
-            request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
-            if offset > 0 { request.setValue("bytes=\(offset)-", forHTTPHeaderField: "Range") }
-            let session = URLSession(configuration: .ephemeral, delegate: sink, delegateQueue: nil)
-            defer { session.invalidateAndCancel() }
-            let started: Bool = lock.withLock {
-                if cancelled { return false }
-                task = session.dataTask(with: request)
-                task?.resume()
-                return true
-            }
-            guard started else { throw VisionError.failed("Download paused") }
-            sink.finished.wait()
-            if lock.withLock({ cancelled }) { throw VisionError.failed("Download paused") }
-            if let failure = sink.failure { throw failure }
-        }
-        let size = ((try? FileManager.default.attributesOfItem(atPath: part.path))?[.size] as? Int64) ?? 0
-        guard size == file.bytes else { throw VisionError.failed("Incomplete download. Try again to resume.") }
-        if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.removeItem(at: target) }
-        try FileManager.default.moveItem(at: part, to: target)
-    }
-
-    /// Streams the response into the part file; HTTPS only, and a resume must
-    /// get exactly the range it asked for.
-    private final class Sink: NSObject, URLSessionDataDelegate {
-        let finished = DispatchSemaphore(value: 0)
-        var failure: Error?
-        private let part: URL
-        private var offset: Int64
-        private let limit: Int64
-        private let progress: (Int64) -> Void
-        private var handle: FileHandle?
-
-        init(part: URL, offset: Int64, limit: Int64, progress: @escaping (Int64) -> Void) {
-            self.part = part
-            self.offset = offset
-            self.limit = limit
-            self.progress = progress
-        }
-
-        func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
-                        newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
-            completionHandler(request.url?.scheme == "https" ? request : nil)
-        }
-
-        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
-                        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
-            guard let http = response as? HTTPURLResponse, http.url?.scheme == "https" else {
-                failure = VisionError.failed("Model download must use HTTPS")
-                return completionHandler(.cancel)
-            }
-            do {
-                switch http.statusCode {
-                case 200:
-                    offset = 0
-                    try Data().write(to: part)
-                case 206:
-                    let range = http.value(forHTTPHeaderField: "Content-Range") ?? ""
-                    guard range.hasPrefix("bytes \(offset)-"), range.hasSuffix("/\(limit)") else {
-                        throw VisionError.failed("Invalid resume range")
-                    }
-                default:
-                    throw VisionError.failed("Download failed (HTTP \(http.statusCode)). Try again.")
-                }
-                handle = try FileHandle(forWritingTo: part)
-                try handle?.seek(toOffset: UInt64(offset))
-                completionHandler(.allow)
-            } catch {
-                failure = error
-                completionHandler(.cancel)
-            }
-        }
-
-        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-            guard failure == nil else { return }
-            do {
-                guard offset + Int64(data.count) <= limit else { throw VisionError.failed("Downloaded model exceeds its expected size") }
-                try handle?.write(contentsOf: data)
-                offset += Int64(data.count)
-                progress(offset)
-            } catch {
-                failure = error
-                dataTask.cancel()
-            }
-        }
-
-        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-            try? handle?.synchronize()
-            try? handle?.close()
-            if failure == nil, let error, (error as NSError).code != NSURLErrorCancelled { failure = error }
-            finished.signal()
-        }
     }
 }

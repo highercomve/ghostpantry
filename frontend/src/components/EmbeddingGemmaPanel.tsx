@@ -122,8 +122,10 @@ export function EmbeddingGemmaPanel({
             aria-label="Model download progress"
           />
           <small>
-            {((status?.bytes_downloaded || 0) / 1000000).toFixed(1)} / {totalMB} MB ·
-            Keep the app open
+            {((status?.bytes_downloaded || 0) / 1000000).toFixed(1)} / {totalMB} MB ·{" "}
+            {status?.device?.includes("iOS")
+              ? "Continues if you leave the app"
+              : "Keep the app open"}
           </small>
         </div>
       )}
