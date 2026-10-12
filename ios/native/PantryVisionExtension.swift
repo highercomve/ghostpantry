@@ -121,7 +121,7 @@ enum Vision {
         case "error": message = error ?? "Model download failed"
         case "ready": message = "Image matching is ready on \(loaded?.backend == "gpu" ? "GPU and Neural Engine" : "CPU")."
         case "downloaded": message = "Model downloaded. Test CPU or GPU support on this device."
-        default: message = "Download the \(MobileClip.totalBytes / 1_000_000) MB model once; photo matching then runs offline."
+        default: message = "Download the \(Int((Double(MobileClip.totalBytes) / 1_000_000).rounded())) MB model once; photo matching then runs offline."
         }
         return ["state": current, "message": message, "supported": true, "device": device(),
                 "backend": loaded?.backend ?? "", "loaded": loaded != nil, "model": MobileClip.label,

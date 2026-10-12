@@ -97,8 +97,8 @@ A failed support check is shown separately from an unavailable model and can be 
 
 ### Fast local scan (YOLOE + EmbeddingGemma 2 or MobileCLIP)
 
-**Fast local** is the default provider on Android, and comes to iOS with the
-`fast-mode-apple` work (desktop builds hide it and start with the local LLM).
+**Fast local** is the default provider on Android and is available on iOS
+(desktop builds hide it and start with the local LLM).
 YOLOE scans packages, jars and cartons, then loose fruit and vegetables. It
 merges overlapping boxes before an image-and-text model matches each crop
 against your saved food labels: EmbeddingGemma 2 on Android (388 MB), Apple's

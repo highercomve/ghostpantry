@@ -33,6 +33,15 @@ pub fn build(b: *std.Build) void {
         .system_ai = true,
     });
 
+    // Fast local on iOS ships the CLIP merges and the YOLOE CoreML detectors
+    // (a pinned release asset, build.zig.zon; fetched for iOS builds only).
+    const clip: oriel.AppOptions.Asset = .{ .from = b.path("ios/native/resources/clip"), .to = "clip" };
+    const yoloe_coreml = if (target.result.os.tag == .ios) b.lazyDependency("yoloe_coreml", .{}) else null;
+    const ios_resources: []const oriel.AppOptions.Asset = if (yoloe_coreml) |d|
+        &.{ clip, .{ .from = d.path(""), .to = "yoloe-coreml" } }
+    else
+        &.{clip};
+
     _ = oriel.addApp(b, dep, .{
         .name = "ghostpantry",
         .root_source_file = b.path("src/main.zig"),
@@ -59,15 +68,13 @@ pub fn build(b: *std.Build) void {
                 .assets = &.{.{ .from = b.path("android/native/detectors"), .to = "detectors" }},
             },
             // Swift raises the app's minimum to iOS 18. MobileCLIP-S2 is
-            // downloaded at run time (apple-ascl licence); CLIP's BPE merges
-            // ship in the bundle, and so will the YOLOE CoreML detectors
-            // (scripts/export_yoloe_coreml.py, a pinned release asset) once
-            // Oriel's .ios.resources takes a dependency's path.
+            // downloaded at run time (apple-ascl licence); the CLIP merges and
+            // the YOLOE detectors are in the bundle (ios_resources above).
             .ios = .{
                 .class = "PantryVisionExtension",
                 .swift_sources = &.{ b.path("ios/native/PantryVisionExtension.swift"), b.path("ios/native/MobileClip.swift"), b.path("ios/native/ClipTokenizer.swift"), b.path("ios/native/YoloeDetector.swift"), b.path("ios/native/EmbeddingStore.swift") },
                 .frameworks = &.{ "CoreML", "CoreGraphics", "CoreVideo", "ImageIO", "CryptoKit" },
-                .resources = &.{b.path("ios/native/resources/clip")},
+                .resources = ios_resources,
             },
             // Cancel and status answer while a long match or detection runs
             // (the extension serializes the rest itself and reports busy).
