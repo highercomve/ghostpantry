@@ -44,6 +44,8 @@ export interface Events {
   local_model_download: { id: string; state: string; done_mb?: number; total_mb?: number; };
   "permission-changed": { name: PermissionName; status: PermissionStatus };
   lifecycle: LifecycleEvent;
+  "window:created": { label: string };
+  "window:closed": { label: string };
 }
 
 type Args<K extends keyof Commands> = Commands[K]["args"];
@@ -54,10 +56,10 @@ export interface WindowOptions {
   title?: string;
   width?: number;
   height?: number;
-  min_width?: number;
-  min_height?: number;
-  max_width?: number;
-  max_height?: number;
+  minWidth?: number;
+  minHeight?: number;
+  maxWidth?: number;
+  maxHeight?: number;
   resizable?: boolean;
   decorations?: boolean;
   fullscreen?: boolean;
@@ -74,6 +76,8 @@ export interface WindowHandle {
   setSize(width: number, height: number): Promise<void>;
   maximize(maximized?: boolean): Promise<void>;
   fullscreen(fullscreen?: boolean): Promise<void>;
+  /** Move the window with the pointer: call on a `mousedown` (primary button). */
+  startDragging(): Promise<void>;
   emit(event: string, payload?: unknown): Promise<void>;
 }
 
@@ -196,7 +200,7 @@ export interface SystemAiApi {
   download(onProgress?: (event: SystemAiDownloadEvent) => void): Promise<SystemAiStatus>;
   /** The whole reply; `onToken` sees it piece by piece. */
   generate(request: SystemAiRequest, onToken?: (text: string) => void): Promise<string>;
-  /** Stops the running generate or download: it rejects with "Cancelled". */
+  /** Stops the running generate or download: it rejects with "cancelled". */
   cancel(): Promise<void>;
 }
 
@@ -228,6 +232,11 @@ export interface CameraApi {
   capturePhoto(options?: CapturePhotoOptions): Promise<CapturedPhoto>;
 }
 
+export interface DropApi {
+  /** Where a dropped file lives now (native renderer: its File's `handle`); null when it's gone or changed, or has no handle (a WebView's). */
+  path(file: File | number): Promise<string | null>;
+}
+
 export interface WindowApi {
   open(options: WindowOptions): Promise<WindowHandle>;
   current(): WindowHandle;
@@ -250,6 +259,7 @@ declare global {
       systemAi: SystemAiApi;
       camera: CameraApi;
       permissions: PermissionsApi;
+      drop: DropApi;
       openExternal(url: string): Promise<void>;
     };
   }
@@ -284,6 +294,8 @@ export const systemAi: SystemAiApi = (globalThis as any).oriel?.systemAi;
 export const camera: CameraApi = (globalThis as any).oriel?.camera;
 /** Built-in OS permissions API. */
 export const permissions: PermissionsApi = (globalThis as any).oriel?.permissions;
+/** Dropped files' paths (oriel.drop.path; native renderer). */
+export const drop: DropApi = (globalThis as any).oriel?.drop;
 /** The OS and CPU the app was built for: `platform.os === "android"`. */
 export const platform: Platform = (globalThis as any).oriel?.platform;
 /** What this build has: `if (features.tray) ...` (camelCase module names). */
