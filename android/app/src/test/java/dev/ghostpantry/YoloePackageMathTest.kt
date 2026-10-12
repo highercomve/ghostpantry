@@ -7,8 +7,9 @@ import java.nio.FloatBuffer
 class YoloePackageMathTest {
     @Test fun acceptsEveryBundledModelAssetIncludingProduce() {
         val contract = listOf(
-            java.io.File("src/main/assets/detectors/yoloe_packages.json"),
-            java.io.File("app/src/main/assets/detectors/yoloe_packages.json"),
+            // pantry.vision's `.assets` (build.zig), from android/app or android/.
+            java.io.File("../native/detectors/yoloe_packages.json"),
+            java.io.File("native/detectors/yoloe_packages.json"),
         ).first { it.isFile }.readText()
         val assets = Regex("\"file\"\\s*:\\s*\"([^\"]+)\"").findAll(contract).map { it.groupValues[1] }.toList()
         assertEquals(3, assets.size)

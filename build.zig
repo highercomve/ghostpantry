@@ -4,7 +4,7 @@ const oriel = @import("oriel");
 pub fn build(b: *std.Build) void {
     const target = oriel.resolveTarget(b, b.standardTargetOptions(.{}));
     const optimize = b.standardOptimizeOption(.{});
-    const app_version = b.option([]const u8, "app_version", "Version embedded in release packages") orelse "0.1.5";
+    const app_version = b.option([]const u8, "app_version", "Version embedded in release packages") orelse "0.1.6";
 
     const dep = b.dependency("oriel", .{
         .target = target,
