@@ -32,16 +32,9 @@ fn notifyUpdated() void {
 }
 
 fn getDbPath(alloc: std.mem.Allocator) ![:0]const u8 {
-    // Android: the app's files dir itself, where earlier releases kept it.
-    // (store.dataDir is <filesDir>/<app id> there: moving would orphan data.)
-    if (builtin.abi.isAndroid()) {
-        if (oriel.android.paths.filesDir()) |fdir| {
-            const p = try std.fs.path.join(alloc, &.{ fdir, "pantry.db" });
-            return try alloc.dupeZ(u8, p);
-        }
-    }
-    const base_dir = oriel.store.dataDir(alloc, "GhostPantry") catch ".";
-    std.Io.Dir.cwd().createDirPath(io, base_dir) catch {};
+    // The app's private data dir (Android: the files dir itself, where
+    // earlier releases kept it), created if missing.
+    const base_dir = try oriel.paths.appData(alloc, .{ .name = "GhostPantry" });
     const db_path = try std.fs.path.join(alloc, &.{ base_dir, "pantry.db" });
     return try alloc.dupeZ(u8, db_path);
 }

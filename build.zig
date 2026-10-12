@@ -53,6 +53,9 @@ pub fn build(b: *std.Build) void {
                 .class = "dev.ghostpantry.EmbeddingGemmaExtension",
                 .sources = &.{ b.path("android/native/EmbeddingGemmaExtension.kt"), b.path("android/native/EmbeddingMath.kt"), b.path("android/native/EmbeddingCache.kt"), b.path("android/native/EmbeddingFeedback.kt"), b.path("android/native/PantryDetector.kt"), b.path("android/native/YoloePackageMath.kt"), b.path("android/native/YoloePackageDetector.kt") },
                 .dependencies = &.{ "com.google.ai.edge.litertlm:litertlm-android:0.18.0", "com.microsoft.onnxruntime:onnxruntime-android:1.30.0" },
+                // The YOLOE detectors (gzipped ONNX, AGPL: YOLOE-LICENSE),
+                // read from the APK's assets/detectors.
+                .assets = &.{.{ .from = b.path("android/native/detectors"), .to = "detectors" }},
             },
             // Cancel and status answer while a long match or detection runs
             // (the extension serializes the rest itself and reports busy).

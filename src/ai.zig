@@ -1,5 +1,4 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const oriel = @import("oriel");
 
 pub const VisionItem = struct {
@@ -162,14 +161,6 @@ pub fn fetchAvailableModels(
 
     var client: std.http.Client = .{ .allocator = gpa, .io = io };
     defer client.deinit();
-
-    // Android has no /etc/resolv.conf: open the connection through bionic's
-    // resolver first (std.http.Client alone fails with NameServerFailure).
-    if (builtin.abi.isAndroid()) {
-        if (std.Uri.parse(endpoint_url)) |uri| {
-            oriel.android.preconnect(&client, uri) catch {};
-        } else |_| {}
-    }
 
     const auth_header: ?[]const u8 = if (api_key) |k| (if (k.len > 0) try std.fmt.allocPrint(arena, "Bearer {s}", .{k}) else null) else null;
 
@@ -346,13 +337,6 @@ pub fn analyzePantryImage(
 
     var client: std.http.Client = .{ .allocator = gpa, .io = io };
     defer client.deinit();
-
-    // Android: open the connection through bionic's resolver first.
-    if (builtin.abi.isAndroid()) {
-        if (std.Uri.parse(endpoint_url)) |uri| {
-            oriel.android.preconnect(&client, uri) catch {};
-        } else |_| {}
-    }
 
     const auth_header: ?[]const u8 = if (cfg.apiKey.len > 0)
         try std.fmt.allocPrint(arena, "Bearer {s}", .{cfg.apiKey})

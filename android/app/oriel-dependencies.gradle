@@ -4,3 +4,5 @@ dependencies {
     add("implementation", "com.google.ai.edge.litertlm:litertlm-android:0.18.0")
     add("implementation", "com.microsoft.onnxruntime:onnxruntime-android:1.30.0")
 }
+// Oriel's runtime data and app extensions' assets (an older project's build.gradle.kts doesn't add them).
+android.sourceSets.main.assets.srcDirs += ["../../zig-out/android-assets"]

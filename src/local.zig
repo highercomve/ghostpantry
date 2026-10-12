@@ -97,16 +97,9 @@ fn repoUrl(arena: std.mem.Allocator, repo: []const u8, revision: []const u8, fil
     return std.fmt.allocPrint(arena, "https://huggingface.co/{s}/resolve/{s}/{s}", .{ repo, revision, file });
 }
 
-/// `<files dir>/models` on Android, `<data dir>/GhostPantry/models` elsewhere.
+/// `models` in the app's private data dir (Android: the files dir).
 pub fn modelsDir(alloc: std.mem.Allocator) ![]const u8 {
-    // Android: the app's files dir itself, where earlier releases kept it.
-    // (store.dataDir is <filesDir>/<app id> there: moving would orphan data.)
-    if (builtin.abi.isAndroid()) {
-        if (oriel.android.paths.filesDir()) |fdir| {
-            return try std.fs.path.join(alloc, &.{ fdir, "models" });
-        }
-    }
-    const base = try oriel.store.dataDir(alloc, "GhostPantry");
+    const base = try oriel.paths.appData(alloc, .{ .name = "GhostPantry" });
     return try std.fs.path.join(alloc, &.{ base, "models" });
 }
 
@@ -605,7 +598,6 @@ fn fetchAttempt(e: Entry, name: []const u8, url: []const u8, expected: u64) !boo
     var hops: u8 = 0;
     while (true) : (hops += 1) {
         if (hops == 6) return error.TooManyHttpRedirects;
-        if (builtin.abi.isAndroid()) try oriel.android.preconnect(&client, uri);
         var range_buf: [64]u8 = undefined;
         const extra_headers: []const std.http.Header = if (have > 0) blk: {
             const range = try std.fmt.bufPrint(&range_buf, "bytes={d}-", .{have});
