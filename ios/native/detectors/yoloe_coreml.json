@@ -1,0 +1,65 @@
+{
+  "input_size": 640,
+  "stride": 32,
+  "dynamic_shape": false,
+  "tile_fraction": 0.65,
+  "nms_iou": 0.3,
+  "default_threshold": 0.1,
+  "source_sha256": "1741c1f8da3cea47e2c01829c334a50dc0b9bbd05e685b90a3ce84fae32c8c1b",
+  "ultralytics": "8.4.174",
+  "torch": "2.7.0",
+  "coremltools": "9.0",
+  "license": "AGPL-3.0",
+  "profiles": [
+    {
+      "name": "yoloe_packages_whole",
+      "prompts": [
+        "bag of pasta",
+        "bag of rice",
+        "packet of instant noodles",
+        "box of pasta",
+        "glass jar",
+        "plastic bottle",
+        "milk carton"
+      ],
+      "input": "image",
+      "output": "var_1521",
+      "output_format": "cxcywh_class_probabilities_masks",
+      "head": "one-to-many",
+      "file": "yoloe_packages_whole.mlmodelc",
+      "sha256": "41605aeb1f8aa85552621da4a693d1f0f487ebdc6ade157ee1e693ac6fc4793b"
+    },
+    {
+      "name": "yoloe_packages_tiles",
+      "prompts": [
+        "plastic food bag",
+        "cardboard food box",
+        "food pouch",
+        "glass jar",
+        "plastic bottle",
+        "milk carton"
+      ],
+      "input": "image",
+      "output": "var_1521",
+      "output_format": "cxcywh_class_probabilities_masks",
+      "head": "one-to-many",
+      "file": "yoloe_packages_tiles.mlmodelc",
+      "sha256": "582f07abe570b0148117986f6e2ffc5a4fb60a9726f86409df6b1e09c21f88c8"
+    },
+    {
+      "name": "yoloe_produce",
+      "prompts": [
+        "fruit",
+        "vegetable",
+        "avocado",
+        "mushroom"
+      ],
+      "input": "image",
+      "output": "var_1521",
+      "output_format": "cxcywh_class_probabilities_masks",
+      "head": "one-to-many",
+      "file": "yoloe_produce.mlmodelc",
+      "sha256": "b4b188b9d36ece8d9f4e6c9273848637dad719ea66d50d8032caa8c0e60a6281"
+    }
+  ]
+}

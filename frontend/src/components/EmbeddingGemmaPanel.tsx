@@ -20,6 +20,8 @@ export function EmbeddingGemmaPanel({
   const [status, setStatus] = useState<Status | null>(null);
   const [backendChoice, setBackendChoice] = useState<"cpu" | "gpu">("cpu");
   const backend = selectedBackend || backendChoice;
+  // The size this device downloads (each platform has its own model).
+  const totalMB = Math.round((status?.total_bytes || 0) / 1000000);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pending = useRef(false);
@@ -107,7 +109,7 @@ export function EmbeddingGemmaPanel({
                 ? "Ready to match"
                 : "Model status"}
         </strong>
-        <p>{status?.message || "Open the Android app to check this device."}</p>
+        <p>{status?.message || "Open the phone app to check this device."}</p>
         {status?.device && (
           <small className="text-muted">{status.device}</small>
         )}
@@ -120,7 +122,7 @@ export function EmbeddingGemmaPanel({
             aria-label="Model download progress"
           />
           <small>
-            {((status?.bytes_downloaded || 0) / 1000000).toFixed(1)} / 388 MB ·
+            {((status?.bytes_downloaded || 0) / 1000000).toFixed(1)} / {totalMB} MB ·
             Keep the app open
           </small>
         </div>
@@ -140,7 +142,7 @@ export function EmbeddingGemmaPanel({
           >
             {status?.bytes_downloaded
               ? "Resume model download"
-              : "Download model · 388 MB"}
+              : `Download model · ${totalMB} MB`}
           </button>
         )}
         {downloading && (
@@ -189,8 +191,9 @@ export function EmbeddingGemmaPanel({
               ))}
             </div>
             <small className="text-muted">
-              Start with CPU on Pixel 8 or Pixel 10. GPU support is checked when
-              you test it.
+              {status?.device?.includes("Android")
+                ? "Start with CPU on Pixel 8 or Pixel 10. GPU support is checked when you test it."
+                : "Start with CPU. GPU support is checked when you test it."}
             </small>
           </div>
           <div className="embedding-actions">

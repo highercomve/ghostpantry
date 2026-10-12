@@ -10,5 +10,5 @@
             .hash = "oriel-0.10.0-K1NO5RJz6gDkBWwKs44OVf5CtHgtIJMafSMiBhBhj8Kl",
         },
     },
-    .paths = .{ "build.zig", "build.zig.zon", "src", "frontend", "icon.png", "android/native", "README.md", "vendor", "LICENSE" },
+    .paths = .{ "build.zig", "build.zig.zon", "src", "frontend", "icon.png", "android/native", "ios/native", "README.md", "vendor", "LICENSE" },
 }

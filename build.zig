@@ -44,9 +44,10 @@ pub fn build(b: *std.Build) void {
             .summary = "AI-powered Fridge and Food Pantry Inventory Manager",
             .version = app_version,
         },
-        // Fast local matching (EmbeddingGemma + YOLOE), the app's own native
-        // code. Android only for now: elsewhere `available()` is false and
-        // the UI hides the provider.
+        // Fast local matching, the app's own native code: YOLOE plus
+        // EmbeddingGemma 2 on Android, YOLOE (CoreML) plus Apple's
+        // MobileCLIP-S2 on iOS. Elsewhere `available()` is false and the UI
+        // hides the provider.
         .extensions = &.{.{
             .name = "pantry.vision",
             .android = .{
@@ -56,6 +57,17 @@ pub fn build(b: *std.Build) void {
                 // The YOLOE detectors (gzipped ONNX, AGPL: YOLOE-LICENSE),
                 // read from the APK's assets/detectors.
                 .assets = &.{.{ .from = b.path("android/native/detectors"), .to = "detectors" }},
+            },
+            // Swift raises the app's minimum to iOS 18. MobileCLIP-S2 is
+            // downloaded at run time (apple-ascl licence); CLIP's BPE merges
+            // ship in the bundle, and so will the YOLOE CoreML detectors
+            // (scripts/export_yoloe_coreml.py, a pinned release asset) once
+            // Oriel's .ios.resources takes a dependency's path.
+            .ios = .{
+                .class = "PantryVisionExtension",
+                .swift_sources = &.{ b.path("ios/native/PantryVisionExtension.swift"), b.path("ios/native/MobileClip.swift"), b.path("ios/native/ClipTokenizer.swift"), b.path("ios/native/YoloeDetector.swift"), b.path("ios/native/EmbeddingStore.swift") },
+                .frameworks = &.{ "CoreML", "CoreGraphics", "CoreVideo", "ImageIO", "CryptoKit" },
+                .resources = &.{b.path("ios/native/resources/clip")},
             },
             // Cancel and status answer while a long match or detection runs
             // (the extension serializes the rest itself and reports busy).

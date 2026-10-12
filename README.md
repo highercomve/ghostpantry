@@ -95,14 +95,17 @@ Select **System AI** in Settings (Android and iOS builds only; desktops don't sh
 
 A failed support check is shown separately from an unavailable model and can be retried. The app never silently sends a system-AI photo to a cloud provider. See [Google’s setup and capability API](https://developers.google.com/ml-kit/genai/prompt/android/get-started).
 
-### Fast local scan (YOLOE + EmbeddingGemma 2)
+### Fast local scan (YOLOE + EmbeddingGemma 2 or MobileCLIP)
 
-**Fast local** is the default provider on Android, the only platform that has it
-so far (desktop and iOS builds hide it and start with the local LLM). YOLOE scans packages, jars and cartons,
-then loose fruit and vegetables. It merges overlapping boxes before
-EmbeddingGemma 2 matches each crop against your saved food labels. The three
-fixed-prompt YOLOE profiles are bundled; the 388 MB matching model downloads once
-and works offline. Gemma 4 is a separate optional local LLM, not the fast matcher.
+**Fast local** is the default provider on Android, and comes to iOS with the
+`fast-mode-apple` work (desktop builds hide it and start with the local LLM).
+YOLOE scans packages, jars and cartons, then loose fruit and vegetables. It
+merges overlapping boxes before an image-and-text model matches each crop
+against your saved food labels: EmbeddingGemma 2 on Android (388 MB), Apple's
+MobileCLIP-S2 on iOS (199 MB, CoreML, CPU or GPU and Neural Engine). The three
+fixed-prompt YOLOE profiles are bundled (ONNX on Android, CoreML on iOS); the
+matching model downloads once and works offline. Gemma 4 is a separate optional
+local LLM, not the fast matcher.
 
 Choose each crop's product and **Add to final review**. Matching products are
 grouped: three distinct avocado crops become one row with quantity three.
@@ -232,8 +235,20 @@ GhostPantry writes no platform glue of its own; platform features come from Orie
   `oriel.extensions.get("pantry.vision").call(...)`, the method being the
   operation (status, download, cancel, prepare, detect, match, feedback,
   clear_feedback, release, delete) and the input JSON. The extension releases
-  its engine on critical memory pressure (`onLifecycle`). There is no iOS or
-  desktop implementation yet, so there `available()` is false, the `capabilities`
+  its engine on critical memory pressure (`onLifecycle`).
+  On iOS the same extension is Swift in `ios/native/` (`PantryVisionExtension`,
+  the same methods, JSON and replies): YOLOE as CoreML models exported by
+  `scripts/export_yoloe_coreml.py` (fixed 640x640 input; scores match the ONNX
+  models) and shipped as the release asset `yoloe-coreml.tar.gz`, whose manifest
+  and checksums are `ios/native/detectors/yoloe_coreml.json`
+  (`python3 scripts/verify-detectors.py yoloe-coreml.tar.gz`); MobileCLIP-S2
+  downloaded once from `apple/coreml-mobileclip` at a pinned revision, each file
+  checked by SHA-256 and compiled on the device; CLIP's BPE merges in
+  `ios/native/resources/clip`. Label vectors and corrections are stored per
+  model, so MobileCLIP's never mix with EmbeddingGemma's. Licences:
+  `ios/native/detectors/LICENSES.md` (YOLOE AGPL-3.0, MobileCLIP Apple Sample
+  Code License `apple-ascl`, CLIP merges MIT). There is no desktop
+  implementation yet, so there `available()` is false, the `capabilities`
   command reports it, and the UI hides the provider.
 
 Oriel copies the Kotlin sources and regenerates the registration on each Android

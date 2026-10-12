@@ -76,7 +76,7 @@ fn request(comptime Reply: type, arena: std.mem.Allocator, operation: []const u8
         .timeout_ms = if (quick) quick_timeout_ms else slow_timeout_ms,
         .diag = &diag,
     }) catch |err| switch (err) {
-        error.ExtensionFailed => return oriel.ipc.fail("EmbeddingGemma: {s}", .{diag.message()}),
+        error.ExtensionFailed => return oriel.ipc.fail("Fast local: {s}", .{diag.message()}),
         else => return oriel.ipc.fail("Image matching could not run ({s}).", .{@errorName(err)}),
     };
     return std.json.parseFromSliceLeaky(Reply, arena, raw, .{ .ignore_unknown_fields = true });
