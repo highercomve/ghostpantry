@@ -27,3 +27,5 @@ Production access requires a closed test with at least 12 opted-in testers for a
   The version code and name live in android/app/build.gradle.kts, which Oriel writes once and keeps: bump them there for every release (0.1.4 was still built as 103).
 
 - Release 0.1.6 (version code 106): built on Oriel 0.11.0. Fast local now also runs on iOS (YOLOE on CoreML plus Apple's MobileCLIP-S2, its model downloaded in the background through Oriel's platform hooks), and GitHub releases carry the iOS app (an unsigned .ipa and the simulator build). Android: Oriel 0.10/0.11 moved photo capture, the device's system AI and app paths into Oriel, with no app-side Android glue left. GitHub release: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.6
+
+- Release 0.1.7 (version code 107): built on Oriel 0.12.1, which keeps one API per feature; GhostPantry's app setup, events and Android hooks moved to it. No change in what the app does. GitHub release: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.7
