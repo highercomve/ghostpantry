@@ -1204,7 +1204,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </form>
 
       <p className="text-muted small"><button type="button" className="btn"
-        onClick={() => void openExternal("https://highercomve.github.io/ghostpantry/privacy/")}>
+        onClick={() => void openExternal("https://ghostpantry.foreachdeveloper.com/privacy/")}>
         Privacy policy
       </button></p>
 

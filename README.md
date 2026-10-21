@@ -6,6 +6,8 @@
 
 AI-powered home food inventory manager built with **[Oriel](https://github.com/highercomve/Oriel)** (Zig + SQLite + Webview) and **React + TypeScript**.
 
+**Website:** [ghostpantry.foreachdeveloper.com](https://ghostpantry.foreachdeveloper.com) · [Privacy policy](https://ghostpantry.foreachdeveloper.com/privacy/)
+
 GhostPantry lets you snap pictures of your refrigerator and food pantry to automatically detect items, estimate usage/fill levels (e.g. *Harina Pan at half usage*, *Milk carton at 20%*), maintain your stock in local SQLite, and compare against your desired target amounts to automatically generate restock shopping lists.
 
 ---

@@ -4,8 +4,8 @@
 - Initial internal release: 0.1.0 (version code 100), published 2026-10-07.
 - GitHub preview: https://github.com/highercomve/ghostpantry/releases/tag/v0.1.0
 - Closed Alpha: version 100 submitted for review on 2026-10-07; Chile, GhostPantry owner tester list.
-- Website: https://highercomve.github.io/ghostpantry/
-- Privacy: https://highercomve.github.io/ghostpantry/privacy/
+- Website: https://ghostpantry.foreachdeveloper.com/
+- Privacy: https://ghostpantry.foreachdeveloper.com/privacy/
 - Internal test opt-in: https://play.google.com/apps/internaltest/4701720946126812699
 
 The listing text is in listing.md. Assets include the 512 px icon, 1024 × 500 feature graphic, and native Android emulator screenshots at 1080 × 1920.

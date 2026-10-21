@@ -19,5 +19,5 @@ No GhostPantry account, advertising or analytics. Your inventory is stored on yo
 
 Category: Food & Drink
 Support: sergio.alejandro.mz@gmail.com
-Website: https://highercomve.github.io/ghostpantry/
-Privacy: https://highercomve.github.io/ghostpantry/privacy/
+Website: https://ghostpantry.foreachdeveloper.com/
+Privacy: https://ghostpantry.foreachdeveloper.com/privacy/
